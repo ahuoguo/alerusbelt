@@ -26,8 +26,8 @@
 
     This is the full typing-layer version: the closed expression is
     given a [typed_body] derivation under input tctx
-    [+[#l ◁ ↯_T (1/2)]], and bridged to pgl via
-    [type_soundness_credit] (soundness.v).  The credit's path-witness
+    [+[#l ◁ ↯_T (1/2)]], and bridged to an operational safety bound
+    via [type_soundness_credit] (soundness.v).  The credit's path-witness
     handle [#l] (a typing-layer artifact, see [rand_ubig.v] header)
     is generated inside the soundness proof. *)
 
@@ -324,16 +324,39 @@ Section flip.
 End flip.
 
 (** [coin_flip_safe]: with [↯_T (1/2)] in the input tctx, the
-    program is safe.  Conclusion is [pgl ... ... (1/2)] — the
-    typing-layer machinery threads the [1/2] credit budget through
-    to the operational pgl bound. *)
+    typing-layer machinery threads the [1/2] credit budget through to
+    the operational safety-mass bound
+    [SeriesC (pexec n (coin_flip, σ)) >= 1/2].
+
+    The bound is *tight* here: the tails branch really does load from
+    the poison literal [#☠] and get stuck, which happens with
+    probability exactly [1/2].  The [↯ 1] refund on that branch is
+    what lets the WP be proved at all; it buys exactly the [1/2] of
+    missing mass that the bound allows. *)
 Theorem coin_flip_safe `{!typePreG Σ}
     (σ : language.state lrust_prob_lang) (n : nat) :
   (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
-  pgl (exec n (coin_flip, σ)) (λ _, True) (1/2)%R.
+  (SeriesC (pexec n (coin_flip, σ)) >= 1/2)%R.
 Proof.
   intros Hσ.
+  cut (SeriesC (pexec n (coin_flip, σ)) >= 1 - 1/2)%R; [lra|].
   apply (type_soundness_credit (𝔅 := unitₛ)
+           (λ _ _ _, True%type) (λ _ _, True%type) (1/2)%R coin_flip σ n Hσ).
+  - split; lra.
+  - intros _. done.
+  - intros HtypeG HcnaInv l. iApply coin_flip_typed.
+Qed.
+
+Corollary coin_flip_not_stuck `{!typePreG Σ}
+    (σ : language.state lrust_prob_lang) (n : nat) :
+  (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
+  (probp (pexec n (coin_flip, σ)) (λ ρ, is_final ρ ∨ reducible ρ)
+     >= 1/2)%R.
+Proof.
+  intros Hσ.
+  cut (probp (pexec n (coin_flip, σ)) (λ ρ, is_final ρ ∨ reducible ρ)
+         >= 1 - 1/2)%R; [lra|].
+  apply (type_soundness_credit_not_stuck (𝔅 := unitₛ)
            (λ _ _ _, True%type) (λ _ _, True%type) (1/2)%R coin_flip σ n Hσ).
   - split; lra.
   - intros _. done.
