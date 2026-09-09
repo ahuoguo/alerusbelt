@@ -67,6 +67,7 @@ src/lambda_verus/lang/notation.v
 src/lambda_verus/lang/proofmode.v
 src/lambda_verus/lang/tactics.v
 src/lambda_verus/lang/time.v
+src/lambda_verus/lang/distribution_adequacy.v
 src/lambda_verus/lang/lib/new_delete.v
 src/lambda_verus/lang/lib/memcpy.v
 
