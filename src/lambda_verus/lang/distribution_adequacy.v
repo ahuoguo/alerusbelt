@@ -35,6 +35,29 @@ Proof.
   pose proof (SeriesC_const0 _ Hnn (SeriesC_correct' _ _ Hzero Hex) a). lra.
 Qed.
 
+Lemma pgl_neq_pointwise `{Countable A} (D : distr A) (a : A) (r : R) :
+  pgl D (λ b, a ≠ b) r → (D a <= r)%R.
+Proof.
+  rewrite /pgl /prob. intros Hpgl.
+  rewrite (SeriesC_ext _ (λ b, if bool_decide (a = b) then D b else 0%R))
+    in Hpgl; last first.
+  { intros b. do 2 case_bool_decide; naive_solver. }
+  rewrite (SeriesC_ext _ (λ b, if bool_decide (a = b) then D a else 0%R))
+    in Hpgl; last first.
+  { intros b. case_bool_decide; by subst. }
+  by rewrite SeriesC_singleton' in Hpgl.
+Qed.
+
+Lemma distribution_adequacy_of_pgl `{Countable A} (μ D : distr A) :
+  (∀ a, pgl D (λ b, a ≠ b) (μ a)) →
+  (SeriesC D >= 1)%R →
+  SeriesC μ = 1%R ∧ ∀ a, D a = μ a.
+Proof.
+  intros Hpgl Hmass.
+  apply distr_le_full_mass_eq; [|done].
+  intros a. by apply pgl_neq_pointwise.
+Qed.
+
 Section distribution_adequacy.
   Set Default Proof Using "Type*".
 
@@ -84,24 +107,6 @@ Section distribution_adequacy.
     by apply (μ_pgl (Σ := Σ)).
   Qed.
 
-  Lemma lim_exec_le_μ `{!lrustErisGpreS Σ} (σ : language.state lrust_prob_lang) (v : val) :
-    (∀ l ls w, σ !! l = Some (ls, w) → ls = RSt 0%nat) →
-    (lim_exec (μ_impl, σ) v <= μ v)%R.
-  Proof.
-    intros Hσ.
-    pose proof (μ_pgl_lim (Σ := Σ) σ v Hσ) as Hpgl.
-    rewrite /pgl /prob in Hpgl.
-    rewrite (SeriesC_ext _ (λ w, if bool_decide (v = w)
-                                 then lim_exec (μ_impl, σ) w else 0%R))
-      in Hpgl; last first.
-    { intros w. do 2 case_bool_decide; naive_solver. }
-    rewrite (SeriesC_ext _ (λ w, if bool_decide (v = w)
-                                 then lim_exec (μ_impl, σ) v else 0%R))
-      in Hpgl; last first.
-    { intros w. case_bool_decide; by subst. }
-    by rewrite SeriesC_singleton' in Hpgl.
-  Qed.
-
   Theorem μ_impl_is_μ `{!lrustErisGpreS Σ} (σ : language.state lrust_prob_lang) :
     (∀ l ls w, σ !! l = Some (ls, w) → ls = RSt 0%nat) →
     (* OBSERVE: externally we know the program returns a value with probability 1 *)
@@ -109,8 +114,8 @@ Section distribution_adequacy.
     SeriesC μ = 1%R ∧ ∀ v, lim_exec (μ_impl, σ) v = μ v.
   Proof.
     intros Hσ Hterm.
-    apply distr_le_full_mass_eq.
-    - intros v. by apply (lim_exec_le_μ (Σ := Σ)).
+    apply distribution_adequacy_of_pgl.
+    - intros v. by apply (μ_pgl_lim (Σ := Σ)).
     - apply Rle_ge, Req_le. symmetry. exact Hterm.
   Qed.
 
