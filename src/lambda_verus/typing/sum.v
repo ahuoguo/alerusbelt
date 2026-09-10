@@ -12,13 +12,8 @@ Notation max_ty_size := (max_hlist_with (λ _, ty_size)).
 Section sum.
   Context `{!typeG Σ}.
         
-  Lemma length_pad l n : length (pad l n) = n.
-  Proof.
-    unfold pad. case_decide; simpl.
-      - rewrite length_take; lia.
-      - rewrite length_app. rewrite repeat_length. lia.
-  Qed.
-  
+  (* [length_pad] moved to syn_type.v (next to [pad]). *)
+
   Lemma pad_cons (v: fancy_val) (l: list fancy_val) (n: nat)
       : pad (v :: l) (S n) = v :: pad l n.
   Proof.
@@ -26,15 +21,7 @@ Section sum.
      - simpl in H. lia. - simpl in H. lia.
   Qed.
 
-  Lemma pad_length l : (pad l (length l)) = l.
-  Proof.
-    unfold pad. case_decide; simpl.
-    - by rewrite firstn_all.
-    - rewrite Nat.sub_diag /= app_nil_r //.
-  Qed.
-
-  Lemma pad_length' l n : n = length l → (pad l n) = l.
-  Proof. move => ->. by rewrite pad_length. Qed.
+  (* [pad_length] / [pad_length'] moved to syn_type.v. *)
 
   Lemma all_concrete_pad l n : all_concrete l → all_concrete (pad l n).
   Proof.
@@ -82,10 +69,11 @@ Section sum.
     replace x with (of_xsum (to_xsum x)) at 1; last by rewrite semi_iso'.
     refine (match (to_xsum x) with | xinj i x0 => _ end).
     simpl. rewrite psum_map1_pinj. rewrite to_xsum_pinj.
-      - f_equal. f_equal. f_equal. apply ty_phys_eq2.
-          + f_equal. clear tid. clear x0. clear i. clear pad. clear x. induction 𝔄l.
-            * dependent destruction tyl. trivial.
-            * dependent destruction tyl. simpl. rewrite <- ty_size_eq2. f_equal. apply IH𝔄l.
+    f_equal.
+    - do 2 f_equal. apply ty_phys_eq2.
+    - f_equal. clear tid. clear x0. clear i. clear pad. clear x. induction 𝔄l.
+      + dependent destruction tyl. trivial.
+      + dependent destruction tyl. simpl. rewrite <- ty_size_eq2. f_equal. apply IH𝔄l.
   Qed.
   Next Obligation.
     intros 𝔄l tyl d g d' g' [x pad] tid H1 H2. simpl.
@@ -97,16 +85,7 @@ Section sum.
     refine (match (to_xsum x) with | xinj i x0 => _ end).
     apply ty_gho_pers_depth_mono; trivial.
   Qed.
-  Next Obligation.
-    intros 𝔄l tyl κ [x pad] n d g tid ξ R. simpl.
-    move=> Hin. replace x with (of_xsum (to_xsum x)) in Hin; last by rewrite semi_iso'. move: Hin.
-    refine (match (to_xsum x) with | xinj i x0 => _ end).
-    intros Hin. simpl in Hin. rewrite psum_map1_pinj in Hin. rewrite to_xsum_pinj in Hin.
-    iIntros "#LFT #Incl #Pers".
-    iApply ty_guard_proph; trivial.
-    iApply (guards_transitive with "Incl []").
-    iApply lft_intersect_tyl_lfts_lookup_incl.
-  Qed.
+  (* [ty_guard_proph] obligation elided: prophecy stripped. *)
   Next Obligation.
     intros 𝔄l tyl [x pad] d g tid.
     refine (match (to_xsum x) with | xinj i x0 => _ end).
@@ -270,8 +249,9 @@ Section typing.
   Proof.
     move=> ?. have Send: ∀i, Send (hlookup tyl i).
     { move=> *. by apply TCHForall_lookup. }
+    (* [send_change_tid] field elided: prophecy stripped. *)
     split.
-     - intros tid tid' x x'. 
+       intros tid tid' x x'. 
        destruct x as [x pad]. destruct x' as [x' pad'].
        unfold ty_gho, ty_phys, ty_gho_pers, xsum_ty.
        intros Ha. replace x with (of_xsum (to_xsum x)) in Ha.
@@ -285,17 +265,6 @@ Section typing.
        inversion Hb. subst pad'. have H1 := pinj_inj _ _ _ _ H0.
        destruct H1 as [-> JM]. f_equal. f_equal. f_equal.
        apply send_change_tid_phys. apply JMeq_eq. trivial.
-    - iIntros (tid tid' x d g G H κs d0 Hineq TG TH) "LFT UNIQ TIME Hg H Gg G Gho ⧖".
-      destruct x as [x pad]. replace x with (of_xsum (to_xsum x)).
-        2: { apply semi_iso'. typeclasses eauto. }
-      refine (match (to_xsum x) with | xinj i x0 => _ end).
-      unfold ty_gho, xsum_ty. rewrite semi_iso'.
-      iDestruct (@send_change_tid _ _ (𝔄l !!ₗ i) (tyl +!! i) (Send i) tid tid' x0 d g G H κs d0 with "LFT UNIQ TIME Hg H Gg G Gho ⧖") as "X". { trivial. }
-      iApply (step_fupdN_wand with "X"). iIntros ">X".
-      iDestruct "X" as (x0' off) "(gho & ⧖off & %Habs & G & H)".
-      iModIntro. iExists (of_xsum (xinj i x0'), pad), off.
-      rewrite semi_iso'. iFrame. iPureIntro. 
-      simpl. do 2 (rewrite psum_map1_pinj). rewrite Habs. trivial.
   Qed.
   
   Global Instance xsum_sync {𝔄l} (tyl: typel 𝔄l) : ListSync tyl → Sync (Σ! tyl).
@@ -311,21 +280,7 @@ Section typing.
     split; last split; trivial.
   Qed.
 
-  Lemma xsum_resolve {𝔄l} E L (tyl: typel 𝔄l) Φl :
-    resolvel E L tyl Φl →
-    resolve E L (Σ! tyl) (λ s, let 'xinj i x := to_xsum (s.1) in (Φl -!! i) x).
-  Proof.
-    iIntros (Rslv G vπ [x pad] ??? Ti Ma) "#LFT #PROPH #E #L G T".
-    unfold ty_gho, xsum_ty.
-    refine (match (to_xsum x) with | xinj i x0 => _ end).
-    eapply HForall_1_lookup in Rslv.
-    instantiate (1 := i) in Rslv.
-    iApply (Rslv with "[] [] [] [] G T"); trivial.
-  Qed.
-
-  Lemma xsum_resolve_just {𝔄l} E L (tyl: typel 𝔄l) :
-    HForall (λ _ ty, resolve E L ty (const (const True))) tyl → resolve E L (Σ! tyl) (const (const True)).
-  Proof. move=> ?. apply resolve_just. Qed.
+  (* [xsum_resolve] / [xsum_resolve_just] removed along with [resolve]. *)
 
   Lemma psum_map_p2lookup_pinj {𝔄l 𝔅l} {F G}
       (f : ∀ 𝔄 𝔅, F 𝔄 𝔅 → G 𝔄 → G 𝔅)
@@ -430,6 +385,4 @@ Section typing.
   
 End typing.
 
-Global Hint Resolve xsum_resolve | 5 : lrust_typing.
-Global Hint Resolve xsum_resolve_just xsum_subtype xsum_eqtype
-  : lrust_typing.
+Global Hint Resolve xsum_subtype xsum_eqtype : lrust_typing.

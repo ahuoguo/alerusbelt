@@ -43,26 +43,7 @@ Section shr_bor.
     iApply ty_gho_pers_depth_mono; last by iFrame "Pers".
     { lia. } { trivial. }
   Qed.
-  Next Obligation.
-    intros 𝔄 κ ty κ0 x n d g tid ξ R Hin.
-    iIntros "LFT #Incl #Gho".
-    destruct d.
-    + simpl. iExFalso. done.
-    + simpl.
-      iDestruct "Gho" as "[Phys [Gho #InnerPers]]".
-      iDestruct (ty_guard_proph 𝔄 ty κ0 (snd x) (n + g + 1) d g tid ξ R with "LFT [] InnerPers") as "InnerGuardProph". { trivial. }
-      { iApply (llftl_incl_trans with "Incl []"). iApply llftl_intersect_incl_r. }
-      rewrite <- bi.laterN_add. iNext.
-      iIntros "#Rk #Rg".
-      replace (n + (g + 1 + d * (g + 1))) with (n + g + 1 + d * (g + 1)); last by lia.
-      iApply "InnerGuardProph".
-      - leaf_goal laters to n. { lia. } iApply "Rk".
-      - replace (n + g + 1) with (n + (g + 1)) by lia.
-        iApply (guards_transitive_additive with "Rk []").
-        iApply (guards_transitive_right with "Incl []").
-        iApply (guards_transitive_right with "[] Gho").
-        iApply llftl_intersect_incl_l.
-  Qed.
+  (* [st_guard_proph] obligation elided: prophecy stripped. *)
   Next Obligation. done. Qed.
   
   Global Instance shr_ne {𝔄} κ : NonExpansive (@shr_bor 𝔄 κ).
@@ -106,22 +87,9 @@ Section typing.
 
   Global Instance shr_send {𝔄} κ (ty: type 𝔄) : Sync ty → Send (&shr{κ} ty).
   Proof.
-    intros Hsync. 
-    split.
-    - destruct x, x'. intros Ha. inversion Ha. trivial.
-    - intros tid tid' x d g. destruct d as [|d]. { iIntros. contradiction. }
-      have Ha := (Hsync tid tid' (snd x) d g).
-      destruct Ha as [Hphys [Hgho Hghopers]].
-      iIntros (G H κs d0 Hineq TG TH) "#LFT #UNIQ #TIME Hg H Gg G A ⧖o". 
-      iDestruct "A" as "[#Hgho [#Hphys #Hpers]]". simpl.
-      iModIntro. iApply step_fupdN_intro; first by trivial. iModIntro. iModIntro.
-      iNext.
-      iModIntro. iExists x, 0.
-      iSplit; [iSplit; [|iSplit] | ].
-      + rewrite Hphys. done.
-      + rewrite Hgho. replace (d + 0) with d by lia. done.
-      + iNext. rewrite Hghopers. replace (d + 0) with d by lia. done.
-      + iFrame "G H". iSplit; last done. replace (d0 + 0) with d0 by lia. done.
+    intros Hsync. split.
+    (* [send_change_tid] field elided: prophecy stripped. *)
+    destruct x, x'. intros Ha. inversion Ha. trivial.
   Qed.
   
   Global Instance shr_sync {𝔄} κ (ty: type 𝔄) : Sync ty → Sync (&shr{κ} ty).
@@ -136,8 +104,7 @@ Section typing.
   Global Instance shr_just_loc {𝔄} κ (ty: type 𝔄) : JustLoc (&shr{κ} ty).
   Proof. iIntros (vπ d g tid) "A". by iExists _. Qed.
 
-  Lemma shr_resolve {𝔄} κ (ty: type 𝔄) E L : resolve E L (&shr{κ} ty) (const (const True)).
-  Proof. apply resolve_just. Qed.
+  (* [shr_resolve] removed along with [resolve]. *)
 
   Lemma shr_type_incl {𝔄 𝔅} κ κ' (f: 𝔄 →ₛ 𝔅) ty ty' :
     κ' ⊑ κ -∗ type_incl ty ty' f -∗ type_incl (&shr{κ} ty) (&shr{κ'} ty') (at_cloc_mapₛ f).
@@ -224,4 +191,4 @@ Section typing.
   Qed.
 End typing.
 
-Global Hint Resolve shr_resolve shr_subtype shr_eqtype read_shr : lrust_typing.
+Global Hint Resolve shr_subtype shr_eqtype read_shr : lrust_typing.

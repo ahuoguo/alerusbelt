@@ -529,12 +529,22 @@ Fixpoint syn_phys {𝔄} : (~~𝔄) → list fancy_val :=
   | namespaceₛ => λ x, []
   end.
       
-Local Lemma length_pad l n : length (pad l n) = n.
+Lemma length_pad l n : length (pad l n) = n.
 Proof.
   unfold pad. case_decide; simpl.
     - rewrite length_take; lia.
     - rewrite length_app. rewrite repeat_length. lia.
 Qed.
+
+Lemma pad_length l : pad l (length l) = l.
+Proof.
+  unfold pad. case_decide; simpl.
+  - by rewrite firstn_all.
+  - rewrite Nat.sub_diag /= app_nil_r //.
+Qed.
+
+Lemma pad_length' l n : n = length l → pad l n = l.
+Proof. move => ->. by rewrite pad_length. Qed.
 Lemma syn_phys_size_eq 𝔄 (x: ~~𝔄) : length (@syn_phys 𝔄 x) = size_of 𝔄.
   move: 𝔄 x. fix FIX 1. move=> 𝔄 x. destruct 𝔄; try (clear FIX; done).
   - destruct x. simpl. rewrite List.length_app. do 2 (rewrite FIX). clear FIX; trivial.
