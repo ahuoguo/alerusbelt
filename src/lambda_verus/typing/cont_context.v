@@ -74,23 +74,23 @@ Section cont_context.
   Proof. by rewrite cctx_interp_cons cctx_interp_nil right_id. Qed.
 
   Definition cctx_incl {𝔄} (E: elctx) (C C': cctx 𝔄) : Prop :=
-    ∀tid iκs postπ, llft_ctx -∗
+    ∀tid iκs postπ, llft_ctx -∗ uniq_ctx -∗
       elctx_interp E -∗ cctx_interp tid iκs postπ C -∗ cctx_interp tid iκs postπ C'.
 
   Global Instance cctx_incl_preorder {𝔄} E : PreOrder (@cctx_incl 𝔄 E).
   Proof.
-    split; [iIntros (????) "_ _ $"|].
-    iIntros (??? In In' ???) "#LFT #E ?".
-    iApply (In' with "LFT E"). by iApply (In with "LFT E").
+    split; [iIntros (????) "_ _ _ $"|].
+    iIntros (??? In In' ???) "#LFT #UNIQ #E ?".
+    iApply (In' with "LFT UNIQ E"). by iApply (In with "LFT UNIQ E").
   Qed.
 
   Lemma incl_cctx_incl {𝔄} E (C1 C2: cctx 𝔄) : C1 ⊆ C2 → cctx_incl E C2 C1.
   Proof.
-    iIntros (Sub ???) "_ _ C". iIntros (? In). move/Sub in In. by iApply "C".
+    iIntros (Sub ???) "_ _ _ C". iIntros (? In). move/Sub in In. by iApply "C".
   Qed.
 
   Lemma cctx_incl_nil {𝔄} E (C: cctx 𝔄) : cctx_incl E C [].
-  Proof. iIntros "%%% _ _ _ % %In". inversion In. Qed.
+  Proof. iIntros "%%% _ _ _ _ % %In". inversion In. Qed.
 
   Lemma cctx_incl_cons {𝔄 𝔄l} k L n (T T': vec val n → tctx 𝔄l) tr tr' (I: invctx) (C C': cctx 𝔄) E :
     cctx_incl E C C' → (∀vl, tctx_incl E L (T' vl) (T vl) tr') →
@@ -100,14 +100,14 @@ Section cont_context.
        [pgl_wp] ElimModal instance for [|={E}=>P] sometimes fails to be
        picked up automatically.  Workaround: weaken to a sufficient
        fact via [pgl_wp_fupd] explicitly. *)
-    iIntros (InC InT ???) "LFT E kC". rewrite !cctx_interp_cons. iSplit.
+    iIntros (InC InT ???) "LFT UNIQ E kC". rewrite !cctx_interp_cons. iSplit.
     - iDestruct "kC" as "[k _]". iIntros (vl xl mask) "L I T' Obs".
       iApply fupd_pgl_wp.
       iMod (llctx_interp_make_guarded with "L") as (γ) "[H1 [H2 [#guard #back]]]". { solve_ndisj. }
-      iMod (proj2 (InT _) with "LFT E guard H1 T' Obs") as (?) "(H1 & T & Obs)".
+      iMod (proj2 (InT _) with "LFT UNIQ E guard H1 T' Obs") as (?) "(H1 & T & Obs)".
       iDestruct ("back" with "H1 H2") as "back'". iMod (fupd_mask_mono with "back'") as "L". { solve_ndisj. }
       iModIntro. iApply ("k" with "L I T Obs").
-    - iDestruct "kC" as "[_ ?]". by iApply (InC with "LFT E").
+    - iDestruct "kC" as "[_ ?]". by iApply (InC with "LFT UNIQ E").
   Qed.
 End cont_context.
 

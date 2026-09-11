@@ -162,14 +162,14 @@ Section typing_rules.
     typed_instr E L I +[] e T' tr.
   Proof.
     iIntros (Hev Hnv Hinner tid post mask iκs []).
-    iIntros "#LFT #TIME #E_ HL Hinv _ %Hpre".
+    iIntros "#LFT #TIME #UNIQ #E_ HL Hinv _ %Hpre".
     iApply type_thin_air; first done.
     iIntros (ε Hε) "Hcr".
     iApply fupd_pgl_wp.
     iMod persistent_time_receipt_0 as "#⧖0".
     iModIntro.
     iApply (Hinner ε Hε tid post mask iκs -[(l, ())]
-            with "LFT TIME E_ HL Hinv [Hcr] [//]").
+            with "LFT TIME UNIQ E_ HL Hinv [Hcr] [//]").
     iSplit; last done.
     rewrite /tctx_elt_interp /=.
     iExists (LitV (LitLoc l)), 0%nat.
@@ -187,7 +187,7 @@ Section typing_rules.
     typed_instr E L I +[c ◁ ↯_T ε] e T' tr.
   Proof.
     iIntros (Hnv Hinner tid post mask iκs [[l []] []]).
-    iIntros "#LFT #TIME #E_ L_ Hinv Htctx %Hpre".
+    iIntros "#LFT #TIME #UNIQ #E_ L_ Hinv Htctx %Hpre".
     iDestruct "Htctx" as "[Tc _]".
     rewrite /tctx_elt_interp /=.
     iDestruct "Tc" as (v d Hev) "[#⧖d [Hcr %Hphys]]".
@@ -195,7 +195,7 @@ Section typing_rules.
     iFrame "Hcr".
     iIntros (ε' Hε') "Hcr'".
     iApply (Hinner ε' Hε' tid post mask iκs -[(l, ())]
-            with "LFT TIME E_ L_ Hinv [Hcr'] [//]").
+            with "LFT TIME UNIQ E_ L_ Hinv [Hcr'] [//]").
     rewrite /tctx_elt_interp /=.
     iSplit; last done.
     iExists v, d. iFrame "⧖d Hcr'". iSplit; done.
@@ -224,13 +224,13 @@ Section typing_rules.
       (λ post, tr (λ outs mask, post ((l, ()) -:: outs) mask)).
   Proof.
     iIntros (Hev Hnv Hinner tid post mask iκs xl).
-    iIntros "#LFT #TIME #E_ HL Hinv T %Hpre".
+    iIntros "#LFT #TIME #UNIQ #E_ HL Hinv T %Hpre".
     iApply pgl_wp_fupd.
     iApply wp_err_pos; first done.
     iIntros (ε Hε) "Hcr".
     iApply (pgl_wp_wand with "[HL Hinv T]").
     { iApply (Hinner tid (λ outs mask, post ((l, ()) -:: outs) mask)
-                    mask iκs xl with "LFT TIME E_ HL Hinv T [//]"). }
+                    mask iκs xl with "LFT TIME UNIQ E_ HL Hinv T [//]"). }
     iIntros (v) "(%xl' & HL & Hinv & Ht & %Hpost)".
     iMod persistent_time_receipt_0 as "#⧖0".
     iModIntro.
@@ -294,7 +294,7 @@ Section typing_rules.
           post -[(Z.of_nat n : Z); (l, ())] mask).
   Proof.
     iIntros (Hz Hb Hε tid post mask iκs [[l []] []]).
-    iIntros "_ _ _ $ $ T %Obs".
+    iIntros "_ _ _ _ $ $ T %Obs".
     iDestruct "T" as "[Tc _]".
     rewrite /tctx_elt_interp /=.
     iDestruct "Tc" as (v d Hev) "[#⧖d [Hcr %Hphys]]".
@@ -354,7 +354,7 @@ Section typing_rules.
     iIntros (Hz Hb Hε Hcle Hbody).
     iIntros (tid xl mask post iκs).
     destruct xl as [[lc []] cl].
-    iIntros "#LFT #TIME #E L Hinv Hcctx [Hcred Hrest] _".
+    iIntros "#LFT #TIME #UNIQ #E L Hinv Hcctx [Hcred Hrest] _".
     rewrite /tctx_elt_interp /=.
     iDestruct "Hcred" as (v dv Hev) "[#⧖v [Hcr %Hphys]]".
     inversion Hphys; subst v.
@@ -365,7 +365,7 @@ Section typing_rules.
     wp_let.
     (* Apply the per-n typed_body for this specific m. *)
     iApply ((Hbody m Hm) $! tid (Z.of_nat m -:: (lc, ()) -:: cl) mask post iκs
-            with "LFT TIME E L Hinv Hcctx [Hcr2 Hrest] [%]").
+            with "LFT TIME UNIQ E L Hinv Hcctx [Hcr2 Hrest] [%]").
     - simpl.
       iSplitR "Hcr2 Hrest".
       { rewrite /tctx_elt_interp /=.
@@ -389,7 +389,7 @@ Section typing_rules.
   Proof.
     iIntros (tid xl mask post iκs).
     destruct xl as [zv [[lc []] cl]].
-    iIntros "_ _ _ _ _ _ [_Hint [Hcred _]] _".
+    iIntros "_ _ _ _ _ _ _ [_Hint [Hcred _]] _".
     rewrite /tctx_elt_interp /=.
     iDestruct "Hcred" as (v d Hev) "[#⧖ [Hcr _]]".
     iExFalso. iApply (ec_contradict with "Hcr"). lra.
@@ -403,7 +403,7 @@ Section typing_rules.
   Proof.
     iIntros (tid xl mask post iκs).
     destruct xl as [[lc []] cl].
-    iIntros "_ _ _ _ _ _ [Hcr_tctx _] _".
+    iIntros "_ _ _ _ _ _ _ [Hcr_tctx _] _".
     rewrite /tctx_elt_interp /=.
     iDestruct "Hcr_tctx" as (v d Hev) "[#⧖ [Hcr _]]".
     iExFalso. iApply (ec_contradict with "Hcr"). lra.

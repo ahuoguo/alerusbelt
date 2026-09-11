@@ -37,7 +37,7 @@ Section bool.
 
   Lemma type_bool_instr (b: bool) : typed_val #b bool_ty b.
   Proof.
-    iIntros (????????) "_ _ _ $$ _ %Obs". iMod persistent_time_receipt_0 as "⧖".
+    iIntros (????????) "_ _ _ _ $$ _ %Obs". iMod persistent_time_receipt_0 as "⧖".
     iApply pgl_wp_value. iExists -[b]. iSplit; [|done]. iSplit; [|done].
     rewrite tctx_hasty_val'; [|done]. iExists 0%nat. iFrame "⧖".
     iSplit; done.
@@ -62,13 +62,13 @@ Section bool.
       (trx ∘ (λ post '(b -:: vl), if b then tr1 post vl else tr2 post vl)).
   Proof.
     iIntros (?) "e1 e2". iApply typed_body_tctx_incl; [done|]=>/=.
-    iIntros (?[b ?]???) "/= #LFT #TIME #E L I C [p T] %Obs".
+    iIntros (?[b ?]???) "/= #LFT #TIME #UNIQ #E L I C [p T] %Obs".
     wp_bind p. iApply (wp_hasty with "p"). iIntros (?? _) "_".
     iDestruct 1 as "[_true %Hphys]".
     inversion Hphys. subst v.
     destruct b; wp_case.
-    - iApply ("e1" with "LFT TIME E L I C T"). by iPureIntro.
-    - iApply ("e2" with "LFT TIME E L I C T"). by iPureIntro.
+    - iApply ("e1" with "LFT TIME UNIQ E L I C T"). by iPureIntro.
+    - iApply ("e2" with "LFT TIME UNIQ E L I C T"). by iPureIntro.
   Qed.
 End bool.
 

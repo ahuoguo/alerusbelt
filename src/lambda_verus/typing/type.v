@@ -1,7 +1,7 @@
 From iris.algebra Require Import numbers list dfrac_agree.
 From lrust.util Require Export basic vector update fancy_lists cancellable cancellable_na_invariants.
 From lrust.lang Require Export proofmode notation heap time.
-From lrust.typing Require Export base syn_type.
+From lrust.typing Require Export base syn_type uniq_cmra.
 From lrust.typing Require Export lft_contexts.
 From lrust.typing Require Export lifetime.
 From lrust.lifetime Require Import lifetime_full.
@@ -13,6 +13,7 @@ Implicit Type (𝔄 𝔅 ℭ: syn_type) (𝔄l 𝔅l: syn_typel).
 
 Class typeG Σ := TypeG {
   #[global] type_lrustGS :: lrustGS Σ;
+  #[global] type_uniqG :: uniqG Σ;
   #[global] type_lftGS :: llft_logicGS Σ;
   #[global] type_frac_logicG :: frac_logicG Σ;
   #[global] type_ecInv_logicΣ :: ecInv_logicG Σ;
@@ -842,9 +843,10 @@ Notation ListCopy := (TCHForall (λ 𝔄, @Copy _ _ 𝔄)).
 Class Send `{!typeG Σ} {𝔄} (ty: type 𝔄) := {
   send_change_tid_phys tid tid' x x' :
       @syn_abstract 𝔄 x = @syn_abstract 𝔄 x' → (ty.(ty_phys) x tid = ty.(ty_phys) x' tid');
-  (* [send_change_tid] field elided: it required prophecy contexts
-     ([uniq_ctx], [⟨π, ...⟩]) which are stripped because eris is unsound
-     under prophecies (Clutch POPL'24). *)
+  (* [send_change_tid] field elided: it transfers a value's ghost
+     ownership between thread ids, using the thread pool
+     ([cna_lifetimes tid κs]).  That is concurrency, which this
+     development does not model; it uses no prophecy. *)
 }.
 Global Instance: Params (@Send) 3 := {}.
 

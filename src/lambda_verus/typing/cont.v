@@ -33,7 +33,7 @@ Section typing.
     iApply typed_body_tctx_incl; [done|].
     iIntros (tid bcl mask post iκs).
     move: (papp_ex bcl)=> [bl[cl ->]].
-    iIntros "#LFT #TIME #E L Hinv C Htctx %Obs".
+    iIntros "#LFT #TIME #UNIQ #E L Hinv C Htctx %Obs".
     iEval (rewrite big_sepHL_1_app) in "Htctx".
     iDestruct "Htctx" as "[T' _Tx]".
     rewrite /= papp_sepl in Obs.
@@ -49,13 +49,13 @@ Section typing.
       (k ◁cont{L', I', T'} trk :: C) (T' vl) (subst' kb k $ subst_v bl vl ec) trk) -∗
     typed_body E L I C T (letcont: kb bl := ec in e) tr.
   Proof.
-    iIntros (??) "e #ec %%%%% #LFT #TIME #E L Hinv C T %Obs".
+    iIntros (??) "e #ec %%%%% #LFT #TIME #UNIQ #E L Hinv C T %Obs".
     have ->: (rec: kb bl := ec)%E = of_val (rec: _ _ := _) by unlock.
-    wp_let. iApply ("e" with "LFT TIME E L Hinv [C] T [%//]").
+    wp_let. iApply ("e" with "LFT TIME UNIQ E L Hinv [C] T [%//]").
     iLöb as "IH". iIntros (c). rewrite elem_of_cons.
     iIntros ([->|?]); [|by iApply "C"]. iIntros (???) "L' Hinv' T' %Obs'".
     cbn match. wp_rec.
-    iApply ("ec" with "LFT TIME E L' Hinv' [C] T' [%//]"). by iApply "IH".
+    iApply ("ec" with "LFT TIME UNIQ E L' Hinv' [C] T' [%//]"). by iApply "IH".
   Qed.
 
   Lemma type_cont_norec {𝔄l 𝔅l ℭ} bl (T': vec val (length bl) → tctx 𝔅l) trk
@@ -66,12 +66,12 @@ Section typing.
       typed_body E L' I' C (T' vl) (subst' kb k $ subst_v bl vl ec) trk) -∗
     typed_body E L I C T (letcont: kb bl := ec in e) tr.
   Proof.
-    iIntros (??) "e ec %%%%% #LFT #TIME #E L Hinv C T %Obs".
+    iIntros (??) "e ec %%%%% #LFT #TIME #UNIQ #E L Hinv C T %Obs".
     have ->: (rec: kb bl := ec)%E = of_val (rec: _ _ := _) by unlock.
-    wp_let. iApply ("e" with "LFT TIME E L Hinv [ec C] T [%//]").
+    wp_let. iApply ("e" with "LFT TIME UNIQ E L Hinv [ec C] T [%//]").
     iIntros (c). rewrite elem_of_cons. iIntros ([->|?]); [|by iApply "C"].
     iIntros (???) "L' Hinv' T' %Obs'".
     cbn match. wp_rec.
-    iApply ("ec" with "LFT TIME E L' Hinv' C T' [%//]").
+    iApply ("ec" with "LFT TIME UNIQ E L' Hinv' C T' [%//]").
   Qed.
 End typing.

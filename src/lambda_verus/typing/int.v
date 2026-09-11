@@ -49,7 +49,7 @@ Section int.
 
   Lemma type_int_instr (z: Z) : typed_val #z int z.
   Proof.
-    iIntros (????????) "_ _ _ $$ _ %Obs". iMod persistent_time_receipt_0 as "⧖".
+    iIntros (????????) "_ _ _ _ $$ _ %Obs". iMod persistent_time_receipt_0 as "⧖".
     iApply pgl_wp_value. iExists -[z]. iSplit; [|done]. iSplit; [|done].
     rewrite tctx_hasty_val'; [|done]. iExists 0%nat. iFrame "⧖". done.
   Qed.
@@ -64,7 +64,7 @@ Section int.
     typed_instr_ty E L I +[p1 ◁ int; p2 ◁ int] (p1 + p2) int
       (λ post '-[z; z'], post (z + z')).
   Proof.
-    iIntros (????(z & z' & [])) "_ _ _ $ $ (p1 & p2 & _) %Obs".
+    iIntros (????(z & z' & [])) "_ _ _ _ $ $ (p1 & p2 & _) %Obs".
     wp_bind p1. iApply (wp_hasty with "p1"). iIntros (v1 d1 _) "#⧖1 [_ %phys1]".
     inversion phys1; subst v1.
     wp_bind p2. iApply (wp_hasty with "p2"). iIntros (v2 d2 _) "#⧖2 [_ %phys2]".
@@ -89,7 +89,7 @@ Section int.
     typed_instr_ty E L I +[p1 ◁ int; p2 ◁ int] (p1 - p2) int
       (λ post '-[z; z'], post (z - z')).
   Proof.
-    iIntros (????(z & z' & [])) "_ _ _ $ $ (p1 & p2 & _) %Obs".
+    iIntros (????(z & z' & [])) "_ _ _ _ $ $ (p1 & p2 & _) %Obs".
     wp_bind p1. iApply (wp_hasty with "p1"). iIntros (v1 d1 _) "#⧖1 [_ %phys1]".
     inversion phys1; subst v1.
     wp_bind p2. iApply (wp_hasty with "p2"). iIntros (v2 d2 _) "#⧖2 [_ %phys2]".
@@ -114,7 +114,7 @@ Section int.
     typed_instr_ty E L I +[p1 ◁ int; p2 ◁ int] (p1 * p2) int
       (λ post '-[z; z'], post (z * z')).
   Proof.
-    iIntros (????(z & z' & [])) "_ _ _ $ $ (p1 & p2 & _) %Obs".
+    iIntros (????(z & z' & [])) "_ _ _ _ $ $ (p1 & p2 & _) %Obs".
     wp_bind p1. iApply (wp_hasty with "p1"). iIntros (v1 d1 _) "#⧖1 [_ %phys1]".
     inversion phys1; subst v1.
     wp_bind p2. iApply (wp_hasty with "p2"). iIntros (v2 d2 _) "#⧖2 [_ %phys2]".
@@ -139,7 +139,7 @@ Section int.
     typed_instr_ty E L I +[p1 ◁ int; p2 ◁ int] (p1 ≤ p2) bool_ty
       (λ post '-[z; z'], post (bool_decide (z ≤ z'))).
   Proof.
-    iIntros (????(z & z' & [])) "_ _ _ $ $ (p1 & p2 & _) %Obs".
+    iIntros (????(z & z' & [])) "_ _ _ _ $ $ (p1 & p2 & _) %Obs".
     wp_bind p1. iApply (wp_hasty with "p1"). iIntros (v1 d1 _) "#⧖1 [_ %phys1]".
     inversion phys1; subst v1.
     wp_bind p2. iApply (wp_hasty with "p2"). iIntros (v2 d2 _) "#⧖2 [_ %phys2]".
@@ -171,7 +171,7 @@ Section int.
     typed_instr_ty E L I +[p1 ◁ int; p2 ◁ int] (p1 = p2) bool_ty
       (λ post '-[z; z'], post (bool_decide (z = z'))).
   Proof.
-    iIntros (????(z & z' & [])) "_ _ _ $ $ (p1 & p2 & _) %Obs".
+    iIntros (????(z & z' & [])) "_ _ _ _ $ $ (p1 & p2 & _) %Obs".
     wp_bind p1. iApply (wp_hasty with "p1"). iIntros (v1 d1 _) "#⧖1 [_ %phys1]".
     inversion phys1; subst v1.
     wp_bind p2. iApply (wp_hasty with "p2"). iIntros (v2 d2 _) "#⧖2 [_ %phys2]".

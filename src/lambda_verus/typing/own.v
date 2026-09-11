@@ -188,7 +188,7 @@ Section typing.
     typed_write E L (own_ptr n ty) ty (own_ptr n ty') ty' (λ v, v.2) (λ u b' u', u' = (u.1, b')).
   Proof.
     move=> Sz. split; [done|].
-    iIntros ([l x0] [|d] v tid G ?) "LFT E L G [Hgho %Hphys] //=".
+    iIntros ([l x0] [|d] v tid G ?) "LFT UNIQ E L G [Hgho %Hphys] //=".
     iDestruct "Hgho" as "(Hown&Hfree&Hgho)".
     rewrite /own_ptr /= in Hphys. move: Hphys; case => <-.
     iExists (l, repeat [] (length (ty_phys ty x0 tid))).
@@ -279,7 +279,7 @@ Section typing.
     typed_instr_ty E L I +[] (new [ #n])%E (own_ptr n' ((↯ᵤ n')%T))
         (λ post _ mask, ∀ l junk, post (l, junk) mask).
   Proof.
-    iIntros (Hn n' tid post mask iκs []) "_ #TIME _ $ $ _ %Obs".
+    iIntros (Hn n' tid post mask iκs []) "_ #TIME _ _ $ $ _ %Obs".
     iApply pgl_wp_fupd.
     iApply (wp_cumulative_time_receipt1 with "TIME"); [done|solve_ndisj|].
     iIntros "⧗1".
@@ -338,7 +338,7 @@ Section typing.
     typed_instr E L I +[p ◁ own_ptr n' ty] (new_delete.delete [ #n; p])%E (λ _, +[])
       (λ post _, post -[]).
   Proof.
-    iIntros (?->????[[l x][]]) "_ _ _ $ $ [p _] %Obs". wp_bind p.
+    iIntros (?->????[[l x][]]) "_ _ _ _ $ $ [p _] %Obs". wp_bind p.
     iApply (wp_hasty with "p").
     rewrite /ty_own /=.
     iIntros (?[|d] _) "_ [own %H]"; [done|].
@@ -371,7 +371,7 @@ Section typing.
       (λ _, +[p ◁ own_tracked ty])
       (λ post π, post π).
   Proof.
-    iIntros (?->????[[l x][]]) "_ _ _ $ $ [p _] %Obs". wp_bind p.
+    iIntros (?->????[[l x][]]) "_ _ _ _ $ $ [p _] %Obs". wp_bind p.
     iApply (wp_hasty with "p").
     rewrite /ty_own /=.
     iIntros (v [|d] Hpath) "#⧖ [own %H]"; [done|].
@@ -415,7 +415,7 @@ Section typing.
     iApply typed_body_tctx_incl; [apply Extr|].
     iIntros (tid xl mask post iκs).
     destruct xl as [a cl].
-    iIntros "#LFT #TIME #E L Hinv Hcctx [Hp Hrest] %Obs".
+    iIntros "#LFT #TIME #UNIQ #E L Hinv Hcctx [Hp Hrest] %Obs".
     (* Destruct [Hp] to get the value of [p]. *)
     rewrite /tctx_elt_interp /=.
     iDestruct "Hp" as (vp dp Hev_p) "[#⧖dp Hty]".
@@ -467,7 +467,7 @@ Section typing.
        Hbody's plain [cont_postcondition] shape. *)
     iApply (pgl_wp_mono _ _ _ (λ _, cont_postcondition)); first by iIntros (v) "$".
     iApply ("Hbody" $! (LitV (LitLoc lbb)) tid ((lbb, a) -:: cl) mask post iκs
-            with "LFT TIME E L Hinv Hcctx [Hbb Hfree Hgho Hrest] [%]").
+            with "LFT TIME UNIQ E L Hinv Hcctx [Hbb Hfree Hgho Hrest] [%]").
     { simpl. iSplitR "Hrest"; last by iFrame "Hrest".
       rewrite /tctx_elt_interp /=. iExists #lbb, (S dp).
       iSplit; first done.

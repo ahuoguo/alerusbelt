@@ -1,11 +1,9 @@
 From iris.algebra Require Import auth cmra functions gmap dfrac_agree.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic Require Import invariants.
-From lrust.util Require Import discrete_fun update cancellable
-                                 cancellable_na_invariants.
+From lrust.util Require Import discrete_fun update.
 From lrust.typing Require Import syn_type.
 From guarding Require Import guard own_and tactics.
-From guarding.lib Require Import cancellable.
 From lrust.lifetime Require Import lifetime_full.
 
 Implicit Type (𝔄i: syn_typei) (𝔄: syn_type).
@@ -24,12 +22,9 @@ Local Definition line ξ q b x d : uniq_smryUR :=
 Local Definition add_line ξ q b x d (S: uniq_smryUR) : uniq_smryUR :=
   .<[ξ.(pv_ty) := <[ξ.(pv_id) := item q b x d]> (S ξ.(pv_ty))]> S.
 
-Definition uniqΣ: gFunctors := #[GFunctor uniqUR; cnaInv_logicΣ].
-Class uniqPreG Σ := UniqPreG {
-  #[global] uniq_preG_inG :: inG Σ uniqUR ;
-  #[global] type_cnaInv_logicΣ :: cnaInv_logicG Σ
-}.
-Class uniqG Σ := UniqG { #[global] uniq_inG :: uniqPreG Σ; uniq_name: gname; atomic_pool_name: gname }.
+Definition uniqΣ: gFunctors := #[GFunctor uniqUR].
+Class uniqPreG Σ := UniqPreG { #[global] uniq_preG_inG :: inG Σ uniqUR }.
+Class uniqG Σ := UniqG { #[global] uniq_inG :: uniqPreG Σ; uniq_name: gname }.
 Global Instance subG_uniqPreG Σ : subG uniqΣ Σ → uniqPreG Σ.
 Proof. solve_inG. Qed.
 
@@ -40,18 +35,15 @@ Definition uniqN: namespace := NllftUsr .@ "uniq".
 Section defs.
 Context `{!invGS Σ, !uniqG Σ}.
 
-Definition SendN : namespace := nroot .@ "send_guard".
+(** Unique Reference Context.
 
-(** Unique Reference Context *)
+    Upstream also bundled an atomic-pool guard in here (its comment
+    says it "has nothing to do with uniq borrows"); its only consumers
+    were the [send_change_tid] fields, elided because concurrency is
+    out of scope, so it is dropped and [uniq_ctx] is just the
+    invariant. *)
 Definition uniq_inv: iProp Σ := ∃S, own uniq_name (● S).
-Definition uniq_ctx: iProp Σ := inv uniqN uniq_inv
-    (* the atomic pool actually has nothing to do with uniq borrows, but
-       upstream reused this context for it, so we keep it here too *)
-    ∗ (True &&{↑SendN}&&> (cna_lifetimes atomic_pool_name ∅)).
-
-Lemma uniq_ctx_get_cna_lifetimes_inv :
-    uniq_ctx -∗ (True &&{↑SendN}&&> (cna_lifetimes atomic_pool_name ∅)).
-Proof. iIntros "[_ $]". Qed.
+Definition uniq_ctx: iProp Σ := inv uniqN uniq_inv.
 
 Local Definition own_line ξ q b x d := own uniq_name (◯ line ξ q b x d).
 
@@ -153,10 +145,7 @@ Lemma uniq_init `{!uniqPreG Σ} E :
   ↑uniqN ⊆ E → ⊢ |={E}=> ∃_: uniqG Σ, uniq_ctx.
 Proof.
   move=> ?. iMod (own_alloc (● ε)) as (γ) "●ε"; [by apply auth_auth_valid|].
-  iMod (cna_pool_alloc) as (p) "[_ cna_lifetimes]".
-  iMod (guards_alloc _ SendN with "cna_lifetimes") as "#G".
-  iDestruct (guards_remove_later_rhs with "G") as "G'".
-  set IUniqG := UniqG Σ _ γ p. iExists IUniqG. iFrame "G'".
+  set IUniqG := UniqG Σ _ γ. iExists IUniqG.
   iMod (inv_alloc _ _ uniq_inv with "[●ε]") as "?"; by [iExists ε|].
 Qed.
 
@@ -166,7 +155,7 @@ Lemma uniq_intro {𝔄} (x: ~~𝔄) (vπ: proph 𝔄) d E :
   ↑uniqN ⊆ E → uniq_ctx ={E}=∗ ∃ξi,
     let ξ := PrVar (𝔄 ↾ prval_to_inh vπ) ξi in .VO[ξ] x d ∗ .PC[ξ] x vπ d.
 Proof.
-  iIntros (?) "[? _]". iInv uniqN as (S) ">●S".
+  iIntros (?) "#?". iInv uniqN as (S) ">●S".
   set 𝔄i := 𝔄 ↾ prval_to_inh vπ.
   set ξi := fresh (dom (S 𝔄i)).
   have NIn: S 𝔄i !! ξi = None.
@@ -204,7 +193,7 @@ Qed.
 Lemma uniq_update ξ x'' vπ'' d'' x d x' vπ' d' E : ↑uniqN ⊆ E →
   uniq_ctx -∗ .VO[ξ] x d -∗ .PC[ξ] x' vπ' d' ={E}=∗ .VO[ξ] x'' d'' ∗ .PC[ξ] x'' vπ'' d''.
 Proof.
-  iIntros (?) "[? _] Vo Pc". iDestruct (vo_pc with "Vo Pc") as (->->) "Vo2".
+  iIntros (?) "#? Vo Pc". iDestruct (vo_pc with "Vo Pc") as (->->) "Vo2".
   iInv uniqN as (S) ">●S". set S' := add_line ξ 1 false x'' d'' S.
   iMod (own_update_2 _ _ _ (● S' ⋅ ◯ line ξ 1 false x'' d'') with "●S Vo2") as "[? Vo2]".
   { apply auth_update, discrete_fun_singleton_local_update_any,

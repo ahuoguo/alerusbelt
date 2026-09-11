@@ -78,6 +78,7 @@ Class typePreG (Σ : gFunctors) := PreTypeG {
   #[global] type_preG_frac_logicG :: frac_logicG Σ;
   #[global] type_preG_ecInv_logicG :: ecInv_logicG Σ;
   #[global] type_preG_cna_invG :: cancellable_na_invariants.na_invG Σ;
+  #[global] type_preG_uniqPreG :: uniqPreG Σ;
   #[global] type_preG_agree_pairΣ :: inG Σ (dfrac_agreeR (leibnizO nat))
 }.
 
@@ -139,13 +140,14 @@ Proof.
     iMod (llft_alloc with "H£llft") as (Hlft) "#LFT".
     pose (Hcna := {| cnaInv_na_inv_inG := type_preG_cna_invG |}).
     iMod (@invctx_alloc Σ _ _ _ Hcna ⊤) as (tid) "Hinvctx".
-    pose (Htype := @TypeG Σ HlrustGS Hlft _ _ _).
+    iMod (uniq_init ⊤) as (Huniq) "#UNIQ"; [solve_ndisj|].
+    pose (Htype := @TypeG Σ HlrustGS Huniq Hlft _ _ _).
     iPoseProof (Hbody Htype Hcna) as "Hb".
     iModIntro.
     iApply (pgl_wp_mono _ _ _ (λ _, cont_postcondition)).
     { iIntros (v) "_". iPureIntro. done. }
     iApply ("Hb" $! tid -[] ⊤ post []
-              with "LFT TIME [] [] Hinvctx [] [] []").
+              with "LFT TIME UNIQ [] [] Hinvctx [] [] []").
     - iApply big_sepL_nil. done.
     - iApply big_sepL_nil. done.
     - iIntros (c Hin). by inversion Hin.
@@ -239,10 +241,10 @@ Proof.
   pose proof (Hty [] [] (InvCtx [] static AtomicClosed)) as Hinstr.
   rewrite /typed_instr_ty /typed_instr in Hinstr.
   iIntros (tid xl mask post iκs)
-          "LFT TIME E_ L_ Hinv _Hcctx Htctx _".
+          "LFT TIME UNIQ E_ L_ Hinv _Hcctx Htctx _".
   iApply (pgl_wp_wand with "[-]").
   - iApply (Hinstr tid (λ _ _, True%type) mask iκs xl
-            with "LFT TIME E_ L_ Hinv Htctx []").
+            with "LFT TIME UNIQ E_ L_ Hinv Htctx []").
     iPureIntro. done.
   - iIntros (v') "_". done.
 Qed.
@@ -311,7 +313,8 @@ Proof.
     iMod (llft_alloc with "H£llft") as (Hlft) "#LFT".
     pose (Hcna := {| cnaInv_na_inv_inG := type_preG_cna_invG |}).
     iMod (@invctx_alloc Σ _ _ _ Hcna ⊤) as (tid) "Hinvctx".
-    pose (Htype := @TypeG Σ HlrustGS Hlft _ _ _).
+    iMod (uniq_init ⊤) as (Huniq) "#UNIQ"; [solve_ndisj|].
+    pose (Htype := @TypeG Σ HlrustGS Huniq Hlft _ _ _).
     iMod persistent_time_receipt_0 as "#⧖0".
     (* Pick a fictional loc for the credit's path-witness handle. *)
     pose (l_pick := ((1%positive, 0%Z) : loc)).
@@ -320,7 +323,7 @@ Proof.
     iApply (pgl_wp_mono _ _ _ (λ _, cont_postcondition)).
     { iIntros (v) "_". iPureIntro. done. }
     iApply ("Hb" $! tid -[(l_pick, ())] ⊤ post []
-              with "LFT TIME [] [] Hinvctx [] [Hcr] []").
+              with "LFT TIME UNIQ [] [] Hinvctx [] [Hcr] []").
     - iApply big_sepL_nil. done.
     - iApply big_sepL_nil. done.
     - iIntros (c Hin). by inversion Hin.

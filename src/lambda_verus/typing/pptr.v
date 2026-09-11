@@ -1,11 +1,10 @@
 (** [PPtr] typing rules, ported to the eris WP.
 
-    Prophecy-dependent parts are dropped (eris is unsound under
-    prophecies): the [&uniq{κ}] rule [typed_pptr_mut_borrow], the
-    [resolve] lemmas, and the [ty_guard_proph] / [send_change_tid]
-    obligations. *)
+    Prophecy-dependent parts are dropped
+    
+*)
 From lrust.lang.lib Require Import memcpy.
-From lrust.typing Require Export type tracked own product shr_bor.
+From lrust.typing Require Export type tracked own product shr_bor uniq_bor uniq_util.
 From lrust.typing Require Import uninit type_context programs freeable_util.
 From guarding Require Import guard tactics.
 From lrust.lifetime Require Import lifetime_full.
@@ -35,7 +34,7 @@ Section ptr.
 
   Global Instance ptr_send: Send ptr_ty.
   Proof.
-    (* [send_change_tid] field elided: prophecy stripped. *)
+    (* [send_change_tid] field elided: concurrency stripped. *)
     split. intros. unfold syn_abstract in H. subst x'. trivial.
   Qed.
   
@@ -131,7 +130,7 @@ Section typing.
     (λ post '-[l; (_, (l', x))], λ mask, l = l' ∧ post -[(l, x)] mask).
   Proof.
     move => tid post mask iκs vl.
-    iIntros "_ _ _ $ $ TY %Obs" => /=.
+    iIntros "_ _ _ _ $ $ TY %Obs" => /=.
     destruct vl as [l [[? [l' x]] []]].
     destruct Obs as [<- Hpost].
     iDestruct "TY" as "(Hptr & Hperm & _)".
@@ -176,7 +175,7 @@ Section typing.
       (λ post '-[(l, x)], λ mask, ∀ lc, post -[(lc, (l, (l, x)))] mask).
   Proof.
     move => tid post mask iκs vl.
-    iIntros "_ #TIME _ $ $ TY %Obs" => /=.
+    iIntros "_ #TIME _ _ $ $ TY %Obs" => /=.
     destruct vl as [[l x] []].
     iDestruct "TY" as "(TY & _)".
     iDestruct "TY" as (pl d Heval) "(#Hd & Hown & %Hphys)".
@@ -228,7 +227,7 @@ Section typing.
         l = l' ∧ post -[((l, repeat [] ty.(ty_size)), x)] mask).
   Proof.
     move => tid post mask iκs vl.
-    iIntros "_ #TIME _ $ $ TY %Obs" => /=.
+    iIntros "_ #TIME _ _ $ $ TY %Obs" => /=.
     destruct vl as [l [[c [l' x]] []]].
     destruct Obs as [<- Hpost].
     iDestruct "TY" as "(Hptr & Hperm & _)".

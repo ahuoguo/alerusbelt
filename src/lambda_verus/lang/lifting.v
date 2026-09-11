@@ -383,6 +383,56 @@ Section lifting.
     iApply (pgl_wp_mask_mono with "Hwp_inner"). set_solver.
   Qed.
 
+  (** [wp_cumulative_time_receipt2]: like [wp_cumulative_time_receipt1]
+      but hands the caller both credits of the step's [⧗2]. *)
+  Lemma wp_cumulative_time_receipt2 E e Φ s :
+    to_val e = None → ↑advN ∪ ↑timeN ⊆ E →
+    time_ctx -∗
+    (⧗2 -∗ WP e @ s; E ∖ ↑advN {{ Φ }}) -∗
+    WP e @ s; E {{ Φ }}.
+  Proof.
+    iIntros (Hnv Hmask) "#TIME Hwp".
+    iApply wp_lift_step_fupd_glm; [done|].
+    iIntros (ns σ1 ε1) "[[Hσ Ht] Hε]".
+    iMod persistent_time_receipt_0 as "⧖0".
+    iMod (step_cumulative_time_receipt _ ns 0 with "TIME Ht ⧖0")
+      as "(%Hns1 & Htm1 & EnFalse & Hcum2 & Hclose)"; first set_solver.
+    (* Hand the caller the full ⧗(0+2) = ⧗2. *)
+    replace (0 + 2)%nat with 2%nat by lia.
+    iSpecialize ("Hwp" with "Hcum2").
+    rewrite pgl_wp_unfold /pgl_wp_pre /= Hnv.
+    iMod ("Hwp" $! (ns - 1)%nat σ1 ε1 with "[$Hσ $Htm1 $Hε]") as "Hwp".
+    iModIntro.
+    iApply (glm_mono_pred with "[Hclose EnFalse] Hwp").
+    iIntros ([e2 σ2] ε2) "Hwp".
+    iIntros "credit". rewrite /num_laters_per_step /=.
+    (* Outer's credit: £(S sum_advance_credits(ns+1)) = £1 + £(sum_advance_credits(ns+1)). *)
+    iDestruct "credit" as "[Hc1 credit]".
+    rewrite (sum_advance_credits_ge1 (ns + 1)); last by lia.
+    (* credit : £(2^(S(ns+1)) * ac(2^(S(ns+1))) + sum_advance_credits(ns+1-1))
+       = £(2^(S(S ns)) * ac(2^(S(S ns))) + sum_advance_credits ns) *)
+    iDestruct "credit" as "[credit1 credit2]".
+    replace (ns + 1 - 1)%nat with ns by lia.
+    iCombine "credit2 Hc1" as "credit_inner".
+    (* credit_inner : £(S sum_advance_credits ns) = £(S num_laters_per_step (ns-1)) *)
+    rewrite /num_laters_per_step /=.
+    replace (ns - 1 + 1)%nat with ns by lia.
+    iMod ("Hwp" with "credit_inner") as "Hwp".
+    iIntros "!> !>". iMod "Hwp". iModIntro.
+    (* After peeling first step-fupd, Hwp : |={∅}▷=>^(num_laters_per_step (ns-1)) |={∅,E∖↑advN}=> ... *)
+    (* Goal: |={∅}▷=>^(num_laters_per_step ns) |={∅,E}=> ... *)
+    iApply (step_fupdN_nmono (sum_advance_credits ns)).
+    { rewrite /num_laters_per_step. lia. }
+    iApply (step_fupdN_wand with "Hwp"). iIntros ">([Hheap Ht] & Hε & Hwp_inner)".
+    replace (S (ns - 1)) with ns by lia.
+    iMod ("Hclose" with "[$Ht $EnFalse credit1]") as "Ht".
+    { iApply (lc_weaken with "credit1").
+      replace (ns + 1)%nat with (S ns) by lia.
+      reflexivity. }
+    iModIntro. iFrame "Hheap Ht Hε".
+    iApply (pgl_wp_mask_mono with "Hwp_inner"). set_solver.
+  Qed.
+
   Lemma wp_persistent_time_receipt n E e Φ s :
     to_val e = None → ↑advN ∪ ↑timeN ⊆ E →
     time_ctx -∗

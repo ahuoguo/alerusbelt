@@ -88,7 +88,7 @@ Section typing.
   Global Instance shr_send {𝔄} κ (ty: type 𝔄) : Sync ty → Send (&shr{κ} ty).
   Proof.
     intros Hsync. split.
-    (* [send_change_tid] field elided: prophecy stripped. *)
+    (* [send_change_tid] field elided: concurrency stripped. *)
     destruct x, x'. intros Ha. inversion Ha. trivial.
   Qed.
   

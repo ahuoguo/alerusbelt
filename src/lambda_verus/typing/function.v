@@ -182,7 +182,7 @@ Section typing.
     AsVal k → IntoPlistc ql ql' → Timeless G →
     lctx_ictx_alive E L (InvCtx Il ϝ' (fp_atomic_state (fp x))) →
     (∀ϝ, elctx_sat (map (λ κ, ϝ ⊑ₑ κ) κl ++ E) L (fp_E (fp x) ϝ)) →
-    llft_ctx -∗ time_ctx -∗ elctx_interp E -∗
+    llft_ctx -∗ time_ctx -∗ uniq_ctx -∗ elctx_interp E -∗
     (G &&{↑NllftG}&&> llctx_interp L) -∗
     (G &&{↑NllftG}&&> @[lft_intersect_list κl]) -∗ G -∗
     invctx_interp tid mask iκs (InvCtx Il ϝ' (fp_atomic_state (fp x))) -∗
@@ -196,7 +196,7 @@ Section typing.
     WP (call: p ql → k) {{ _, cont_postcondition }}.
   Proof.
     move=> [k' <-]-> TimelessG IctxAlv ToEfp.
-    iIntros "#LFT #TIME #E #GguardsL #Gguardsκl G ii p ql %Obs k".
+    iIntros "#LFT #TIME #UNIQ #E #GguardsL #Gguardsκl G ii p ql %Obs k".
     iApply fupd_pgl_wp.
     iMod (llftl_begin' with "LFT") as (ϝ) "[ϝ #ϝnonempty]"; [done|].
     leaf_open "GguardsL" with "G" as "[L back]"; first by solve_ndisj.
@@ -238,7 +238,7 @@ Section typing.
     iDestruct (invctx_interp_call Il ϝ' _ tid mask ϝ iκs with "[] [] ii") as (iκs') "[ii iiback]".
       { iApply (guards_transitive with "fGuardsL Lguardsϝ'"). }
       { iApply (guards_transitive with "fGuardsL LguardsIl"). }
-    iApply ("e" with "LFT TIME Efp [ϝ] ii [ToG k iiback] ityl []").
+    iApply ("e" with "LFT TIME UNIQ Efp [ϝ] ii [ToG k iiback] ityl []").
     { iSplitL; [|done]. iExists _. iSplit; [by rewrite/= left_id|]. by iFrame "ϝ". }
     { rewrite cctx_interp_singleton. iIntros (v' [locret b] mask'). inv_vec v'=> v'.
       iIntros "[(%& %Eq & ϝ &_) _] Invctx [oty ?] %Obs'". rewrite/= left_id in Eq.
@@ -273,14 +273,14 @@ Section typing.
   Proof.
     move=> ? Alv ???? InTk. iApply typed_body_tctx_incl; [done|].
     iIntros (?[? adπl]mask post iκs). move: (papp_ex adπl)=> [aπl[dπl->]].
-    iIntros "#LFT #TIME #E L I C /=(p & ql & T') %Obs".
+    iIntros "#LFT #TIME #UNIQ #E L I C /=(p & ql & T') %Obs".
     iDestruct (lctx_lft_alive_tok_list with "L E") as "#Alv"; [done|].
-    iApply (type_call_iris' with "LFT TIME E [] Alv L I p ql [%]"); [done|done|..].
+    iApply (type_call_iris' with "LFT TIME UNIQ E [] Alv L I p ql [%]"); [done|done|..].
     { iApply guards_refl. }
     { simpl in Obs. rewrite papp_sepl papp_sepr in Obs. exact Obs. }
     iIntros (ret mask' ?) "L I ret Obs'".
     iApply fupd_pgl_wp.
-    iMod (proj2 (InTk _) _ _ (_-::_) with "LFT E [] L [$ret $T'] Obs'")
+    iMod (proj2 (InTk _) _ _ (_-::_) with "LFT UNIQ E [] L [$ret $T'] Obs'")
       as (?) "(L & Tk & %Obs'')". { iApply guards_refl. }
     iModIntro.
     have ->: [ret: expr] = map of_val ([#ret]) by done.
@@ -336,7 +336,7 @@ Section typing.
             (λ post '(tr' -:: al), λ mask, tr'.2 = tr ∧ (spec tr) post al mask)%type) →
     typed_val (fnrec: fb bl := e)%V (fn fp spec) (@RecV fb ("return" :: bl)%binder e Cl, tr).
   Proof.
-    move: Cl. rewrite Into. iIntros (Cl Body E L I tid post mask iκs []) "_ _ _ $ $ _ %Obs".
+    move: Cl. rewrite Into. iIntros (Cl Body E L I tid post mask iκs []) "_ _ _ _ $ $ _ %Obs".
     rewrite /typed_instr_ty /=. unlock.
     iMod persistent_time_receipt_0 as "#⧖".
     iApply pgl_wp_value'. iExists -[((@RecV fb ("return" :: (bl' : list _))%binder e Cl)%V, tr)].
@@ -351,9 +351,9 @@ Section typing.
     iSplit; first done.
     iNext. iModIntro. iIntros (y ϝ k wl).
     rewrite /typed_body.
-    iIntros (tid' xl' mask' post' iκs') "#LFT #TIME #Efp L I C T %Obs'".
+    iIntros (tid' xl' mask' post' iκs') "#LFT #TIME #UNIQ #Efp L I C T %Obs'".
     iApply (Body y ϝ (RecV fb ("return" :: (bl' : list _))%binder e) k wl $! tid' (_ -:: xl') mask' post' iκs'
-              with "LFT TIME Efp L I C [T] []").
+              with "LFT TIME UNIQ Efp L I C [T] []").
     - iSplit; last by iFrame "T". iApply "IH".
     - iPureIntro. split; [done|exact Obs'].
   Qed.

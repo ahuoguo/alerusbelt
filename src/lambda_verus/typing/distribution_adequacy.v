@@ -58,10 +58,10 @@ Lemma typed_instr_drop_head `{!typeG Σ, !cnaInv_logicG Σ} {𝔄l 𝔅 𝔅l}
   typed_instr E L I T e T' (λ post, tr (λ '(_ -:: bl), post bl)).
 Proof.
   intros Hinstr tid post mask iκs xl.
-  iIntros "LFT TIME E L I T %Obs".
+  iIntros "LFT TIME UNIQ E L I T %Obs".
   iApply (pgl_wp_wand with "[-]").
   { iApply (Hinstr tid (λ '(_ -:: bl), post bl) mask iκs xl
-             with "LFT TIME E L I T [%]"). exact Obs. }
+             with "LFT TIME UNIQ E L I T [%]"). exact Obs. }
   iIntros (v) "H". iDestruct "H" as ([b bl]) "(L & I & [_ T] & %Obs')".
   iExists bl. by iFrame.
 Qed.
@@ -74,19 +74,19 @@ Section ept_wp.
       (Err : val → R) (l : loc) tid :
     (∀ v, 0 <= Err v <= 1) →
     ept_typed Σ μ e →
-    llft_ctx -∗ time_ctx -∗
+    llft_ctx -∗ time_ctx -∗ uniq_ctx -∗
     invctx_interp tid ⊤ [] (InvCtx [] static AtomicClosed) -∗
     ↯ (SeriesC (λ v, μ v * Err v)) -∗
     WP e {{ v, ↯ (Err v) }}.
   Proof.
-    iIntros (HErr Hept) "LFT TIME Hinv Hcr".
+    iIntros (HErr Hept) "LFT TIME UNIQ Hinv Hcr".
     iApply fupd_pgl_wp.
     iMod persistent_time_receipt_0 as "#⧖0".
     iModIntro.
     destruct (Hept Err l HErr _ _) as (tr & Htr & Hinstr).
     iApply (pgl_wp_wand with "[-]").
     { iApply (Hinstr tid (λ _ _, True%type) ⊤ [] -[(l, ())]
-               with "LFT TIME [] [] Hinv [Hcr] []").
+               with "LFT TIME UNIQ [] [] Hinv [Hcr] []").
       - iApply big_sepL_nil. done.
       - iApply big_sepL_nil. done.
       - rewrite /tctx_elt_interp /=.
@@ -117,7 +117,7 @@ Theorem type_wp_pgl `{!typePreG Σ}
   (∀ l ls w, σ !! l = Some (ls, w) → ls = RSt 0%nat) →
   (0 <= ε) →
   (∀ `{!typeG Σ, !cnaInv_logicG Σ} (tid : thread_id),
-      llft_ctx -∗ time_ctx -∗
+      llft_ctx -∗ time_ctx -∗ uniq_ctx -∗
       invctx_interp tid ⊤ [] (InvCtx [] static AtomicClosed) -∗
       ↯ ε -∗ WP e {{ v, ⌜φ v⌝ }}) →
   pgl (exec n (e, σ)) φ ε.
@@ -165,9 +165,10 @@ Proof.
     iMod (llft_alloc with "H£llft") as (Hlft) "#LFT".
     pose (Hcna := {| cnaInv_na_inv_inG := type_preG_cna_invG |}).
     iMod (@invctx_alloc Σ _ _ _ Hcna ⊤) as (tid) "Hinvctx".
-    pose (Htype := @TypeG Σ HlrustGS Hlft _ _ _).
+    iMod (uniq_init ⊤) as (Huniq) "#UNIQ"; [solve_ndisj|].
+    pose (Htype := @TypeG Σ HlrustGS Huniq Hlft _ _ _).
     iModIntro.
-    iApply (Hwp Htype Hcna tid with "LFT TIME Hinvctx Hcr"). }
+    iApply (Hwp Htype Hcna tid with "LFT TIME UNIQ Hinvctx Hcr"). }
   iApply "H".
 Qed.
 
@@ -194,11 +195,11 @@ Proof.
   rewrite /pgl. apply lim_exec_continuous_prob. intros n.
   apply (type_wp_pgl e σ n (μ target) (λ w, target ≠ w) Hσ (pmf_pos μ target)).
   intros Htype Hcna tid.
-  iIntros "LFT TIME Hinv Hcr".
+  iIntros "LFT TIME UNIQ Hinv Hcr".
   iApply (pgl_wp_wand with "[-]").
   { rewrite -Hexp.
     iApply (ept_typed_wp μ e Err ((1%positive, 0%Z) : loc) tid HErr Hept
-             with "LFT TIME Hinv Hcr"). }
+             with "LFT TIME UNIQ Hinv Hcr"). }
   iIntros (v) "Hcr". rewrite /Err. case_bool_decide; subst.
   - iExFalso. iApply (ec_contradict with "Hcr"). lra.
   - done.

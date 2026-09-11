@@ -249,7 +249,7 @@ Section typing.
   Proof.
     move=> ?. have Send: ∀i, Send (hlookup tyl i).
     { move=> *. by apply TCHForall_lookup. }
-    (* [send_change_tid] field elided: prophecy stripped. *)
+    (* [send_change_tid] field elided: concurrency stripped. *)
     split.
        intros tid tid' x x'. 
        destruct x as [x pad]. destruct x' as [x' pad'].

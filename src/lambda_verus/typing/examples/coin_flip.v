@@ -150,7 +150,7 @@ Section flip.
          returning [#0]. *)
       change (flip_ε2 1) with 0%R.
       simpl_subst.
-      iIntros (tid xl mask post iκs) "#LFT _ _ _ _ _ _ _".
+      iIntros (tid xl mask post iκs) "#LFT _ _ _ _ _ _ _ _".
       wp_op. wp_case. (* wp_case auto-closes at the value via wp_value_head *)
       rewrite /cont_postcondition. done.
     - (* m = 0 (the only other option since [Hm : m < 2]): the
@@ -254,7 +254,7 @@ Section flip.
                  (InvCtx [] static AtomicClosed) []
                  +[] coin_flip (λ _ _ _, True%type).
   Proof.
-    iIntros (tid xl mask post iκs) "_LFT _TIME _E _L _Hinv _Hcctx _Htctx _".
+    iIntros (tid xl mask post iκs) "_LFT _TIME _UNIQ _E _L _Hinv _Hcctx _Htctx _".
     rewrite /coin_flip.
     (* No credit in the tctx — best we can do is allocate [↯ 0] via
        [ec_zero], which is trivially derivable but operationally

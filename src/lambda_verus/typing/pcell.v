@@ -30,7 +30,7 @@ Section pcell.
   
   Global Instance pcell_send n: Send (pcell_ty n).
   Proof.
-    (* [send_change_tid] field elided: prophecy stripped. *)
+    (* [send_change_tid] field elided: concurrency stripped. *)
     split. intros. unfold syn_abstract in H. simpl in H. rewrite H. trivial.
   Qed.
   
@@ -87,7 +87,7 @@ Section points_to.
   Global Instance cell_points_to_send {𝔄} (ty: type 𝔄) :
       Send ty → Send (cell_points_to_ty ty).
   Proof.
-    (* [send_change_tid] field elided: prophecy stripped. *)
+    (* [send_change_tid] field elided: concurrency stripped. *)
     intros [Hphys]. split; trivial.
   Qed.
   
@@ -128,7 +128,7 @@ Section typing.
     typed_instr E L I +[p ◁ own_ptr (ty_size ty) ty] (PCellFromOwn [p]) (λ v, +[v ◁ own_ptr (ty_size ty) (prod_ty (pcell_ty (ty_size ty)) (cell_points_to_ty ty))]) (λ post '-[(l, x)], λ mask, ∀ (cell_ids : list positive), post -[(l, (cell_ids, (cell_ids, x)))] mask).
   Proof.
     move => tid post mask iκs vl.
-    iIntros "_ #TIME _ $ $ TY %Obs" => /=.
+    iIntros "_ #TIME _ _ $ $ TY %Obs" => /=.
     destruct vl as [[l x][]].
     iDestruct "TY" as "(TY & _)".
     iDestruct "TY" as (pl d Heval) "(#Hd & Hown & %Hphys)".
@@ -179,7 +179,7 @@ Section typing.
     typed_instr E L I +[pcell ◁ own_ptr (ty_size ty) (pcell_ty (ty_size ty)); perm ◁ own_ptr 0 (cell_points_to_ty ty)] (PCell2Own [pcell; perm]) (λ v, +[v ◁ own_ptr (ty_size ty) ty]) (λ post '-[(l, γs); (_, (γs', x))], λ mask, γs = γs' ∧ post -[(l, x)] mask).
   Proof.
     move => tid post mask iκs vl.
-    iIntros "_ #TIME _ $ $ TY %Obs" => /=.
+    iIntros "_ #TIME _ _ $ $ TY %Obs" => /=.
     destruct vl as [[l γs] [[l' [γs' x]] []]].
     destruct Obs as [<- Hpost].
     iDestruct "TY" as "(Hpcell & Hperm & _)".
@@ -234,7 +234,7 @@ Section typing.
     typed_instr E L I +[pcell_ref ◁ shr_bor κ (pcell_ty (ty_size ty)); perm_ref ◁ shr_bor κ (cell_points_to_ty ty)] (PCellBorrow [pcell_ref; perm_ref]) (λ v, +[v ◁ shr_bor κ ty]) (λ post '-[(l, γs); (_, (γs', x))], λ mask, γs = γs' ∧ post -[(cloc_flat_insert l γs, x)] mask).
   Proof.
     move => tid post mask iκs vl.
-    iIntros "_ #TIME _ $ $ TY %Obs" => /=.
+    iIntros "_ #TIME _ _ $ $ TY %Obs" => /=.
     destruct vl as [[l γs] [[l' [γs' x]] []]].
     destruct Obs as [<- Hpost].
     iDestruct "TY" as "(Hcell & Hperm & _)".

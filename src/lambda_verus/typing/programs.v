@@ -14,7 +14,7 @@ Section typing.
   (* This is an iProp because it is also used by the function type. *)
   Definition typed_body {𝔄l 𝔅} (E: elctx) (L: llctx) (I: invctx) (C: cctx 𝔅) (T: tctx 𝔄l)
     (e: expr) (tr: predl_trans' 𝔄l 𝔅) : iProp Σ := ∀tid xl mask post iκs,
-    llft_ctx -∗ time_ctx -∗ elctx_interp E -∗
+    llft_ctx -∗ time_ctx -∗ uniq_ctx -∗ elctx_interp E -∗
     llctx_interp L -∗ invctx_interp tid mask iκs I -∗ cctx_interp tid iκs post C -∗ tctx_interp tid T xl -∗
       ⌜tr post xl mask⌝ -∗ WP e {{ _, cont_postcondition }}.
   Global Arguments typed_body {_ _} _ _ _ _ _ _%E _%type.
@@ -23,8 +23,8 @@ Section typing.
     Proper ((≡) ==> (≡)) (@typed_body 𝔄l 𝔅 E L I C T e).
   Proof.
     intros tr1 tr2 EQ. unfold typed_body.
-    iSplit; iIntros "Hb" (?????) "A1 A2 A3 A4 A5 A6 A7 %J";
-      iApply ("Hb" with "A1 A2 A3 A4 A5 A6 A7");
+    iSplit; iIntros "Hb" (?????) "A0 A1 A2 A3 A4 A5 A6 A7 %J";
+      iApply ("Hb" with "A0 A1 A2 A3 A4 A5 A6 A7");
       iPureIntro; by apply EQ.
   Qed.
 
@@ -34,8 +34,8 @@ Section typing.
     typed_body E L I C T e tr' -∗ typed_body E L I C T e tr.
   Proof.
     move=> Imp. rewrite /typed_body.
-    iIntros "x" (?????) "A B C D E F G %J".
-    iApply ("x" with "A B C D E F G"). iPureIntro. by apply Imp.
+    iIntros "x" (?????) "A0 A B C D E F G %J".
+    iApply ("x" with "A0 A B C D E F G"). iPureIntro. by apply Imp.
   Qed.
 
   Lemma typed_body_vacuous {𝔄l 𝔅} E L
@@ -43,7 +43,7 @@ Section typing.
     ⊢ typed_body E L I C T e (λ _ _ _, False%type).
   Proof.
     rewrite /typed_body.
-    iIntros (?????) "_ _ _ _ _ _ _ %Ha". done.
+    iIntros (?????) "_ _ _ _ _ _ _ _ %Ha". done.
   Qed.
 
   Lemma typed_body_tctx_incl {𝔄l 𝔅l ℭ} tr' tr (T: tctx 𝔄l) (T': tctx 𝔅l) E L
@@ -51,18 +51,18 @@ Section typing.
     tctx_incl E L T T' tr' →
     typed_body E L I C T' e tr -∗ typed_body E L I C T e (tr' ∘ tr).
   Proof.
-    iIntros ([? In]) "e". iIntros (?????) "#LFT TIME #E L Ic C T Obs".
+    iIntros ([? In]) "e". iIntros (?????) "#LFT TIME #UNIQ #E L Ic C T Obs".
     iApply fupd_pgl_wp.
     iMod (llctx_interp_make_guarded with "L") as (γ) "[H1 [H2 [#guard #back]]]". { solve_ndisj. }
-    iMod (In with "LFT E guard H1 T Obs") as (?) "(H1 & T' & Obs)".
+    iMod (In with "LFT UNIQ E guard H1 T Obs") as (?) "(H1 & T' & Obs)".
       iDestruct ("back" with "H1 H2") as "back'". iMod (fupd_mask_mono with "back'") as "L". { solve_ndisj. }
-    iModIntro. iApply ("e" with "LFT TIME E L Ic C T' Obs").
+    iModIntro. iApply ("e" with "LFT TIME UNIQ E L Ic C T' Obs").
   Qed.
 
   (** Instruction *)
   Definition typed_instr {𝔄l 𝔅l} (E: elctx) (L: llctx) (I: invctx)
     (T: tctx 𝔄l) (e: expr) (T': val → tctx 𝔅l) (tr: predl_trans 𝔄l 𝔅l) : Prop :=
-    ∀tid post mask iκs xl, llft_ctx -∗ time_ctx -∗ elctx_interp E -∗
+    ∀tid post mask iκs xl, llft_ctx -∗ time_ctx -∗ uniq_ctx -∗ elctx_interp E -∗
       llctx_interp L -∗ invctx_interp tid mask iκs I -∗ tctx_interp tid T xl -∗
       ⌜tr post xl mask⌝ -∗ WP e {{ v, ∃xl',
         llctx_interp L ∗ invctx_interp tid mask iκs I ∗ tctx_interp tid (T' v) xl' ∗ ⌜post xl' mask⌝ }}.
@@ -70,7 +70,7 @@ Section typing.
   
   Definition typed_inv_instr {𝔄l 𝔅l} (E: elctx) (L: llctx) (I: invctx) 
     (T: tctx 𝔄l) (e: expr) (I': invctx) (T': val → tctx 𝔅l) (tr: predl_trans 𝔄l 𝔅l) : Prop :=
-    ∀tid post mask iκs xl, llft_ctx -∗ time_ctx -∗ elctx_interp E -∗
+    ∀tid post mask iκs xl, llft_ctx -∗ time_ctx -∗ uniq_ctx -∗ elctx_interp E -∗
       llctx_interp L -∗ invctx_interp tid mask iκs I -∗ tctx_interp tid T xl -∗
       ⌜tr post xl mask⌝ -∗ WP e {{ v, ∃xl' mask',
         llctx_interp L ∗ invctx_interp tid mask' iκs I' ∗ tctx_interp tid (T' v) xl' ∗ ⌜post xl' mask'⌝ }}.
@@ -87,7 +87,7 @@ Section typing.
     (ty': type 𝔄') (tyb': type 𝔅') (gt: ~~𝔄 → ~~𝔅) (st: ~~𝔄 → ~~𝔅' → ~~𝔄' → Prop) : Prop :=
     tyb.(ty_size) = tyb'.(ty_size) ∧ ∀x d (v: fancy_val) tid G,
     Timeless G →
-    llft_ctx -∗ elctx_interp E -∗ (G &&{↑NllftG}&&> llctx_interp L) -∗
+    llft_ctx -∗ uniq_ctx -∗ elctx_interp E -∗ (G &&{↑NllftG}&&> llctx_interp L) -∗
     G -∗ ty_own ty x d d tid [v] ={⊤}=∗ ∃(l: cloc) (d':nat) (H: iProp Σ),
       ⌜v = FVal #(l.1)⌝ ∗ ⌜d = S d'⌝ ∗ ▷ l #↦!∗: ty_own tyb (gt x) d' d tid ∗
       H ∗ (H &&{↑NllftG; d+1}&&> l #↦∗_) ∗
@@ -128,12 +128,12 @@ Section typing.
      back to proving it in the type system. *)
   Lemma type_type {𝔄l 𝔅} (T: tctx 𝔄l) xl mask tr E L (I: invctx) (C: cctx 𝔅) e tid post iκs :
     typed_body E L I C T e tr -∗
-    llft_ctx -∗ time_ctx -∗ elctx_interp E -∗
+    llft_ctx -∗ time_ctx -∗ uniq_ctx -∗ elctx_interp E -∗
     llctx_interp L -∗ invctx_interp tid mask iκs I -∗ cctx_interp tid iκs post C -∗ tctx_interp tid T xl -∗
     ⌜tr post xl mask⌝ -∗ WP e {{ _, cont_postcondition }}.
   Proof.
-    iIntros "Bd LFT TIME E L I C T Obs".
-    iApply ("Bd" with "LFT TIME E L I C T Obs").
+    iIntros "Bd LFT TIME UNIQ E L I C T Obs".
+    iApply ("Bd" with "LFT TIME UNIQ E L I C T Obs").
   Qed.
 
   (* TODO: Proof a version of this that substitutes into a compatible context...
@@ -142,10 +142,10 @@ Section typing.
     typed_body (κ ⊑ₑ κ' :: κ' ⊑ₑ κ :: E) L I C T e tr -∗
     typed_body E (κ ⊑ₗ [κ'] :: L) I C T e tr.
   Proof.
-    iIntros "e" (?????) "#LFT TIME E [Eq L] I C T Obs".
+    iIntros "e" (?????) "#LFT TIME #UNIQ E [Eq L] I C T Obs".
     iApply fupd_pgl_wp.
     iMod (lctx_equalize_lft with "LFT Eq") as "[In In']".
-    iModIntro. iApply ("e" with "LFT TIME [$E $In $In'] L I C T Obs").
+    iModIntro. iApply ("e" with "LFT TIME UNIQ [$E $In $In'] L I C T Obs").
   Qed.
 
   (** [type_dep_cond] / [type_dep] removed: they relied on
@@ -160,13 +160,13 @@ Section typing.
       let '(al, cl) := psep acl in tr (λ bl, tr' post (bl -++ cl)) al).
   Proof.
     iIntros "% %Inst e'" (? vπl2 ???). move: (papp_ex vπl2)=> [vπl[vπl'->]].
-    iIntros "#LFT #TIME #E L I C [T1 T] %Obs". wp_bind e.
+    iIntros "#LFT #TIME #UNIQ #E L I C [T1 T] %Obs". wp_bind e.
     iApply (pgl_wp_wand with "[L I T1]").
-    { iApply (Inst with "LFT TIME E L I T1"). iPureIntro.
+    { iApply (Inst with "LFT TIME UNIQ E L I T1"). iPureIntro.
       revert Obs. by rewrite /trans_upper papp_sepl. }
     iIntros (v) "A".
     iDestruct "A" as (xl') "(L & I & T2 & %Obs')". wp_let. iCombine "T2 T" as "T2T".
-    iApply ("e'" with "LFT TIME E L I C T2T"). iPureIntro.
+    iApply ("e'" with "LFT TIME UNIQ E L I C T2T"). iPureIntro.
     revert Obs'. by rewrite papp_sepr.
   Qed.
 
@@ -178,13 +178,13 @@ Section typing.
       let '(al, cl) := psep acl in tr (λ bl, tr' post (bl -++ cl)) al).
   Proof.
     iIntros "% %Inst e'" (? vπl2 ???). move: (papp_ex vπl2)=> [vπl[vπl'->]].
-    iIntros "#LFT #TIME #E L I C [T1 T] %Obs". wp_bind e.
+    iIntros "#LFT #TIME #UNIQ #E L I C [T1 T] %Obs". wp_bind e.
     iApply (pgl_wp_wand with "[L I T1]").
-    { iApply (Inst with "LFT TIME E L I T1"). iPureIntro.
+    { iApply (Inst with "LFT TIME UNIQ E L I T1"). iPureIntro.
       revert Obs. by rewrite /trans_upper papp_sepl. }
     iIntros (v) "A".
     iDestruct "A" as (xl' mask') "(L & I & T2 & %Obs')". wp_let. iCombine "T2 T" as "T2T".
-    iApply ("e'" with "LFT TIME E L I C T2T"). iPureIntro.
+    iApply ("e'" with "LFT TIME UNIQ E L I C T2T"). iPureIntro.
     revert Obs'. by rewrite papp_sepr.
   Qed.
 
@@ -259,12 +259,12 @@ Section typing.
     Closed [] e → (∀κ, typed_body E (κ ⊑ₗ κl :: L) I C T e tr) -∗
     typed_body E L I C T (Newlft;; e) tr.
   Proof.
-    iIntros (?) "e %%%%% #LFT TIME E L I C T Obs".
+    iIntros (?) "e %%%%% #LFT TIME #UNIQ E L I C T Obs".
     iApply fupd_pgl_wp.
     iMod (llftl_begin' with "LFT") as (Λ) "[Λ #Hinh]"; [done|].
     iModIntro.
     set κ' := lft_intersect_list κl. wp_seq.
-    iApply ("e" $! κ' ⊓ Λ with "LFT TIME E [Λ $L] I C T Obs").
+    iApply ("e" $! κ' ⊓ Λ with "LFT TIME UNIQ E [Λ $L] I C T Obs").
     rewrite /llctx_interp. iExists Λ. iFrame "Λ". by iSplit.
   Qed.
   
@@ -276,7 +276,7 @@ Section typing.
   Lemma type_path_instr {𝔄} p (ty: type 𝔄) E L I :
     typed_instr_ty E L I +[p ◁ ty] p ty (λ post '-[v], post v).
   Proof.
-    iIntros (????[vπ[]]) "_ _ _ $$ [T _] Obs". iApply (wp_hasty with "T").
+    iIntros (????[vπ[]]) "_ _ _ _ $$ [T _] Obs". iApply (wp_hasty with "T").
     iIntros (v d _) "??". iExists -[vπ]. do 2 (iSplit; [|done]). iExists v, d.
     rewrite eval_path_of_val. by iFrame.
   Qed.
@@ -306,7 +306,7 @@ Section typing.
     typed_instr E L I +[p ◁ ty] (!p) (λ v, +[v ◁ tyb; p ◁ ty'])
       (λ post '-[a], λ mask, ∀ z, st a z → post -[gt a; z] mask).
   Proof.
-    iIntros (StackOk Sz Rd tid post mask iκs [vπ []]) "#LFT #TIME #E HL $ [p _] %Obs".
+    iIntros (StackOk Sz Rd tid post mask iκs [vπ []]) "#LFT #TIME #UNIQ #E HL $ [p _] %Obs".
     wp_bind p. iApply (wp_hasty with "p"). iIntros (v d Hev) "#⧖ Hty".
     iApply pgl_wp_fupd.  (* wrap WP-post in [|={⊤}=>] before mask shrinks *)
     iApply (wp_persistent_time_receipt d with "TIME ⧖"); [done|solve_ndisj|].
@@ -369,13 +369,13 @@ Section typing.
       (λ post '-[a; b], λ mask, ∀ z, st a b z → post -[z] mask).
   Proof.
     iIntros (StackOkB StackOkB' Sz [Eq Wrt] tid post mask iκs [x [y []]]).
-    iIntros "#LFT #TIME #E HL Hinv [p [pb _]] %Obs".
+    iIntros "#LFT #TIME #UNIQ #E HL Hinv [p [pb _]] %Obs".
     iMod (llctx_interp_make_guarded L ⊤ with "HL")
       as (γ) "(Hh1 & Hh2 & #Hguard & #Hback)"; [solve_ndisj|].
     wp_bind p. iApply (wp_hasty with "p"). iIntros (v dp Hev_p) "#⧖dp Hty".
     iApply fupd_pgl_wp.
     iMod (Wrt x dp (FVal v) tid (fractional.half γ) _
-            with "LFT E Hguard Hh1 Hty")
+            with "LFT UNIQ E Hguard Hh1 Hty")
       as (l d' H Hveq Hd) "(↦bundle & HH & #HHguard & Hclose)".
     inversion Hveq. subst v.
     iDestruct "↦bundle" as "(%vl & >Hmap & Hown)".
@@ -462,7 +462,7 @@ Section typing.
         ∀ zw zr, stw a (gtr b) zw → str b zr → post -[zw; zr] mask).
   Proof.
     iIntros ([Eq Wrt] Rd Hn tid post mask iκs [x [y []]]).
-    iIntros "#LFT #TIME #E HL Hinv [pw [pr _]] %Obs".
+    iIntros "#LFT #TIME #UNIQ #E HL Hinv [pw [pr _]] %Obs".
     iMod (llctx_interp_make_guarded L ⊤ with "HL")
       as (γ) "(H1 & H2 & #Ghalf & #Halfback)"; [solve_ndisj|].
     iMod (fractional.frac_split_guard_in_half _ _ _ ⊤ with "H2 Ghalf")
@@ -471,7 +471,7 @@ Section typing.
     iIntros (vw dw Hev_w) "#⧖dw tyw".
     iApply fupd_pgl_wp.
     iMod (Wrt x dw (FVal vw) tid (fractional.half γ) _
-            with "LFT E Ghalf H1 tyw")
+            with "LFT UNIQ E Ghalf H1 tyw")
       as (l d' Hw Hveq Hd) "(↦bundle & Hw & #Hwpt & Totyw)".
     inversion Hveq. subst vw.
     iDestruct "↦bundle" as "(%vl & >↦ & Own)".
