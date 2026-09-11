@@ -409,25 +409,46 @@ Section lemmas.
 
   (** [resolve_unblock_tctx] removed along with [resolve]. *)
 
-  (** Unblocking a Type Context — stubbed (prophecy stripped). *)
+  (** Unblocking a Type Context.
+
+      Upstream's definition also returned a [⧖d] and a
+      [|={⊤}▷=>^(d*(d+1))] chain; both existed only to run the prophecy
+      equalizer stored in the blocked entry.  That equalizer is gone from
+      [tctx_elt_interp], so the update is a plain one-shot fupd here, and
+      the transformer [f] is a pure relation rather than a [proph_asn]
+      indexed one. *)
 
   Definition unblock_tctx {𝔄l 𝔄l'} (E: elctx) (L: llctx) (κ: lft) (T: tctx 𝔄l) (T': tctx 𝔄l')
-    (f: plist indep_interp_of_syn_type 𝔄l → plist indep_interp_of_syn_type 𝔄l' → Prop) : Prop := True.
+    (f: plist indep_interp_of_syn_type 𝔄l → plist indep_interp_of_syn_type 𝔄l' → Prop) : Prop :=
+    ∀G tid xl, Timeless G → llft_ctx -∗ time_ctx -∗ elctx_interp E -∗
+      (G &&{↑NllftG}&&> llctx_interp L) -∗ G -∗ [†κ] -∗
+      tctx_interp tid T xl ={⊤}=∗ ∃xl',
+        G ∗ tctx_interp tid T' xl' ∗ ⌜f xl xl'⌝.
 
   Lemma unblock_tctx_nil κ E L : unblock_tctx E L κ +[] +[] (λ _ _, True).
-  Proof. done. Qed.
+  Proof. iIntros (??[]?) "_ _ _ _ $ _ _". iExists -[]. iModIntro. by iSplit. Qed.
 
   Lemma unblock_tctx_cons_unblock {𝔄 𝔄l 𝔄l'} p (ty: type 𝔄) (T: tctx 𝔄l) (T': tctx 𝔄l') κ E L f :
     lctx_lft_alive E L (ty_lft ty) → unblock_tctx E L κ T T' f →
     unblock_tctx E L κ (p ◁{κ} blocked_type_ctor _ ty +:: T) (p ◁ ty +:: T')
       (λ '(x -:: xl), λ '(x' -:: xl'), f xl xl').
-  Proof. done. Qed.
+  Proof.
+    iIntros (_ Un ??[??]?) "#LFT #TIME #E #L G #†κ /=[(%v & %Ev & Upd) T]".
+    iMod ("Upd" with "†κ") as (x' d) "(#⧖ & _ & ty)".
+    iMod (Un with "LFT TIME E L G †κ T") as (xl') "($ & T' & %Hf)".
+    iModIntro. iExists (x' -:: xl'). iFrame "T'". iSplit; [|done].
+    iExists v, d. by iFrame "⧖ ty".
+  Qed.
 
   Lemma unblock_tctx_cons_just {𝔄 𝔄l 𝔄l'} (t: tctx_elt 𝔄) (T: tctx 𝔄l) (T': tctx 𝔄l') κ E L f :
     unblock_tctx E L κ T T' f →
     unblock_tctx E L κ (t +:: T) (t +:: T')
         (λ '(x -:: xl), λ '(x' -:: xl'), x = x' ∧ f xl xl').
-  Proof. done. Qed.
+  Proof.
+    iIntros (Un ??[x xl]?) "LFT TIME E L G †κ /=[t T]".
+    iMod (Un with "LFT TIME E L G †κ T") as (xl') "($ & T' & %Hf)".
+    iModIntro. iExists (x -:: xl'). by iFrame.
+  Qed.
 
   Lemma unblock_tctx_cons_just_hasty {𝔄 𝔄l} p (ty: type 𝔄) (T: tctx 𝔄l) (T': tctx 𝔄l) κ E L f :
     unblock_tctx E L κ T T' f →

@@ -28,6 +28,9 @@ Notation "'↯ᵤ'" := uninit (only parsing) : lrust_type_scope.
 Section typing.
   Context `{!typeG Σ}.
 
+  Lemma uninit_stack_okay n : StackOkay (↯ᵤ n).
+  Proof. move=> x tid /=. apply all_concrete_fmap_fval. Qed.
+
   Global Instance uninit_copy n : Copy (↯ᵤ n).
   Proof. split; [apply _|]=>/= *. iIntros. iPureIntro. apply all_concrete_fmap_fval. Qed.
 

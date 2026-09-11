@@ -146,10 +146,7 @@ Section S.
   Next Obligation. intros. apply ty_phys_eq2. Qed.
   Next Obligation. move=> >. apply ty_gho_depth_mono. Qed.
   Next Obligation. move=> >. apply ty_gho_pers_depth_mono. Qed.
-  Next Obligation.
-    move=> n *. iIntros "#LFT #?". iApply (ty_guard_proph with "LFT"); [done|].
-    iApply llftl_incl_trans; [done|]. iDestruct (Tn_ty_lft_const n 0) as "[_ $]".
-  Qed.
+  (* [ty_guard_proph] obligation elided: prophecy stripped. *)
   Next Obligation. move=> >. apply ty_gho_pers_impl. Qed.
 
   Program Definition fix_ty: type 𝔄 := {|
@@ -169,12 +166,7 @@ Section S.
     move=> *. apply @limit_preserving_compl; [|move=> ?; by apply ty_gho_pers_depth_mono].
     apply limit_preserving_entails=> ??? Eq. { done. } f_equiv; apply Eq.
   Qed.
-  Next Obligation.
-    move=> *. apply @limit_preserving_compl; [|move=> ?; by apply (ty_guard_proph _ (Tn' _))].
-    apply limit_preserving_entails; [done|]=> ??? Eq.
-    do 3 f_equiv. { apply Eq. }
-    do 4 f_equiv. { apply Eq. }
-  Qed.
+  (* [ty_guard_proph] obligation elided: prophecy stripped. *)
   Next Obligation.
     move=> *. apply @limit_preserving_compl, _.
     apply limit_preserving_Persistent=> ??? Eq. apply Eq.
@@ -334,16 +326,9 @@ Section fix_ty.
   Global Instance fix_send :
     (∀`(!Send ty), Send (T ty)) → Send (fix_ty T).
   Proof.
+    (* [send_change_tid] field elided: concurrency stripped. *)
     move=> ?. have ?: ∀n, Send (Tn T n) by elim; apply _. split; rewrite /fix_ty=> > /=.
-    { do 2 (rewrite <- ty_phys_eq2). apply syn_abstract_phys_eq. }
-    eapply @limit_preserving_compl.
-    + apply limit_preserving_forall. intro.
-      apply limit_preserving_forall. intro.
-      apply limit_preserving_forall. intro.
-      apply limit_preserving_entails=> ??? Eq; [done|].
-      do 8 f_equiv. { apply Eq. }
-      do 8 f_equiv. apply Eq.
-    + intros. apply send_change_tid; trivial.
+    do 2 (rewrite <- ty_phys_eq2). apply syn_abstract_phys_eq.
   Qed.
 
   Global Instance fix_sync :
@@ -363,15 +348,8 @@ Section fix_ty.
       all: intros ??? Eq; apply Eq.
   Qed.
 
-  Lemma fix_resolve E L Φ :
-    (∀ty, resolve E L ty Φ → resolve E L (T ty) Φ) → resolve E L (fix_ty T) Φ.
-  Proof.
-    move=> Loop. have Rslv: ∀n, resolve E L (Tn T n) Φ.
-    { elim=> [|? H]; apply Loop; [apply base_resolve|apply H]. }
-    rewrite /fix_ty=> > /=. eapply @limit_preserving_compl; [|move=> ?; apply Rslv].
-    apply limit_preserving_forall=> ?. 2: { done. }
-    apply limit_preserving_entails; [done|]=> ??? Eq. do 8 f_equiv. apply Eq.
-  Qed.
+  (* [fix_resolve] removed along with [resolve]. *)
+
 End fix_ty.
 
 Section fix_subtyping.

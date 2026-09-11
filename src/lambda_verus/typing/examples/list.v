@@ -1,6 +1,6 @@
 From lrust.typing Require Export type.
 From lrust.typing Require Import fixpoint product sum own mod_ty.
-From lrust.prophecy Require Import syn_type.
+From lrust.typing Require Import syn_type.
 Set Default Proof Using "Type".
 
 Implicit Type 𝔄 𝔅 ℭ: syn_type.
@@ -104,15 +104,15 @@ Program Definition list_mapₛ {𝔄 𝔅} (f: 𝔄 →ₛ 𝔅) : (rlistₛ �
 Next Obligation. fold indep_interp_of_syn_type. fold proph_interp_of_syn_type. intros.
   destruct x as [loc [l nil_pad]]. simpl. f_equal. f_equal.
   induction l as [|[[a b] c] xl]; trivial. 
-  simpl. f_equal. f_equal.
-   - rewrite syn_type_morphism_commutes. trivial.
+  simpl. f_equal.
+   - f_equal. rewrite syn_type_morphism_commutes. trivial.
    - apply IHxl.
 Qed.
 Next Obligation. fold indep_interp_of_syn_type. fold proph_interp_of_syn_type. intros.
   destruct x as [loc [l nil_pad]]. simpl. f_equal. f_equal.
   induction l as [|[[a b] c] xl]; trivial. 
-  simpl. f_equal. f_equal.
-   - rewrite <- syn_type_morphism_ξl. trivial.
+  simpl. f_equal.
+   - f_equal. rewrite <- syn_type_morphism_ξl. trivial.
    - apply IHxl.
 Qed.
 
@@ -149,18 +149,8 @@ Section typing.
     - apply extensₛ; trivial.
   Qed.
   
-  Lemma list_resolve {𝔄} E L (ty: type 𝔄) Φ :
-    resolve E L ty Φ → resolve E L (list_ty ty)
-        (λ '(_, (l, _)) π, lforall (λ '(x,_,_), Φ x π) l).
-  Proof.
-    move=> ?. apply fix_resolve=> ??. eapply resolve_impl; [solve_typing|].
-    intros [loc [l padding]].  generalize loc. clear loc.
-    induction l as [|[[x1 pad] loc]]; trivial.
-  Qed.
-
-  Lemma list_resolve_just {𝔄} E L (ty: type 𝔄) :
-    resolve E L ty (const (const True)) → resolve E L (list_ty ty) (const (const True)).
-  Proof. move=> ?. apply resolve_just. Qed.
+  (** [list_resolve] / [list_resolve_just] removed: [resolve] is
+      prophecy infrastructure, stripped in this port. *)
 
   
   Lemma list_subtype {𝔄 𝔅} E L (f: 𝔄 →ₛ 𝔅) ty ty' :
@@ -182,6 +172,4 @@ Section typing.
 
 End typing.
 
-Global Hint Resolve list_resolve | 5 : lrust_typing.
-Global Hint Resolve list_resolve_just list_subtype list_eqtype
-  : lrust_typing.
+Global Hint Resolve list_subtype list_eqtype : lrust_typing.

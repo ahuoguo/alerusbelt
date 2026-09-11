@@ -9,7 +9,7 @@ Implicit Type 𝔄 𝔅: syn_type.
 
 Section Ra.
 
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
   Context `{G2: !inG Σ (@Ucmra' _ (~~𝔄) 𝔄_equiv 𝔄_dist 𝔄_pcore 𝔄_op 𝔄_valid 𝔄_validn 𝔄_unit 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)}.
 
   Hypothesis (𝔄_const  : ∀ (x : ~~𝔄) π1 π2 , @vπ 𝔄 x π1 = @vπ 𝔄 x π2).
@@ -33,23 +33,19 @@ Section Ra.
   Qed.
   Next Obligation. done. Qed.
   Next Obligation. done. Qed.
-  Next Obligation. done. Qed.
 
   (* Definition ra_ty  : type (at_locₛ (positiveₛ* 𝔄)) := own_ptr 0 (ra_inner). *)
 
   Global Instance ra_send : Send ra_ty.
   Proof.
+    (* [send_change_tid] field elided: concurrency stripped. *)
     intros. split; trivial.
-     - iIntros. iApply step_fupdN_intro; first done. iNext.
-       iExists x, 0%nat. iModIntro. iFrame. simpl.
-       replace (d0 + 0)%nat with d0 by lia. iFrame "#". done.
   Qed.
 
   Global Instance ra_sync : Sync ra_ty.
   Proof. move => ??[??]??; split => //=. Qed.
 
-  Lemma ra_resolve E L : resolve E L ra_ty (const (const True)).
-  Proof. apply resolve_just. Qed.
+  (* [ra_resolve] removed along with [resolve]. *)
 
 End Ra.
 
@@ -62,7 +58,7 @@ Notation "RA_Validate: self" := (new [ #0])%E (at level 102, self at level 1): e
 
 Section RA_type.
 
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
   Context `{G2: !inG Σ (@Ucmra' _ (~~𝔄) 𝔄_equiv 𝔄_dist 𝔄_pcore 𝔄_op 𝔄_valid 𝔄_validn 𝔄_unit 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3) }.
   Hypothesis (𝔄_const  : ∀ (x : ~~𝔄) π1 π2 , @vπ 𝔄 x π1 = @vπ 𝔄 x π2).
 
@@ -71,12 +67,12 @@ Section RA_type.
     +[p ◁ own_ptr 0 (ghost_ty ty)]
     (RA_Alloc: p)
     (λ v, +[v ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[(_, x)], λ mask π, valid(x) ∧ ∀ l γ, post -[(l, (γ, x))] mask π).
+    (λ post '-[(_, x)], λ mask, valid(x) ∧ ∀ l γ, post -[(l, (γ, x))] mask).
   Proof.
-    move => tid postπ mask iκs xl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs xl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct xl as [[pl m] [ ]].
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %Hvalid & %Hpost)" => //.
+    destruct Obs as [Hvalid Hpost].
     iMod (@own_alloc _ _ G2 m Hvalid) as "(%γ & Hm)".
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦) ".
@@ -90,9 +86,7 @@ Section RA_type.
     - iExists _; iSplitR => //=.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ ].
-      apply H0.
+    - iPureIntro. apply Hpost.
   Qed.
 
   Lemma typed_ra_join (p1 p2 : path) E L I :
@@ -100,12 +94,12 @@ Section RA_type.
     +[p1 ◁ own_ptr 0 (ra_ty 𝔄_const); p2 ◁ own_ptr 0 (ra_ty 𝔄_const)]
     (RA_Join: p1 p2)
     (λ v, +[v ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[(_, (γ1, x1)); (_, (γ2, x2))], λ mask π, γ1 = γ2 ∧ ∀ l, post -[(l, (γ1, x1 ⋅ x2))] mask π).
+    (λ post '-[(_, (γ1, x1)); (_, (γ2, x2))], λ mask, γ1 = γ2 ∧ ∀ l, post -[(l, (γ1, x1 ⋅ x2))] mask).
   Proof.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 x1]] [[pl2 [γ2 x2]] []]].
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & <- & %Hpost)" => //.
+    destruct Obs as [<- Hpost].
     iDestruct "TY" as "(H1 & H2 & _)".
     rewrite /ra_ty/tctx_elt_interp/ty_own/=.
     iDestruct "H1" as "(%l1 & %d1 & % & Hd1 & Hown1 & %Hphys1)".
@@ -123,9 +117,7 @@ Section RA_type.
     - iExists _; iSplitR => //=.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ ].
-      apply H1.
+    - iPureIntro. apply Hpost.
   Qed.
 
   Lemma typed_ra_split (self p1 p2 : path) (ty : type 𝔄) E L I :
@@ -133,18 +125,18 @@ Section RA_type.
     +[self ◁ own_ptr 0 (ra_ty 𝔄_const); p1 ◁ own_ptr 0 (ghost_ty ty); p2 ◁ own_ptr 0 (ghost_ty ty)] 
     (RA_Split: self p1 p2)
     (λ v, +[v ◁ own_ptr 0 (prod_ty (ra_ty 𝔄_const) (ra_ty 𝔄_const))])
-    (λ post '-[(_, (γ, x)); (_, x1); (_, x2)], λ mask π, x = x1 ⋅ x2 ∧ ∀ l, post -[(l, ((γ, x1), (γ, x2)))] mask π).
+    (λ post '-[(_, (γ, x)); (_, x1); (_, x2)], λ mask, x = x1 ⋅ x2 ∧ ∀ l, post -[(l, ((γ, x1), (γ, x2)))] mask).
   Proof.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ x]] [[pl1 x1] [[pl2 x2] []]]].
     simpl in x1, x2.
     iDestruct "TY" as "(H & _ & _ & _)".
     iDestruct "H" as "(%pl' & %d & % & #Hd & Hown & %Hphys)".
     injection Hphys => ? /=; subst pl'.
     destruct d => //.
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & -> & %Hpost)" => //.
-    iApply (wp_persistent_time_receipt with "TIME Hd"); [done|].
+    destruct Obs as [-> Hpost].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd"); [done|solve_ndisj|].
     iIntros "? #Hd'".
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
@@ -157,9 +149,7 @@ Section RA_type.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       rewrite /ty_own/=!heap_mapsto_vec_nil !freeable_util.freeable_sz_full.
       by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ ].
-      apply H0.
+    - iPureIntro. apply Hpost.
   Qed.
 
   Lemma typed_ra_unit E L I :
@@ -167,14 +157,14 @@ Section RA_type.
     +[]
     (RA_Unit:)
     (λ v, +[v ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[], λ mask π, ∀ l γ, post -[(l, (γ, ε))] mask π).
+    (λ post '-[], λ mask, ∀ l γ, post -[(l, (γ, ε))] mask).
   Proof.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     iMod (@own_alloc _ _ G2 ε) as "(%γ & Hm)".
     { by eapply mixin_ucmra_unit_valid. }
     iMod persistent_time_receipt_0 as "⧖".
-    iApply (wp_persistent_time_receipt with "TIME ⧖"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖"); [done|solve_ndisj|].
     iIntros "? #⧖".
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
@@ -186,8 +176,7 @@ Section RA_type.
     - iExists _; iSplitR => //=.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      by destruct vπl.
+    - iPureIntro. by destruct vπl.
   Qed.
 
   Lemma typed_ra_update (self p : path) (ty : type 𝔄) E L I :
@@ -195,18 +184,18 @@ Section RA_type.
     +[self ◁ own_ptr 0 (ra_ty 𝔄_const); p ◁ own_ptr 0 (ghost_ty ty)]
     (RA_Update: self p)
     (λ v, +[v ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[(_, (γ, x)); (_, y)], λ mask π, (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) x y) ∧ ∀ l, post -[(l, (γ, y))] mask π).
+    (λ post '-[(_, (γ, x)); (_, y)], λ mask, (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) x y) ∧ ∀ l, post -[(l, (γ, y))] mask).
   Proof.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ x]] [[ply y] []]].
     simpl in y.
     iDestruct "TY" as "(H & ? & _)".
     iDestruct "H" as "(%pl' & %d & % & #Hd & Hown & %Hphys)".
     destruct d => //.
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %Hupd & _)" => //=.
+    destruct Obs as [Hupd Hpost].
     iDestruct "Hown" as "(? & ? & Hown)".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     iMod (own_update with "Hown") as "Hown" => //.
@@ -218,9 +207,7 @@ Section RA_type.
     - iExists _; iSplitR => //=.
       iFrame.
       iModIntro. done.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ ].
-      apply H0.
+    - iPureIntro. apply Hpost.
   Qed.
 
   Lemma typed_ra_update_nondeterministic (self p : path) (n : nat) (ty : type (vecₛ 𝔄 n)) E L I :
@@ -228,23 +215,23 @@ Section RA_type.
     +[self ◁ own_ptr 0 (ra_ty 𝔄_const); p ◁ own_ptr 0 (ghost_ty ty)]
     (RA_Update: self p)
     (λ v, +[v ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[(_, (γ, x)); (_, ys)], λ mask π, 0 < n ∧ (Vector.Forall (λ y, (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) x y)) ys) ∧ ∀ l, Vector.Forall (λ y, post -[(l, (γ, y))] mask π) ys).
+    (λ post '-[(_, (γ, x)); (_, ys)], λ mask, 0 < n ∧ (Vector.Forall (λ y, (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) x y)) ys) ∧ ∀ l, Vector.Forall (λ y, post -[(l, (γ, y))] mask) ys).
   Proof.
-    move => tid postπ mask iκs vπl.
+    move => tid post mask iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ x]] [[plys ys] []]].
     simpl in ys.
     iDestruct "TY" as "(H & _ & _)".
     iDestruct "H" as "(%pl' & %d & % & #Hd & Hown & %Hphys)".
     destruct d => //.
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %Hn & %Hupd & _)" => //=.
+    destruct Obs as [Hn [Hupd Hpost]].
     iDestruct "Hown" as "(? & ? & Hown)".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     destruct n; first lia.
-    inv_vec ys => y ys Hupd.
+    inv_vec ys => y ys Hupd Hpost.
     iMod (own_update with "Hown") as "Hown".
     { apply Vector.Forall_cons_iff in Hupd as [Hupd ?].
       exact Hupd. }
@@ -256,8 +243,7 @@ Section RA_type.
     - iExists _; iSplitR => //=.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ [_ Hpost]].
+    - iPureIntro.
       specialize (Hpost l).
       apply Vector.Forall_cons_iff in Hpost as [Hpost ?].
       apply Hpost.
@@ -272,10 +258,10 @@ Section RA_type.
     +[self ◁ shr_bor κ (ra_ty 𝔄_const)]
     (RA_Validate: self)
     (λ _, +[])
-    (λ post '-[(l, (γ, x))], λ mask π, (valid x → post -[] mask π)).
+    (λ post '-[(l, (γ, x))], λ mask, (valid x → post -[] mask)).
   Proof.
-    move => Alv tid postπ mask iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ x]] []].
     iDestruct "TY" as "(H & _)".
     iDestruct "H" as "(%pl' & %d & % & #Hd & Hown & %Hphys)".
@@ -286,14 +272,14 @@ Section RA_type.
     (* iMod (proph_obs_sat with "PROPH Obs") as "(%π & %Alv & _)" => //=. *)
     iDestruct (Alv with "L E") as "#Alv".
     iDestruct (guards_transitive_right with "Alv Hshr") as "G1".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd"); [done|solve_ndisj|].
     iIntros "H£ #Hd'".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
     iIntros "H£' #Hd''".
     wp_if.
     iIntros "!>".
@@ -307,9 +293,7 @@ Section RA_type.
     iModIntro.
     iExists -[].
     iSplit => //.
-    iApply (proph_obs_impl with "Obs").
-    intros π' ?.
-    by apply H0.
+    iPureIntro. by apply Obs.
   Qed.
 
   Notation "RA_JoinShared: p1 p2" := (new [ #0])%E (at level 102, p1, p2 at level 1): expr_scope.
@@ -317,11 +301,11 @@ Section RA_type.
 (*
   Lemma typed_ra_join_shared `{! CmraDiscrete U } κ (p1 p2 : path) E L I :
     lctx_lft_alive E L κ →
-    typed_instr E L I +[p1 ◁ shr_bor κ (ra_ty 𝔄_const); p2 ◁ shr_bor κ (ra_ty 𝔄_const)] (RA_JoinShared: p1 p2) (λ v, +[v ◁ shr_bor κ (ra_ty 𝔄_const)]) (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2))], λ mask π, γ1 = γ2 ∧ ∀ y l, x1 ≼ y → x2 ≼ y → post -[(l, (γ1, y))] mask π).
+    typed_instr E L I +[p1 ◁ shr_bor κ (ra_ty 𝔄_const); p2 ◁ shr_bor κ (ra_ty 𝔄_const)] (RA_JoinShared: p1 p2) (λ v, +[v ◁ shr_bor κ (ra_ty 𝔄_const)]) (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2))], λ mask, γ1 = γ2 ∧ ∀ y l, x1 ≼ y → x2 ≼ y → post -[(l, (γ1, y))] mask).
   Proof.
-    move => Alv tid postπ mask iκs vπl.
+    move => Alv tid post mask iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "LFT #TIME #PROPH UNIQ E L I TY #Obs" => /=.
+    iIntros "LFT #TIME #UNIQ E L I TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 x1]] [[pl2 [γ2 x2]] []]].
     iDestruct "TY" as "(H1 & H2 & _)".
     iDestruct "H1" as "(%pl1' & %d1 & % & #Hd1 & Hown1 & %Hphys1)".
@@ -334,19 +318,19 @@ Section RA_type.
     iDestruct "Hown1" as "(_ & #Hshr1 & _)".
     iDestruct "Hown2" as "(_ & #Hshr2 & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & <- & _)" => //.
+    destruct Obs as [<- Obs].
     destruct (decide (d1 ≤ d2)) as [Hle | Hgt].
     - iDestruct (guards_transitive_right with "Alv Hshr1") as "G1".
       iDestruct (guards_transitive_right with "Alv Hshr2") as "G2".
-      iApply wp_fupd.
+      iApply pgl_wp_fupd.
       wp_lam.
       wp_bind (_ ≤ _)%E.
       iPoseProof (lguards_weaken_later _ _ _ _ (S (d2 + 1)) with "G1") as "G1'"; first lia.
-      iApply (wp_persistent_time_receipt with "TIME Hd2"); [done|].
+      iApply (wp_persistent_time_receipt _ with "TIME Hd2"); [done|solve_ndisj|].
       iIntros "H£ #HdS".
       wp_pure (_ ≤ _)%E.
-      iApply wp_fupd.
-      iApply (wp_persistent_time_receipt with "TIME HdS"); [done|].
+      iApply pgl_wp_fupd.
+      iApply (wp_persistent_time_receipt _ with "TIME HdS"); [done|solve_ndisj|].
       iIntros "H£' #HdSS".
       wp_if.
       iIntros "!>".
@@ -364,11 +348,11 @@ Section RA_type.
     +[p1 ◁ shr_bor κ (ra_ty 𝔄_const); p2 ◁ shr_bor κ (ra_ty 𝔄_const); p ◁ own_ptr 0 (ghost_ty ty)] 
     (RA_JoinSharedDet: p1 p2 p)
     (λ v, +[v ◁ shr_bor κ (ra_ty 𝔄_const)])
-    (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2)); (_, y)], λ mask π, γ1 = γ2 ∧ (∀ p, ✓ p ∧ x1 ≼ p ∧ x2 ≼ p → y ≼ p) ∧ ∀ l, post -[(l, (γ1, y))] mask π).
+    (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2)); (_, y)], λ mask, γ1 = γ2 ∧ (∀ p, ✓ p ∧ x1 ≼ p ∧ x2 ≼ p → y ≼ p) ∧ ∀ l, post -[(l, (γ1, y))] mask).
   Proof.
-    move => Alv tid postπ mask iκs vπl.
+    move => Alv tid post mask iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 x1]] [[pl2 [γ2 x2]] [[ply y] []]]].
     simpl in y.
     iDestruct "TY" as "(H1 & H2 & _ & _)".
@@ -382,7 +366,7 @@ Section RA_type.
     iDestruct "Hown1" as "(_ & #Hshr1 & _)".
     iDestruct "Hown2" as "(_ & #Hshr2 & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & <- & %Hy & _)" => //.
+    destruct Obs as [<- [Hy Obs]].
     destruct (decide (d1 ≤ d2)) as [Hle | Hgt].
     - iPoseProof (lguards_weaken_later _ _ _ _ (S (d2 + 1)) with "Hshr1") as "Hshr1'"; first lia.
       iPoseProof (@guards_and_own _ _ _ _ _ _ U _ γ1 y with "Hshr1' Hshr2") as "Hshr3"; [ | | ..].
@@ -402,9 +386,7 @@ Section RA_type.
         rewrite heap_mapsto_vec_nil.
         repeat iSplit => //.
         iApply guards_true.
-      + iApply (proph_obs_impl with "Obs").
-        intros π' [_ [? ?] ].
-        apply H2.
+      + iPureIntro. by apply Obs.
     - iPoseProof (lguards_weaken_later _ _ _ _ (S (d1 + 1)) with "Hshr2") as "Hshr2'"; first lia.
       iPoseProof (@guards_and_own _ _ _ _ _ _ U _ γ1 y with "Hshr1 Hshr2'") as "Hshr3"; [ | | ..].
       { iIntros "H".
@@ -423,9 +405,7 @@ Section RA_type.
         rewrite heap_mapsto_vec_nil.
         repeat iSplit => //.
         iApply guards_true.
-      + iApply (proph_obs_impl with "Obs").
-        intros π' [_ [? ?] ].
-        apply H2.
+      + iPureIntro. by apply Obs.
   Qed.
 
   Notation "RA_Weaken: p1 p2" := (new [ #0])%E (at level 102, p1, p2 at level 1): expr_scope.
@@ -436,11 +416,11 @@ Section RA_type.
     +[p1 ◁ shr_bor κ (ra_ty 𝔄_const); p2 ◁ own_ptr 0 (ghost_ty ty)]
     (RA_Weaken: p1 p2)
     (λ v, +[v ◁ shr_bor κ (ra_ty 𝔄_const)])
-    (λ post '-[(l, (γ, x)); (_, y)], λ mask π, y ≼ x ∧ ∀ l, post -[(l, (γ, y))] mask π).
+    (λ post '-[(l, (γ, x)); (_, y)], λ mask, y ≼ x ∧ ∀ l, post -[(l, (γ, y))] mask).
   Proof.
-    move => Alv tid postπ mask iκs vπl.
+    move => Alv tid post mask iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ x]]  [[ply y] []] ].
     simpl in y.
     iDestruct "TY" as "(H & _ & _)".
@@ -450,7 +430,7 @@ Section RA_type.
     destruct d => //.
     iDestruct "Hown" as "(_ & #Hshr & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & %Hincl & _)" => //.
+    destruct Obs as [Hincl Obs].
     iPoseProof (@guards_and_own _ _ _ _ _ _ U _ γ y with "Hshr Hshr") as "Hshr'"; [ | | ..].
     { iIntros "H".
       iApply (and_own_discrete_ucmra_specific with "H").
@@ -468,9 +448,7 @@ Section RA_type.
       rewrite heap_mapsto_vec_nil.
       repeat iSplit => //.
       iApply guards_true.
-    + iApply (proph_obs_impl with "Obs").
-      intros π' [_ ? ].
-      apply H0.
+    + iPureIntro. by apply Obs.
   Qed.
 
   Notation "RA_UpdateWithShr: self other new_value" := (new [ #0])%E (at level 102, self,other,new_value at level 1): expr_scope.
@@ -481,10 +459,10 @@ Section RA_type.
     +[self ◁ own_ptr 0 (ra_ty 𝔄_const); other ◁ shr_bor κ (ra_ty 𝔄_const); new_value ◁ own_ptr 0 (ghost_ty ty)]
     (RA_UpdateWithShr: self other new_value)
     (λ out, +[out ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[(l1, (γ1, x)); (l2, (γ2, y)); (_, z)], λ mask π, γ1 = γ2 ∧ (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) (x ⋅ y) (z ⋅ y))  ∧ ∀ l, post -[(l, (γ1, z))] mask π).
+    (λ post '-[(l1, (γ1, x)); (l2, (γ2, y)); (_, z)], λ mask, γ1 = γ2 ∧ (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) (x ⋅ y) (z ⋅ y))  ∧ ∀ l, post -[(l, (γ1, z))] mask).
   Proof.
-    move => Alv tid postπ mask iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 x]] [[pl2 [γ2 y]] [[plz z] []]]].
     simpl in z.
     iDestruct "TY" as "(H1 & H2 & _ & _)".
@@ -498,16 +476,16 @@ Section RA_type.
     iDestruct "Hown1" as "(_ & _ & Hx)".
     iDestruct "Hown2" as "(_ & #Hy & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & <- & %Hupd & _)" => //.
+    destruct Obs as [<- [Hupd Hpost]].
     iDestruct (guards_transitive_right with "Alv Hy") as "G1".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd2"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd2"); [done|solve_ndisj|].
     iIntros "H£ #Hd2'".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd2'"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd2'"); [done|solve_ndisj|].
     iIntros "H£' #Hd2''".
     wp_if.
     iIntros "!>".
@@ -524,14 +502,10 @@ Section RA_type.
     rewrite /tctx_elt_interp/ty_own/=.
     iExists -[(_, (γ1, z))].
     iFrame "Hd1".
-    iSplit => //=.
-    + iExists _.
-      iSplit => //.
-      rewrite heap_mapsto_fancy_vec_nil.
-      repeat iSplit => //.
-    + iApply (proph_obs_impl with "Obs").
-      intros π' [_ [_ ]].
-      by apply H1.
+    iSplit; last (iPureIntro; by apply Hpost).
+    iExists _.
+    iSplit => //.
+    repeat iSplit => //.
   Qed.
 
   Notation "RA_UpdateWithShrNonDet: self other new_values" := (new [ #0])%E (at level 102, self,other,new_values at level 1): expr_scope.
@@ -542,10 +516,10 @@ Section RA_type.
     +[self ◁ own_ptr 0 (ra_ty 𝔄_const); other ◁ shr_bor κ (ra_ty 𝔄_const); new_values ◁ own_ptr 0 (ghost_ty ty)]
     (RA_UpdateWithShrNonDet: self other new_values)
     (λ out, +[out ◁ own_ptr 0 (ra_ty 𝔄_const)])
-    (λ post '-[(l1, (γ1, x)); (l2, (γ2, y)); (_, zs)], λ mask π, γ1 = γ2 ∧ 0 < n ∧ (Vector.Forall (λ z, (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) (x ⋅ y) (z ⋅ y))) zs)  ∧ ∀ l, Vector.Forall (λ z, post -[(l, (γ1, z))] mask π) zs ).
+    (λ post '-[(l1, (γ1, x)); (l2, (γ2, y)); (_, zs)], λ mask, γ1 = γ2 ∧ 0 < n ∧ (Vector.Forall (λ z, (@cmra_update _ (ucmra_cmraR (Ucmra' (~~ 𝔄) 𝔄_mixin1 𝔄_mixin2 𝔄_mixin3)) (x ⋅ y) (z ⋅ y))) zs)  ∧ ∀ l, Vector.Forall (λ z, post -[(l, (γ1, z))] mask) zs ).
   Proof.
-    move => Alv tid postπ mask iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid post mask iκs vπl.
+    iIntros "LFT #TIME #UNIQ E L $ TY %Obs" => /=.
     fold indep_interp_of_syn_type.
     destruct vπl as [[pl1 [γ1 x]] [[pl2 [γ2 y]] [[plzs zs] []]]].
     simpl in zs.
@@ -560,18 +534,18 @@ Section RA_type.
     iDestruct "Hown1" as "(_ & _ & Hx)".
     iDestruct "Hown2" as "(_ & #Hy & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & <- & %Hn & %Hupd & _)" => //.
+    destruct Obs as [<- [Hn [Hupd Hpost]]].
     destruct n; first lia.
-    inv_vec zs => z zs Hupd.
+    inv_vec zs => z zs Hupd Hpost.
     iDestruct (guards_transitive_right with "Alv Hy") as "G1".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd2"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd2"); [done|solve_ndisj|].
     iIntros "H£ #Hd2'".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd2'"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd2'"); [done|solve_ndisj|].
     iIntros "H£' #Hd2''".
     wp_if.
     iIntros "!>".
@@ -590,16 +564,14 @@ Section RA_type.
     rewrite /tctx_elt_interp/ty_own/=.
     iExists -[(_, (γ1, z))].
     iFrame "Hd1".
-    iSplit => //=.
-    + iExists _.
-      iSplit => //.
-      rewrite heap_mapsto_fancy_vec_nil.
-      repeat iSplit => //.
-    + iApply (proph_obs_impl with "Obs").
-      intros π' [_ [_ [? Hpost]]].
+    iSplit; last first.
+    { iPureIntro.
       specialize (Hpost (42%positive, 1337%Z)).
       apply Vector.Forall_cons_iff in Hpost as [Hpost ?].
-      apply Hpost.
+      apply Hpost. }
+    iExists _.
+    iSplit => //.
+    repeat iSplit => //.
   Qed.
 
 End RA_type.

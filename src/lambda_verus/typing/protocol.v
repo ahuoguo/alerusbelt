@@ -10,7 +10,7 @@ Implicit Type 𝔄 𝔅: syn_type.
 
 Section StorageProtocol.
 
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
     
   (* very hacky type used to instantiate storage protocols *)
   Program Definition storable_ty {𝔄} (ty: type 𝔄) : ghost_type (storableₛ 𝔄) := {|
@@ -21,22 +21,12 @@ Section StorageProtocol.
   Next Obligation. done. Qed.
   Next Obligation. done. Qed.
   Next Obligation. done. Qed.
-  Next Obligation. done. Qed.
   
   (* this shouldn't really require Sync, but we would need another layer of step-indexing
     accounting to fix it (similar to how local_inv works). At least in this case,
     it doesn't matter, since the Storage Protocol requires Sync anyway. *)
   Global Instance storable_ty_send {𝔄} (ty : type 𝔄) : Send ty → Sync ty → Send (storable_ty ty).
-  Proof. intros Hsend. intros Hsync. split; trivial.
-    destruct x as [x0 [d0 g0]].
-    destruct (Hsync tid tid' x0 d0 g0) as [A [B C]].
-    iIntros (d g G H κs d1 Hineq TG TH) "LFT UNIQ TIME Hg H Gg G gho ⧖".
-    iDestruct "gho" as "[gho1 A]".
-    setoid_rewrite B.
-    iIntros. iApply step_fupdN_intro; first done. iNext. iModIntro.
-    iExists (x0, (d0, g0)), 0. iFrame. replace (d1 + 0) with d1 by lia. iFrame.
-    done.
-  Qed.
+  Proof. intros Hsend Hsync. split; trivial. Qed.
 
   Global Instance storable_ty_sync {𝔄} (ty : type 𝔄) : Sync ty → Sync (storable_ty ty).
   Proof. intros Hsync. split; trivial.
@@ -58,15 +48,15 @@ Section StorageProtocol.
       +[p ◁ own_ptr 0 (tracked_ty ty)]
       (Seq Skip Skip)
       (const +[p ◁ own_ptr 0 (storable_ty ty)])
-      (λ post '-[(l, x)], λ mask π, ∀ l n, post -[(l, (x, n))] mask π).
+      (λ post '-[(l, x)], λ mask, ∀ l n, post -[(l, (x, n))] mask).
   Proof.
     apply typed_instr_of_skip_own_own_t; trivial.
     intros l1 x1 d tid iκs post mask.
-    iIntros "#LFT #TIME #PROPH #UNIQ #E L Inv Gho Obs #⧖ ⧗".
+    iIntros "#LFT #TIME #UNIQ #E L Inv Gho %Obs #⧖ ⧗".
     iExists (S d), (x1, (d, S d)). iModIntro. iFrame. iFrame "#".
     iSplit.
        - iApply (persistent_time_receipt_mono with "⧖"). lia.
-       - iApply (proph_obs_impl with "Obs"). done.
+       - iPureIntro. by apply Obs.
   Qed.
   
   Lemma storable_into_inner {𝔄} E L I p (ty : type 𝔄) :
@@ -74,17 +64,17 @@ Section StorageProtocol.
       +[p ◁ own_ptr 0 (storable_ty ty)]
       (Seq Skip Skip)
       (const +[p ◁ own_ptr 0 (tracked_ty ty)])
-      (λ post '-[(l, (x, n))], λ mask π, ∀ l, post -[(l, x)] mask π).
+      (λ post '-[(l, (x, n))], λ mask, ∀ l, post -[(l, x)] mask).
   Proof.
     apply typed_instr_of_skip_own_own_t; trivial.
     intros l1 x1 d tid iκs post mask.
-    iIntros "#LFT #TIME #PROPH #UNIQ #E L Inv Gho Obs ⧖ ⧗".
+    iIntros "#LFT #TIME #UNIQ #E L Inv Gho %Obs ⧖ ⧗".
     destruct x1 as [x0 [d0 g0]].
     iDestruct "Gho" as "[Gho #⧖2]".
     iMod (cumulative_persistent_time_receipt with "TIME ⧗ ⧖2") as "⧖S2"; first solve_ndisj.
     iExists ((S d0 `max` g0)), x0. iModIntro. iFrame. iFrame "#".
     iDestruct (ty_gho_depth_mono with "Gho") as "[$ _]". { lia. } { lia. } 
-    iApply (proph_obs_impl with "Obs"). done.
+    iPureIntro. by apply Obs.
   Qed.
 
   Lemma storable_borrow {𝔄} κ E L I p (ty : type 𝔄) :
@@ -93,11 +83,11 @@ Section StorageProtocol.
       +[p ◁ (&shr{κ} (storable_ty ty))]
       (Seq Skip Skip)
       (const +[p ◁ (&shr{κ} (tracked_ty ty))])
-      (λ post '-[(l, (x, n))], λ mask π, ∀ l, post -[(l, x)] mask π).
+      (λ post '-[(l, (x, n))], λ mask, ∀ l, post -[(l, x)] mask).
   Proof.
     intros Alv. apply typed_instr_of_skip; trivial.
     intros [l [x0 [d0 g0]]] v d tid post mask iκs.
-    iIntros "#LFT #TIME #PROPH #UNIQ #E L Inv %Path Gho Obs ⧖ ⧗ ⧗' £".
+    iIntros "#LFT #TIME #UNIQ #E L Inv %Path Gho %Obs ⧖ ⧗ ⧗' £".
     iDestruct "Gho" as "[Gho #phys]".
     destruct d as [|d]; first done.
     iDestruct "Gho" as "[#pt [#gho #pers]]".
@@ -124,7 +114,7 @@ Section StorageProtocol.
        }
        iNext. iNext.
        iDestruct (ty_gho_pers_depth_mono with "InnerPers") as "$"; lia.
-     - iApply (proph_obs_impl with "Obs"). done.
+     - iPureIntro. by apply Obs.
     }
     unfold advance_credits. lia.
   Qed.
@@ -181,7 +171,6 @@ Section StorageProtocol.
       Qed.
       Next Obligation. done. Qed.
       Next Obligation. done. Qed.
-      Next Obligation. done. Qed.
       
   Lemma storage_ty_sync : Send tyC → Sync tyC → Sync storage_resource_ty.
   Proof.
@@ -193,13 +182,7 @@ Section StorageProtocol.
         
   Lemma storage_ty_send : Send tyC → Sync tyC → Send storage_resource_ty.
   Proof.
-    intros Hsend. intros Hsync. split; trivial.
-    iIntros (tid tid' x d g G H κs d1 Hineq TG TH) "LFT UNIQ TIME Hg H Gg G gho ⧖".
-    have H1 := storage_ty_sync Hsend Hsync.
-    destruct (H1 tid tid' x d g) as [H2 [H3 H4]]. rewrite H3. iIntros.
-    iIntros. iApply step_fupdN_intro; first done. iNext. iModIntro.
-    iExists x, 0. iFrame. replace (d1 + 0) with d1 by lia. iFrame.
-    done.
+    intros Hsend Hsync. split; trivial.
   Qed.
 
   Notation "SP_Alloc: p s" := (new [ #0])%E (at level 102, p,s at level 1): expr_scope.
@@ -209,17 +192,17 @@ Section StorageProtocol.
     +[p ◁ own_ptr 0 (ghost_ty tyA); s ◁ own_ptr 0 (tracked_ty tyC)]
     (SP_Alloc: p s)
     (λ v, +[v ◁ own_ptr 0 (storage_resource_ty)])
-    (λ post '-[(_, a); (_, c)], λ mask π, ∃ b k, F b = {[ k := c ]} ∧ R a b ∧ ∀ l γ, post -[(l, (γ, a))] mask π).
+    (λ post '-[(_, a); (_, c)], λ mask, ∃ b k, F b = {[ k := c ]} ∧ R a b ∧ ∀ l γ, post -[(l, (γ, a))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl a] [[pl' c] []]].
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %b & %k & %Hb & %HR & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (b & k & Hb & HR & _).
     iDestruct "TY" as "((% & %d & % & Hd & Hgho & %Hphys) & TY' & _)".
     iDestruct "TY'" as "(% & %d' & % & Hd' & Hgho' & %)".
     destruct d, d' => //=.
     iDestruct "Hgho'" as "(_ & _ & HghoC)".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦) ".
     (* iPoseProof (Hty with "HghoB") as "HghoC". *)
@@ -227,8 +210,7 @@ Section StorageProtocol.
     { rewrite /wf_prop_map. 
       split_and!.
       - move => x y Hequiv.
-        eapply big_opM_proper_2.
-        by apply Proper_F.
+        eapply big_opM_proper_2; first by apply Proper_F.
         move => ? c1 c2 Hlookup1 Hlookup2 Hequiv1.
         apply bi.equiv_entails_2.
         + clear d. iIntros "C".
@@ -249,8 +231,7 @@ Section StorageProtocol.
       iFrame. iModIntro; iSplit => //. simpl.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       iPureIntro; set_solver.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & Hpost).
       apply Hpost.
   Qed.
 
@@ -261,12 +242,12 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ own_ptr 0 storage_resource_ty]
     (SP_Join: p1 p2)
     (λ v, +[v ◁ own_ptr 0 storage_resource_ty])
-    (λ post '-[(_, (γ1, a1)); (_, (γ2, a2))], λ mask π, γ1 = γ2 ∧ ∀ l, post -[(l, (γ1, a1 ⋅ a2))] mask π).
+    (λ post '-[(_, (γ1, a1)); (_, (γ2, a2))], λ mask, γ1 = γ2 ∧ ∀ l, post -[(l, (γ1, a1 ⋅ a2))] mask).
   Proof.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 a1]] [[pl2 [γ2 a2]] []]].
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & <- & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (<- & _).
     iDestruct "TY" as "(H1 & H2 & _)".
     iDestruct "H1" as "(%l1 & %d1 & % & Hd1 & Hown1 & %Hphys1)".
     iDestruct "H2" as "(%l2 & %d2 & % & Hd2 & Hown2 & %Hphys2)".
@@ -284,8 +265,7 @@ Section StorageProtocol.
       rewrite /ty_own/ty_gho/ty_phys/=.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       iFrame; iSplitL => //.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ Hpost].
+    - iPureIntro. destruct Obs as [_ Hpost].
       apply Hpost.
   Qed.
 
@@ -296,18 +276,18 @@ Section StorageProtocol.
     +[self ◁ own_ptr 0 storage_resource_ty; p1 ◁ own_ptr 0 (ghost_ty ty); p2 ◁ own_ptr 0 (ghost_ty ty)]
     (SP_Split: self p1 p2)
     (λ v, +[v ◁ own_ptr 0 (prod_ty storage_resource_ty storage_resource_ty)])
-    (λ post '-[(_, (γ, x)); (_, x1); (_, x2)], λ mask π, x = x1 ⋅ x2 ∧ ∀ l, post -[(l, ((γ, x1), (γ, x2)))] mask π).
+    (λ post '-[(_, (γ, x)); (_, x1); (_, x2)], λ mask, x = x1 ⋅ x2 ∧ ∀ l, post -[(l, ((γ, x1), (γ, x2)))] mask).
   Proof.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ x]] [[plx1 x1] [[plx2 x2] []]]].
     simpl in x1, x2.
     iDestruct "TY" as "(H & _ & _ & _)".
     iDestruct "H" as "(%pl' & %d & % & #Hd & Hown & %Hphys)".
     injection Hphys => ? /=; subst pl'.
     destruct d => //.
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & -> & _)" => //.
-    iApply (wp_persistent_time_receipt with "TIME Hd"); [done|].
+    pose proof Obs as ObsS. destruct ObsS as (-> & _).
+    iApply (wp_persistent_time_receipt _ with "TIME Hd"); [done|solve_ndisj|].
     iIntros "? #Hd'".
     iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
@@ -321,8 +301,7 @@ Section StorageProtocol.
       rewrite /ty_own/=!heap_mapsto_vec_nil !freeable_util.freeable_sz_full.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       iFrame. by iFrame "#".
-    - iApply (proph_obs_impl with "Obs").
-      intros π' [_ Hpost].
+    - iPureIntro. destruct Obs as [_ Hpost].
       apply Hpost.
   Qed.
 
@@ -333,10 +312,10 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ own_ptr 0 (tracked_ty tyC); p3 ◁  own_ptr 0 (ghost_ty tyA); p4 ◁ own_ptr 0 (ghost_ty tyC)]
     (SP_Exchange: p1 p2 p3 p4)
     (λ v, +[v ◁ own_ptr 0 (prod_ty storage_resource_ty (tracked_ty tyC))])
-    (λ post '-[(_, (γ, p)); (_, s); (_, new_p); (_, new_s)], λ mask π, ∃ b new_b k, F b = {[ k := s ]} ∧ F new_b = {[ k := new_s ]} ∧ storage_protocol_exchange p new_p b new_b  ∧ ∀ l, post -[(l, ((γ, new_p), new_s))] mask π).
+    (λ post '-[(_, (γ, p)); (_, s); (_, new_p); (_, new_s)], λ mask, ∃ b new_b k, F b = {[ k := s ]} ∧ F new_b = {[ k := new_s ]} ∧ storage_protocol_exchange p new_p b new_b  ∧ ∀ l, post -[(l, ((γ, new_p), new_s))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ p]] [[pls s] [[plnew_p new_p] [[plnew_s new_s] []]]]].
     simpl in γ,p,s,new_p, new_s.
     iDestruct "TY" as "(Hp & Hs & _ & _)".
@@ -346,8 +325,8 @@ Section StorageProtocol.
     destruct d,d' => //.
     iDestruct "Hown" as "(?&?&Hγ&#Hsto&Hown)".
     iDestruct "Hown'" as "(?&?&HghoC)".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %b & %new_b & %k & %Hb & %Hnew_b & %exchng & _)" => //.
-    iApply wp_fupd; iApply wp_new=>//.
+    pose proof Obs as ObsS. destruct ObsS as (b & new_b & k & Hb & Hnew_b & exchng & _).
+    iApply pgl_wp_fupd; iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     iMod (fupd_mask_subseteq {[ γ ]}) as "Hfupd"; first set_solver.
     iMod (sp_exchange with "Hsto [$Hown HghoC]") as "(Hown & HghoC)" => //.
@@ -363,8 +342,7 @@ Section StorageProtocol.
       repeat iFrame.
       iSplit => //; iNext; iFrame "#".
       by rewrite Hnew_b big_sepM_singleton.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & Hpost).
       apply Hpost.
   Qed.
 
@@ -375,10 +353,10 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ own_ptr 0 (tracked_ty tyC); p3 ◁  own_ptr 0 (ghost_ty tyA)]
     (SP_Deposit: p1 p2 p3)
     (λ v, +[v ◁ own_ptr 0 storage_resource_ty])
-    (λ post '-[(_, (γ, p)); (_, s); (_, new_p)], λ mask π, ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_deposit p new_p b ∧ ∀ l, post -[(l, (γ, new_p))] mask π).
+    (λ post '-[(_, (γ, p)); (_, s); (_, new_p)], λ mask, ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_deposit p new_p b ∧ ∀ l, post -[(l, (γ, new_p))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ p]] [[pls s] [[plnew_p new_p] []]]].
     simpl in γ,p,s,new_p.
     iDestruct "TY" as "(Hp & Hs & _ & _)".
@@ -388,8 +366,8 @@ Section StorageProtocol.
     destruct d,d' => //.
     iDestruct "Hown" as "(?&?&Hγ&#Hsto&Hown)".
     iDestruct "Hown'" as "(?&?&HghoC)".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %b & %k & %Hb & %exchng & _)" => //.
-    iApply wp_fupd; iApply wp_new=>//.
+    pose proof Obs as ObsS. destruct ObsS as (b & k & Hb & exchng & _).
+    iApply pgl_wp_fupd; iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     iMod (fupd_mask_subseteq {[ γ ]}) as "Hfupd"; first set_solver.
     iMod (sp_deposit with "Hsto [$Hown HghoC]") as "Hown" => //.
@@ -404,8 +382,7 @@ Section StorageProtocol.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       repeat iFrame.
       by iFrame "#".
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & Hpost).
       apply Hpost.
   Qed.
 
@@ -416,10 +393,10 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ own_ptr 0 (ghost_ty tyA); p3 ◁  own_ptr 0 (ghost_ty tyC)]
     (SP_Withdraw: p1 p2 p3)
     (λ v, +[v ◁ own_ptr 0 (prod_ty storage_resource_ty (tracked_ty tyC))])
-    (λ post '-[(_, (γ, p)); (_, new_p); (_, new_s)], λ mask π, ∃ b k, F b = {[ k := new_s ]} ∧ storage_protocol_withdraw p new_p b ∧ ∀ l, post -[(l, ((γ, new_p) , new_s))] mask π).
+    (λ post '-[(_, (γ, p)); (_, new_p); (_, new_s)], λ mask, ∃ b k, F b = {[ k := new_s ]} ∧ storage_protocol_withdraw p new_p b ∧ ∀ l, post -[(l, ((γ, new_p) , new_s))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ p]] [[plnew_p new_p] [[plnew_s new_s] []]]].
     simpl in γ,p,new_s,new_p.
     iDestruct "TY" as "(Hp & _ & _ & _)".
@@ -428,8 +405,8 @@ Section StorageProtocol.
     destruct d => //.
     iDestruct "Hown" as "(?&?&Hγ&#Hsto&Hown)".
     (* iPoseProof (Hty with "HownB") as "HghoC". *)
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %b & %k & %Hb & %exchng & _)" => //.
-    iApply wp_fupd; iApply wp_new=>//.
+    pose proof Obs as ObsS. destruct ObsS as (b & k & Hb & exchng & _).
+    iApply pgl_wp_fupd; iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     iMod (fupd_mask_subseteq {[ γ ]}) as "Hfupd"; first set_solver.
     iMod (sp_withdraw with "Hsto Hown") as "[Hown HghoC]" => //.
@@ -444,8 +421,7 @@ Section StorageProtocol.
       repeat iFrame.
       iFrame "#".
       rewrite Hb big_sepM_singleton. by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & Hpost).
       apply Hpost.
   Qed.
 
@@ -456,10 +432,10 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ own_ptr 0 (ghost_ty tyA)]
     (SP_Update: p1 p2)
     (λ v, +[v ◁ own_ptr 0 storage_resource_ty])
-    (λ post '-[(_, (γ, p)); (_, new_p)], λ mask π, storage_protocol_update p new_p ∧ ∀ l, post -[(l, (γ, new_p))] mask π).
+    (λ post '-[(_, (γ, p)); (_, new_p)], λ mask, storage_protocol_update p new_p ∧ ∀ l, post -[(l, (γ, new_p))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ p]] [[plnew_p new_p] []]].
     simpl in γ,p,new_p.
     iDestruct "TY" as "(Hp & _ & _)".
@@ -467,8 +443,8 @@ Section StorageProtocol.
     injection Hphys => ? /=; subst v.
     destruct d => //.
     iDestruct "Hown" as "(?&?&Hγ&#Hsto&Hown)".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %exchng & _)" => //.
-    iApply wp_fupd; iApply wp_new=>//.
+    pose proof Obs as ObsS. destruct ObsS as (exchng & _).
+    iApply pgl_wp_fupd; iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     iMod (fupd_mask_subseteq {[ γ ]}) as "Hfupd"; first set_solver.
     iMod (sp_update with "Hsto Hown") as "Hown" => //.
@@ -482,8 +458,7 @@ Section StorageProtocol.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       repeat iFrame.
       by iFrame "#".
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & Hpost).
+    - iPureIntro. destruct Obs as (? & Hpost).
       apply Hpost.
   Qed.
 
@@ -494,10 +469,10 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ own_ptr 0 (tracked_ty tyC); p3 ◁  own_ptr 0 (ghost_ty ty)]
     (SP_ExchangeNonDet: p1 p2 p3)
     (λ v, +[v ◁ own_ptr 0 (prod_ty storage_resource_ty (tracked_ty tyC))])
-    (λ post '-[(_, (γ, p)); (_, s); (_, new_pbs)], λ mask π, 0 < n ∧ ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_exchange_nondeterministic p b (λ new_p new_b, (new_p, new_b) ∈ vec_to_list new_pbs) ∧ ∀ l, Forall (λ '(new_p, new_b), ∃ new_s, F new_b = {[ k := new_s ]} ∧ post -[(l, ((γ, new_p), new_s))]  mask π) (vec_to_list new_pbs)).
+    (λ post '-[(_, (γ, p)); (_, s); (_, new_pbs)], λ mask, 0 < n ∧ ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_exchange_nondeterministic p b (λ new_p new_b, (new_p, new_b) ∈ vec_to_list new_pbs) ∧ ∀ l, Forall (λ '(new_p, new_b), ∃ new_s, F new_b = {[ k := new_s ]} ∧ post -[(l, ((γ, new_p), new_s))]  mask) (vec_to_list new_pbs)).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => tid postπ mask iκs vπl.
-    iIntros "LFT TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => tid post mask iκs vπl.
+    iIntros "LFT TIME UNIQ E L $ TY %Obs" => /=.
     fold indep_interp_of_syn_type.
     destruct vπl as [[pl [γ p]] [[pls s] [[pl' new_pbs] []]]].
     simpl in γ,p,s,new_pbs.
@@ -508,8 +483,8 @@ Section StorageProtocol.
     destruct d,d' => //.
     iDestruct "Hown" as "(?&?&Hγ&#Hsto&Hown)".
     iDestruct "Hown'" as "(?&?&HghoC)".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %Hlt & %b & %k & %Hb & %exchng & %Hforall)" => //.
-    iApply wp_fupd; iApply wp_new=>//.
+    pose proof Obs as ObsS. destruct ObsS as (Hlt & b & k & Hb & exchng & Hforall).
+    iApply pgl_wp_fupd; iApply wp_new=>//.
     iIntros "!>" (l) "(† & ↦)".
     iMod (fupd_mask_subseteq {[ γ ]}) as "Hfupd"; first set_solver.
     iMod (sp_exchange_nondeterministic _ b (λ new_p new_b, (new_p, new_b) ∈ vec_to_list new_pbs) with "Hsto [$Hown HghoC]") as "(%new_p & %new_b & %Hin & Hown & HghoC)" => //.
@@ -530,11 +505,10 @@ Section StorageProtocol.
       repeat iFrame.
       iSplit => //; iNext; iFrame "#".
       by rewrite Hnew_b big_sepM_singleton.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & _ & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & _ & ? & Hpost).
       specialize (Hpost l).
       rewrite Forall_forall in Hpost.
-      apply Hpost in Hin as (new_s' & Hnew_b' & Hpostπ).
+      apply Hpost in Hin as (new_s' & Hnew_b' & Hpost').
       rewrite Hnew_b' in Hnew_b.
       rewrite map_eq_iff in Hnew_b.
       move: (Hnew_b k).
@@ -551,26 +525,26 @@ Section StorageProtocol.
     +[p1 ◁ shr_bor κ storage_resource_ty; p2 ◁ own_ptr 0 (ghost_ty tyC)]
     (SP_Guard: p1 p2)
     (λ v, +[v ◁ shr_bor κ (tracked_ty tyC)])
-    (λ post '-[(l, (γ, p)); (_, s)], λ mask π, ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_guards p b ∧ ∀ l, post -[(l, s)] mask π).
+    (λ post '-[(l, (γ, p)); (_, s)], λ mask, ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_guards p b ∧ ∀ l, post -[(l, s)] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid mask iκs postπ [[pl [γ p]] [[pls s] []]].
+    move => Alv tid mask iκs post [[pl [γ p]] [[pls s] []]].
     fold indep_interp_of_syn_type in *.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     iDestruct "TY" as "(Hp & _)".
     iDestruct "Hp" as "(% & %d & % & #Hd & Hshr & %Hphys)".
     injection Hphys => ? /=; subst v.
     destruct d => //.
     iDestruct "Hshr" as "(_&#Hshr&_)".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & %b & %k & %Hb & %guard & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (b & k & Hb & guard & _).
     iDestruct (Alv with "L E") as "#Alv".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd"); [done|solve_ndisj|].
     iIntros "H£ #Hd'".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
     iIntros "H£' #Hd''".
     wp_if.
     iIntros "!>".
@@ -581,7 +555,7 @@ Section StorageProtocol.
     iMod (guards_extract_persistent_later with "Hshr2 L []") as "Hγ_Hshr".
     3: { iIntros "H". iExact "H". }
     1: exact _.
-    set_solver.
+    1: set_solver.
     rewrite Nat.add_1_r -bi.later_laterN.
     iMod (lc_fupd_add_laterN _ _ _ (S (S d)) with "[H£'] Hγ_Hshr") as "(L & % & #Hsto)".
     { iApply (lc_weaken with "H£'"). rewrite /advance_credits. nia. }
@@ -606,8 +580,7 @@ Section StorageProtocol.
       iSplitL => //.
       iApply (lguards_weaken_later _ _ _ (S (S (d + 1))) ); first lia.
       by rewrite Hb big_sepM_singleton.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & Hpost).
       apply Hpost.
   Qed.
 
@@ -615,11 +588,11 @@ Section StorageProtocol.
 
   (*Lemma typed_sp_join_shared κ (p1 p2 : path) E L I :
     lctx_lft_alive E L κ →
-    typed_instr E L I +[p1 ◁ shr_bor κ storage_resource_ty; p2 ◁ shr_bor κ storage_resource_ty] (SP_JoinShared: p1 p2) (λ v, +[v ◁ shr_bor κ storage_resource_ty]) (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2))], λ mask π, γ1 = γ2 ∧ ∀ y l, x1 ≼ y → x2 ≼ y → post -[(l, (γ1, y))] mask π).
+    typed_instr E L I +[p1 ◁ shr_bor κ storage_resource_ty; p2 ◁ shr_bor κ storage_resource_ty] (SP_JoinShared: p1 p2) (λ v, +[v ◁ shr_bor κ storage_resource_ty]) (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2))], λ mask, γ1 = γ2 ∧ ∀ y l, x1 ≼ y → x2 ≼ y → post -[(l, (γ1, y))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid mask postπ iκs vπl.
+    move => Alv tid mask post iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 x1]] [[pl2 [γ2 x2]] []]].
     iDestruct "TY" as "(H1 & H2 & _)".
     iDestruct "H1" as "(%pl1' & %d1 & % & #Hd1 & Hown1 & %Hphys1)".
@@ -632,7 +605,7 @@ Section StorageProtocol.
     iDestruct "Hown1" as "(_ & #Hshr1 & _)".
     iDestruct "Hown2" as "(_ & #Hshr2 & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & <- & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (<- & _).
     destruct (decide (d1 ≤ d2)) as [Hle | Hgt].
     - do 2 rewrite bi.sep_assoc.
       iPoseProof (guards_weaken_rhs_sep_r with "Hshr1") as "#Hshr1'".
@@ -648,11 +621,11 @@ Section StorageProtocol.
     +[p1 ◁ shr_bor κ storage_resource_ty; p2 ◁ shr_bor κ storage_resource_ty; p3 ◁ own_ptr 0 (ghost_ty ty)]
     (SP_JoinSharedDet: p1 p2 p3)
     (λ v, +[v ◁ shr_bor κ storage_resource_ty])
-    (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2)); (_, y)], λ mask π, γ1 = γ2 ∧ (∀ p, x1 ≼ p ∧ x2 ≼ p → y ≼ p) ∧ ∀ l, post -[(l, (γ1, y))] mask π).
+    (λ post '-[(l1, (γ1, x1)); (l2, (γ2, x2)); (_, y)], λ mask, γ1 = γ2 ∧ (∀ p, x1 ≼ p ∧ x2 ≼ p → y ≼ p) ∧ ∀ l, post -[(l, (γ1, y))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid mask postπ iκs vπl.
+    move => Alv tid mask post iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ1 x1]] [[pl2 [γ2 x2]] [[pl3 y] []]]].
     iDestruct "TY" as "(H1 & H2 & _)".
     iDestruct "H1" as "(%pl1' & %d1 & % & #Hd1 & Hown1 & %Hphys1)".
@@ -665,16 +638,16 @@ Section StorageProtocol.
     iDestruct "Hown1" as "(_ & #Hshr1 & _)".
     iDestruct "Hown2" as "(_ & #Hshr2 & _)".
     iDestruct (Alv with "L E") as "#Alv".
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & <- & %Hy & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (<- & Hy & _).
     destruct (decide (d1 ≤ d2)) as [Hle | Hgt].
-    - iApply wp_fupd.
+    - iApply pgl_wp_fupd.
       wp_lam.
       wp_bind (_ ≤ _)%E.
-      iApply (wp_persistent_time_receipt with "TIME Hd2"); [done|].
+      iApply (wp_persistent_time_receipt _ with "TIME Hd2"); [done|solve_ndisj|].
       iIntros "H£ #Hd'".
       wp_pure (_ ≤ _)%E.
-      iApply wp_fupd.
-      iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+      iApply pgl_wp_fupd.
+      iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
       iIntros "H£' #Hd''".
       wp_if.
       iIntros "!>".
@@ -685,7 +658,7 @@ Section StorageProtocol.
       iMod (guards_extract_persistent_later with "Hshr_sto' L []") as "Hγ_Hshr".
       3: { iIntros "H". iExact "H". }
       1: exact _.
-      set_solver.
+      1: set_solver.
       rewrite Nat.add_1_r -bi.later_laterN.
       iMod (lc_fupd_add_laterN _ _ _ (S (S d1)) with "[H£'] Hγ_Hshr") as "(L & % & #Hsto)".
       { iApply (lc_weaken with "H£'"). rewrite /advance_credits. nia. }
@@ -710,17 +683,16 @@ Section StorageProtocol.
         { by iApply guards_true. }
         iSplitL => //.
         by rewrite (bi.sep_comm (sp_own γ1 y)) bi.sep_assoc.
-      + iApply (proph_obs_impl with "Obs").
-        intros π' (? & ? & Hpost).
+      + iPureIntro. destruct Obs as (? & ? & Hpost).
         apply Hpost.
-    - iApply wp_fupd.
+    - iApply pgl_wp_fupd.
       wp_lam.
       wp_bind (_ ≤ _)%E.
-      iApply (wp_persistent_time_receipt with "TIME Hd1"); [done|].
+      iApply (wp_persistent_time_receipt _ with "TIME Hd1"); [done|solve_ndisj|].
       iIntros "H£ #Hd'".
       wp_pure (_ ≤ _)%E.
-      iApply wp_fupd.
-      iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+      iApply pgl_wp_fupd.
+      iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
       iIntros "H£' #Hd''".
       wp_if.
       iIntros "!>".
@@ -731,7 +703,7 @@ Section StorageProtocol.
       iMod (guards_extract_persistent_later with "Hshr_sto' L []") as "Hγ_Hshr".
       3: { iIntros "H". iExact "H". }
       1: exact _.
-      set_solver.
+      1: set_solver.
       rewrite !Nat.add_1_r -!bi.later_laterN.
       iMod (lc_fupd_add_laterN _ _ _ (S (S d2)) with "[H£'] Hγ_Hshr") as "(L & % & #Hsto)".
       { iApply (lc_weaken with "H£'"). rewrite /advance_credits. nia. }
@@ -757,8 +729,7 @@ Section StorageProtocol.
         { by iApply guards_true. }
         iSplitL => //.
         by rewrite Nat.add_1_r (bi.sep_comm (sp_own γ1 y)) (bi.sep_assoc _ _ (sp_own _ y)).
-      + iApply (proph_obs_impl with "Obs").
-        intros π' (? & ? & Hpost).
+      + iPureIntro. destruct Obs as (? & ? & Hpost).
         apply Hpost.
   Qed.
 
@@ -770,10 +741,10 @@ Section StorageProtocol.
     +[p1 ◁ shr_bor κ storage_resource_ty; p2 ◁ own_ptr 0 (ghost_ty tyA)]
     (SP_Weaken: p1 p2)
     (λ v, +[v ◁ shr_bor κ storage_resource_ty])
-    (λ post '-[(l1, (γ, x1)); (l2, x2)], λ mask π, x2 ≼ x1 ∧ ∀ l, post -[(l, (γ, x2))] mask π).
+    (λ post '-[(l1, (γ, x1)); (l2, x2)], λ mask, x2 ≼ x1 ∧ ∀ l, post -[(l, (γ, x2))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid postπ mask iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid post mask iκs vπl.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl1 [γ x1]] [[pl2 x2] []]].
     iDestruct "TY" as "(H & _)".
     iDestruct "H" as "(%pl1' & %d & % & #Hd & Hshr & %Hphys)".
@@ -782,14 +753,14 @@ Section StorageProtocol.
     iDestruct "Hshr" as "(_ & #Hshr & _)".
 
     iDestruct (Alv with "L E") as "#Alv".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd"); [done|solve_ndisj|].
     iIntros "H£ #Hd'".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
     iIntros "H£' #Hd''".
     wp_if.
     iIntros "!>".
@@ -800,16 +771,16 @@ Section StorageProtocol.
     iMod (guards_extract_persistent_later with "Hshr2 L []") as "Hγ_Hshr".
     3: { iIntros "H". iExact "H". }
     1: exact _.
-    set_solver.
+    1: set_solver.
     rewrite Nat.add_1_r -bi.later_laterN.
     iMod (lc_fupd_add_laterN _ _ _ (S (S d)) with "[H£'] Hγ_Hshr") as "(L & % & #Hsto)".
     { iApply (lc_weaken with "H£'"). rewrite /advance_credits. nia. }
 
-    iMod (proph_obs_sat with "PROPH Obs") as "(% & %Hincl & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (Hincl & _).
     iPoseProof (guards_weaken_rhs_sep_r with "Hshr") as "#Hsp_own1".
     iPoseProof (guards_weaken_rhs_point with "Hsp_own1") as "Hsp_own2".
     2: by apply sp_own_mono.
-    apply point_prop_p_own.
+    1: apply point_prop_p_own.
 
     iModIntro.
     iExists -[(((42%positive, 1337%Z), []), (γ, x2))].
@@ -827,8 +798,7 @@ Section StorageProtocol.
       rewrite (bi.sep_comm (sp_own _ _) (⌜ _ ⌝ ∗ _))%I.
       rewrite bi.sep_assoc.
       by iApply (lguards_weaken_later _ _ _ (S (S d)) ); first lia.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & Hpost).
+    - iPureIntro. destruct Obs as (? & Hpost).
       apply Hpost.
   Qed.
 
@@ -840,10 +810,10 @@ Section StorageProtocol.
     +[p1 ◁ shr_bor κ storage_resource_ty]
     (SP_Validate: p1)
     (λ v, +[v ◁ own_ptr 0 (prod_ty (ghost_ty tyA) (ghost_ty tyC))])
-    (λ post '-[(l1, (γ, p))], λ mask π, ∀ l b q, R (p ⋅ q) b → (∀ k s, F b !! k = Some s → post -[(l, (q, s))] mask π) ∧ (F b = ∅ → post -[(l, (q, ε))] mask π)).
+    (λ post '-[(l1, (γ, p))], λ mask, ∀ l b q, R (p ⋅ q) b → (∀ k s, F b !! k = Some s → post -[(l, (q, s))] mask) ∧ (F b = ∅ → post -[(l, (q, ε))] mask)).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid mask postπ iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid mask post iκs vπl.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     fold indep_interp_of_syn_type.
     destruct vπl as [[pl [γ p]] []].
     iDestruct "TY" as "(H & _)".
@@ -853,14 +823,14 @@ Section StorageProtocol.
     iDestruct "Hshr" as "(_ & #Hshr & _)".
 
     iDestruct (Alv with "L E") as "#Alv".
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd"); [done|solve_ndisj|].
     iIntros "H£ #Hd'".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
     iIntros "H£' #Hd''".
     wp_if.
     iIntros "!>".
@@ -868,7 +838,7 @@ Section StorageProtocol.
     iMod (guards_extract_persistent_later with "Hshr1 L []") as "H".
     3: { iIntros "(_ & _ & Hsp_own)". by iApply (sp_own_valid with "[$]"). }
     1: exact _.
-    set_solver.
+    1: set_solver.
     rewrite Nat.add_1_r -bi.later_laterN.
     iMod (lc_fupd_add_laterN _ _ _ (S (S d)) with "[H£'] H") as "(L & %q & %b & %Hrel)".
     { iApply (lc_weaken with "H£'"). rewrite /advance_credits. nia. }
@@ -878,8 +848,7 @@ Section StorageProtocol.
       iFrame "L Hd''".
       iSplitL.
       - iExists _; iSplitR => //=.
-      - iApply (proph_obs_impl with "Obs").
-        intros π Hpost.
+      - iPureIntro. pose proof Obs as Hpost.
         move: Hempty.
         apply Hpost => //. }
     apply map_choose in Hnempty as (k & s & Hlookup).
@@ -887,8 +856,7 @@ Section StorageProtocol.
     iFrame "L Hd''".
     iSplitL.
     - iExists _; iSplitR => //=.
-    - iApply (proph_obs_impl with "Obs").
-      intros π Hpost.
+    - iPureIntro. pose proof Obs as Hpost.
       move: Hlookup.
       apply Hpost => //.
   Qed.
@@ -901,10 +869,10 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ shr_bor κ storage_resource_ty; p3 ◁ own_ptr 0 (tracked_ty tyC); p4 ◁  own_ptr 0 (ghost_ty tyA); p5 ◁ own_ptr 0 (ghost_ty tyC)] 
     (SP_ExchangeWithShr: p1 p2 p3 p4 p5)
     (λ v, +[v ◁ own_ptr 0 (prod_ty storage_resource_ty (tracked_ty tyC))])
-    (λ post '-[(_, (γ, p)); (_, (γ', p')); (_, s); (_, new_p); (_, new_s)], λ mask π, γ = γ' ∧ ∃ b new_b k, F b = {[ k := s ]} ∧ F new_b = {[ k := new_s ]} ∧ storage_protocol_exchange (p ⋅ p') (new_p ⋅ p') b new_b  ∧ ∀ l, post -[(l, ((γ, new_p), new_s))] mask π).
+    (λ post '-[(_, (γ, p)); (_, (γ', p')); (_, s); (_, new_p); (_, new_s)], λ mask, γ = γ' ∧ ∃ b new_b k, F b = {[ k := s ]} ∧ F new_b = {[ k := new_s ]} ∧ storage_protocol_exchange (p ⋅ p') (new_p ⋅ p') b new_b  ∧ ∀ l, post -[(l, ((γ, new_p), new_s))] mask).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid mask postπ iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid mask post iκs vπl.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ p]] [[pl' [γ' p']] [[pls s] [[plnew_p new_p] [[plnew_s new_s] []]]]]].
     simpl in γ,p,γ',p',s,new_p, new_s.
     iDestruct "TY" as "(Hp & Hp' & Hs & _ & _)".
@@ -920,18 +888,18 @@ Section StorageProtocol.
     iDestruct (Alv with "L E") as "#Alv".
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
     iIntros "H£ #Hd1".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd1"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd1"); [done|solve_ndisj|].
     iIntros "H£' #Hd2".
     wp_if.
     iDestruct "Hγ" as "%Hγ".
     iDestruct (guards_transitive_right with "Alv Hshr") as "Hshr1".
     rewrite bi.sep_assoc.
     iPoseProof (guards_weaken_rhs_sep_r with "Hshr1") as "#Hshr2".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & <- & %b & %new_b & %k & %Hb & %Hnew_b & %exchng & _)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (<- & b & new_b & k & Hb & Hnew_b & exchng & _).
     iMod (fupd_mask_subseteq (↑NllftG)) as "Hfupd"; first set_solver.
     iMod (sp_exchange_with_extra_guard_with_later _ _ _ _ _ γ with "[] [L Hown HghoC]") as "Hguard" => //.
     1: set_solver.
@@ -957,8 +925,7 @@ Section StorageProtocol.
       iNext; iFrame "#".
       iSplit => //.
       by rewrite Hnew_b big_sepM_singleton.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & ? & ?& ?&Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & ? & ?& ?&Hpost).
       apply Hpost.
   Qed.
 
@@ -970,11 +937,11 @@ Section StorageProtocol.
     +[p1 ◁ uniq_bor κ storage_resource_ty; p2 ◁ shr_bor κ storage_resource_ty]
     (SP_ValidateWithShr: p1 p2)
     (λ v, +[v ◁ own_ptr 0 (prod_ty (ghost_ty tyA) (ghost_ty tyC))])
-    (λ post '-[(l1, (γ1, p1), _, _, _, _); (l2, (γ2, p2))], λ mask π, γ1 = γ2 ∧ ∀ l b q, R (p1 ⋅ p2 ⋅ q) b → (∀ k s, F b !! k = Some s → post -[(l, (q, s))] mask π) ∧ (F b = ∅ → post -[(l, (q, ε))] mask π)).
+    (λ post '-[(l1, (γ1, p1), _, _, _, _); (l2, (γ2, p2))], λ mask, γ1 = γ2 ∧ ∀ l b q, R (p1 ⋅ p2 ⋅ q) b → (∀ k s, F b !! k = Some s → post -[(l, (q, s))] mask) ∧ (F b = ∅ → post -[(l, (q, ε))] mask)).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid postπ mask iκs vπl.
+    move => Alv tid post mask iκs vπl.
     fold indep_interp_of_syn_type.
-    iIntros "#LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    iIntros "#LFT #TIME UNIQ E L $ TY %Obs" => /=.
     fold indep_interp_of_syn_type.
     destruct vπl as [[[[[[pl1 [γ1 x1]] ?] ?] ?] idx] [[pl2 [ γ2 x2]] []]].
     iDestruct "TY" as "(H1 & H2 & _)".
@@ -985,6 +952,7 @@ Section StorageProtocol.
     iDestruct (Alv with "L E") as "#Alv".
     iDestruct "Huniq" as "[_ [%Hineq [[Vo [Credits [Tok #Bor]]] Pers]]]".
 
+    iApply fupd_pgl_wp.
     iMod (fractional.frac_split_guard_in_half NllftG with "L Alv") as (γ) "[F1 [F2 [#guardHalf #back]]]".
     { solve_ndisj. }
     iMod (llftl_begin with "LFT") as (κ1) "[A1 #Kill1] ". { trivial. }
@@ -998,14 +966,15 @@ Section StorageProtocol.
 
     iMod (llftl_bor_idx_acc_guarded with "LFT Bor Tok Incl1 A1") as "(Hgho1 & Hclose1)".
     1: trivial.
+    iModIntro.
 
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd2"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd2"); [done|solve_ndisj|].
     iIntros "H£ #Hd2'".
     wp_pure (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd2'"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd2'"); [done|solve_ndisj|].
     iIntros "H£' Hd2''".
     wp_if.
 
@@ -1024,8 +993,8 @@ Section StorageProtocol.
     2: { rewrite /advance_credits. nia. }
     iDestruct "H£'" as "(H£' & H£'')".
     iMod (lc_fupd_add_laterN _ _ _ (S (S d2)) with "H£' Hgho2") as "((% & #Hsto2 & Hown2) & Hclose2)".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & <- & %)" => //.
-    1: solve_ndisj.
+    all: try solve_ndisj.
+    pose proof Obs as ObsS. destruct ObsS as (<- & _).
     iCombine "Hown1 Hown2" as "Hown".
     rewrite -sp_own_op.
     iDestruct (sp_own_valid with "Hown") as "(%q & %b & %Hrel)".
@@ -1083,8 +1052,7 @@ Section StorageProtocol.
         iExists _.
         iFrame "Hd2".
         iSplit => //.
-      + iApply (proph_obs_impl with "Obs").
-        intros π' [_ Hpost].
+      + iPureIntro. destruct Obs as [_ Hpost].
         eapply Hpost in Hrel as [? Hpost_empty].
         by apply Hpost_empty.
     - apply map_choose in Hnempty as (k & s & Hlookup).
@@ -1096,8 +1064,7 @@ Section StorageProtocol.
         iExists _.
         iFrame "Hd2".
         iSplit => //.
-      + iApply (proph_obs_impl with "Obs").
-        intros π' [_ Hpost].
+      + iPureIntro. destruct Obs as [_ Hpost].
         eapply Hpost in Hrel as [Hpost_ne _].
         by eapply Hpost_ne.
   Qed.
@@ -1110,12 +1077,12 @@ Section StorageProtocol.
     +[p1 ◁ own_ptr 0 storage_resource_ty; p2 ◁ shr_bor κ storage_resource_ty; p3 ◁ own_ptr 0 (tracked_ty tyC); p4 ◁  own_ptr 0 (ghost_ty ty)] 
     (SP_ExchangeWithShrNonDet: p1 p2 p3 p4)
     (λ v, +[v ◁ own_ptr 0 (prod_ty storage_resource_ty (tracked_ty tyC))])
-    (λ post '-[(_, (γ, p)); (_, (γ', p')); (_, s); (_, new_pbs)], λ mask π, γ = γ' ∧ ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_exchange_nondeterministic (p ⋅ p') b (λ new_p_big new_b, ∃ new_p, new_p_big = new_p ⋅ p' ∧ (new_p, new_b) ∈ vec_to_list new_pbs)
+    (λ post '-[(_, (γ, p)); (_, (γ', p')); (_, s); (_, new_pbs)], λ mask, γ = γ' ∧ ∃ b k, F b = {[ k := s ]} ∧ storage_protocol_exchange_nondeterministic (p ⋅ p') b (λ new_p_big new_b, ∃ new_p, new_p_big = new_p ⋅ p' ∧ (new_p, new_b) ∈ vec_to_list new_pbs)
     ∧ ∀ l,
-    Forall (λ '(new_p, new_b), ∃ new_s, F new_b = {[ k := new_s ]} ∧ post -[(l, ((γ, new_p), new_s))]  mask π) (vec_to_list new_pbs)).
+    Forall (λ '(new_p, new_b), ∃ new_s, F new_b = {[ k := new_s ]} ∧ post -[(l, ((γ, new_p), new_s))]  mask) (vec_to_list new_pbs)).
   Proof using Fcompose Fempty Proper_F Proper_ty equ_c.
-    move => Alv tid mask postπ iκs vπl.
-    iIntros "LFT #TIME #PROPH UNIQ E L $ TY #Obs" => /=.
+    move => Alv tid mask post iκs vπl.
+    iIntros "LFT #TIME UNIQ E L $ TY %Obs" => /=.
     destruct vπl as [[pl [γ p]] [[pl' [γ' p']] [[pls s] [[pl'' new_pbs] []]]]].
     simpl in γ,p,γ',p',s,new_pbs.
     iDestruct "TY" as "(Hp & Hp' & Hs & _ & _)".
@@ -1131,18 +1098,18 @@ Section StorageProtocol.
     iDestruct (Alv with "L E") as "#Alv".
     wp_lam.
     wp_bind (_ ≤ _)%E.
-    iApply (wp_persistent_time_receipt with "TIME Hd'"); [done|].
+    iApply (wp_persistent_time_receipt _ with "TIME Hd'"); [done|solve_ndisj|].
     iIntros "H£ #Hd1".
     wp_pure (_ ≤ _)%E.
-    iApply wp_fupd.
-    iApply (wp_persistent_time_receipt with "TIME Hd1"); [done|].
+    iApply pgl_wp_fupd.
+    iApply (wp_persistent_time_receipt _ with "TIME Hd1"); [done|solve_ndisj|].
     iIntros "H£' #Hd2".
     wp_if.
     iDestruct "Hγ" as "%Hγ".
     iDestruct (guards_transitive_right with "Alv Hshr") as "Hshr1".
     rewrite bi.sep_assoc.
     iPoseProof (guards_weaken_rhs_sep_r with "Hshr1") as "#Hshr2".
-    iMod (proph_obs_sat with "PROPH Obs") as "(%π & <- & %b & %k & %Hb & %exchng & %Hforall)" => //.
+    pose proof Obs as ObsS. destruct ObsS as (<- & b & k & Hb & exchng & Hforall).
     iMod (fupd_mask_subseteq (↑NllftG)) as "Hfupd"; first set_solver.
     iMod (sp_exchange_with_extra_guard_nondeterministic_with_later _ _ _ _ γ with "[] [L Hown HghoC]") as "Hguard" => //.
     { apply exchng. }
@@ -1173,11 +1140,10 @@ Section StorageProtocol.
       iNext; iFrame "#".
       iSplit => //.
       by rewrite Hnew_b big_sepM_singleton.
-    - iApply (proph_obs_impl with "Obs").
-      intros π' (? & ? & ? & ? & ? & Hpost).
+    - iPureIntro. destruct Obs as (? & ? & ? & ? & ? & Hpost).
       specialize (Hpost (42%positive, 1337%Z)).
       rewrite Forall_forall in Hpost.
-      apply Hpost in Hin as (new_s' & Hnew_b' & Hpostπ).
+      apply Hpost in Hin as (new_s' & Hnew_b' & Hpost').
       rewrite Hnew_b' in Hnew_b.
       rewrite map_eq_iff in Hnew_b.
       move: (Hnew_b k).

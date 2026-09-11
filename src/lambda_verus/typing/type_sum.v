@@ -44,7 +44,7 @@ Proof.
 Qed.
 
 Section type_sum.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
   
   Lemma split_freeable_xsum {𝔄l} i (tyl: typel 𝔄l) n l :
     freeable_util.freeable_sz n (ty_size (Σ! tyl)) l
@@ -97,14 +97,15 @@ Section type_sum.
     replace (l +ₗ 1%nat +ₗ ty_size (tyl +!! i)) with (l +ₗ 1%nat +ₗ length (ty_phys (tyl +!! i) x0 tid)). 2: { f_equal. rewrite ty_size_eq. trivial. }
     unfold xsum_ty, ty_phys. rewrite to_xsum_pinj.
     eassert ((FVal #i :: _ ++ _) = ([FVal #i] ++ _) ++ _) as ->. { rewrite <- List.app_assoc. trivial. }
-    rewrite pad_app. rewrite <- List.app_assoc.
-    - do 2 (rewrite heap_mapsto_cells_fancy_vec_app'). f_equiv; [|f_equiv].
-      + rewrite <- heap_mapsto_cells_fancy_fmap_eq. trivial.
-      + rewrite ty_size_eq. trivial.
-      + rewrite List.length_app. rewrite ty_size_eq. simpl. rewrite drop_drop. trivial.
-    - rewrite List.length_app. rewrite ty_size_eq.
+    rewrite pad_app; last first.
+    { rewrite List.length_app. rewrite ty_size_eq.
       have Ha := (max_hlist_with_ge (λ X : syn_type, ty_size) tyl i).
-      simpl. assert (∀ x y, x <= y → S x <= S y) as Ht by lia. apply Ht. apply Ha.
+      simpl. assert (∀ x y, x <= y → S x <= S y) as Ht by lia. apply Ht. apply Ha. }
+    rewrite <- List.app_assoc.
+    do 2 (rewrite heap_mapsto_cells_fancy_vec_app'). f_equiv; [|f_equiv].
+    + rewrite <- heap_mapsto_cells_fancy_fmap_eq. trivial.
+    + rewrite ty_size_eq. trivial.
+    + rewrite List.length_app. rewrite ty_size_eq. simpl. rewrite drop_drop. trivial.
   Qed.
   
   Lemma split_pt_xsum_cells' {𝔄l} i (tyl: typel 𝔄l) l cells :
@@ -136,15 +137,16 @@ Section type_sum.
   Proof.
     unfold ty_phys, xsum_ty. simpl. rewrite to_xsum_pinj.
     eassert ((FVal #i :: _ ++ _) = ([FVal #i] ++ _) ++ _) as ->. { rewrite <- List.app_assoc. trivial. }
-    rewrite pad_app. rewrite <- List.app_assoc.
-    - do 2 (rewrite heap_cloc_mapsto_fancy_vec_app). f_equiv; [|f_equiv].
-      + rewrite <- heap_complete_mapsto_fancy_fmap_eq. trivial.
-      + rewrite ty_size_eq. trivial.
-      + rewrite List.length_app. rewrite ty_size_eq. simpl.
-        unfold cloc_skip. rewrite drop_drop. trivial.
-    - rewrite List.length_app. rewrite ty_size_eq.
+    rewrite pad_app; last first.
+    { rewrite List.length_app. rewrite ty_size_eq.
       have Ha := (max_hlist_with_ge (λ X : syn_type, ty_size) tyl i).
-      simpl. assert (∀ x y, x <= y → S x <= S y) as Ht by lia. apply Ht. apply Ha.
+      simpl. assert (∀ x y, x <= y → S x <= S y) as Ht by lia. apply Ht. apply Ha. }
+    rewrite <- List.app_assoc.
+    do 2 (rewrite heap_cloc_mapsto_fancy_vec_app). f_equiv; [|f_equiv].
+    + rewrite <- heap_complete_mapsto_fancy_fmap_eq. trivial.
+    + rewrite ty_size_eq. trivial.
+    + rewrite List.length_app. rewrite ty_size_eq. simpl.
+      unfold cloc_skip. rewrite drop_drop. trivial.
   Qed.
 
   (** * Owning Pointers *)
@@ -153,18 +155,17 @@ Section type_sum.
     let tyi := tyl +!! i in
     tctx_incl E L (p ◁ own_ptr n (Σ! tyl) +:: T)
       (p +ₗ #0 ◁ own_ptr n int +:: p +ₗ #1 ◁ own_ptr n tyi +::
-        p +ₗ #(S tyi.(ty_size)) ◁ own_ptr n (↯ (sum_pad_size tyl tyi)) +:: T)
-      (λ post '((l, (s, pad)) -:: bl), λ mask π, ∃a: ~~(𝔄l !!ₗ i),
+        p +ₗ #(S tyi.(ty_size)) ◁ own_ptr n (↯ᵤ (sum_pad_size tyl tyi)) +:: T)
+      (λ post '((l, (s, pad)) -:: bl), λ mask, ∃a: ~~(𝔄l !!ₗ i),
         s = pinj i a ∧ ∀ pad', post (
           (l, Z.of_nat i) -::
           (l +ₗ 1, a) -::
           (l +ₗ (S tyi.(ty_size)), pad') -::
-          bl) mask π).
+          bl) mask).
   Proof.
-    split. { move=>/= ?? Hyp [[[??][??]]?]. do 5 f_equiv. apply forall_iff. intros p0. apply Hyp. }
-    iIntros (G tid [[l [x pad]] xl] mask post TimelessG) "#LFT #PROPH #UNIQ #E #GguardsL G /=[T Tl] #Obs".
-    iMod (proph_obs_sat with "PROPH Obs") as (π) "%X". { solve_ndisj. }
-    destruct X as [x0 [Heqx _]]. subst x.
+    split. { move=>/= ?? Hyp [[[??][??]]?]. do 4 f_equiv. apply forall_iff. intros p0. apply Hyp. }
+    iIntros (G tid [[l [x pad]] xl] mask post TimelessG) "#LFT #UNIQ #E #GguardsL G /=[T Tl] %Obs".
+    destruct Obs as [x0 [Heqx Obs]]. subst x.
     iDestruct "T" as (v d) "(%path & #⧖ & [gho %phys])". inversion phys. subst v.
     destruct d as [|d']; first by done.
     iDestruct "gho" as "[pt [free gho]]".
@@ -190,8 +191,7 @@ Section type_sum.
           iSplit. { iPureIntro. simpl. rewrite path. trivial. }
           iFrame "pt3". iFrame "free3". done.
         }
-     - iApply (proph_obs_impl with "Obs").
-       intros π0 [x1 [Peq Ha]]. apply pinj_Inj in Peq. subst x1. apply Ha.
+     - iPureIntro. apply Obs.
   Qed.
 
   Lemma type_case_own_outer {𝔄l 𝔅l ℭl 𝔇} (tyl: typel 𝔄l) trl (T: tctx 𝔅l)
@@ -205,7 +205,7 @@ Section type_sum.
         (trl -!! i) post ((l, (s, pad)) -:: cl)))%type.
   Proof.
     move=> ->. iIntros (?) "el". iApply typed_body_tctx_incl; [done|].
-    iIntros (tid [s ?] mask post iκs) "LFT TIME PROPH UNIQ E L I C /=[p T] #?".
+    iIntros (tid [s ?] mask post iκs) "LFT TIME UNIQ E L I C /=[p T] #Obs".
     destruct s as [l [x pad]].
     replace x with (@of_xsum _ (~~) (𝔄l) (to_xsum x)); last by rewrite semi_iso'; trivial.
     refine (match (to_xsum x) with | xinj i x0 => _ end).
@@ -214,13 +214,13 @@ Section type_sum.
     destruct d as [|d']; first by done.
     iDestruct "gho" as "[pt [free gho]]".
     iDestruct (split_pt_xsum i with "pt") as "[pt1 [pt2 pt3]]".
-    rewrite heap_mapsto_vec_singleton. wp_read.
+    rewrite heap_mapsto_vec_singleton. wp_read; first solve_ndisj.
     rewrite <- heap_mapsto_vec_singleton. 
     wp_case.
     { split; [lia|]. by rewrite Nat2Z.id -vlookup_lookup plistc_to_vec_lookup. }
     iDestruct (big_sepHL_2_lookup with "el") as "el".
-    iApply ("el" $! _ ((_) -:: _) with "LFT TIME PROPH UNIQ E L I C [-] []"); last first.
-    { iApply proph_obs_impl; [|done]=>/= ?. by rewrite to_xsum_pinj. }
+    iApply ("el" $! _ ((_) -:: _) with "LFT TIME UNIQ E L I C [-] []"); last first.
+    { iDestruct "Obs" as %HObs. iPureIntro. move: HObs. by rewrite to_xsum_pinj. }
     iFrame "T". iExists _, _. iSplit; [done|]. iFrame "⧖".
     iFrame. rewrite split_pt_xsum. iFrame. done.
   Qed.
@@ -235,7 +235,7 @@ Section type_sum.
       | inl otr => typed_body E L I C (p ◁ own_ptr n (Σ! tyl) +:: T') e otr
       | inr itr => typed_body E L I C
           (p +ₗ #0 ◁ own_ptr n int +:: p +ₗ #1 ◁ own_ptr n ty +::
-            p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ (sum_pad_size tyl ty)) +:: T') e itr
+            p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ᵤ (sum_pad_size tyl ty)) +:: T') e itr
       end) -∗
     typed_body E L I C T (case: !p of el) (trx ∘ (λ post '(s -:: cl),
       let 'xinj i a := to_xsum s in match trl -!! i with
@@ -263,7 +263,7 @@ Section type_sum.
     tctx_extract_ctx E L +[p ◁ own_ptr n (Σ! tyl)] T T' trx →
     ([∗ hlist] ty;- e; tr ∈ tyl;- el'; trl,
       typed_body E L C (p +ₗ #0 ◁ own_ptr n int +:: p +ₗ #1 ◁ own_ptr n ty +::
-        p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ (sum_pad_size tyl ty)) +:: T') e tr) -∗
+        p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ᵤ (sum_pad_size tyl ty)) +:: T') e tr) -∗
     typed_body E L C T (case: !p of el) (trx ∘ (λ post '(s -:: cl),
       let 'xinj i a := to_xsum s in
       (trl -!! i) post (Z.of_nat i -:: a -:: () -:: cl))).
@@ -280,12 +280,12 @@ Section type_sum.
  
   Lemma tctx_unwrap_shr_xsum {𝔄l 𝔅l} i (tyl: typel 𝔄l) κ p (T: tctx 𝔅l) E L :
     tctx_incl E L (p ◁ &shr{κ} (Σ! tyl) +:: T) (p +ₗ #1 ◁ &shr{κ} (tyl +!! i) +:: T)
-      (λ post '((l, (s, pad)) -:: bl), λ mask π, ∃a: (~~(𝔄l !!ₗ i)), s = pinj i a
-          ∧ post ((cloc_take (cloc_skip l 1) (ty_size (tyl +!! i)), a) -:: bl) mask π).
+      (λ post '((l, (s, pad)) -:: bl), λ mask, ∃a: (~~(𝔄l !!ₗ i)), s = pinj i a
+          ∧ post ((cloc_take (cloc_skip l 1) (ty_size (tyl +!! i)), a) -:: bl) mask).
   Proof.
-    split. { move=>/= x y H [[?[??]]?]. do 5 f_equiv. apply H. }
-    iIntros (? tid [[cloc [x pad]] xl] ???) "_ PROPH _ _ _ $ /=[p T] #Obs".
-    iMod (proph_obs_sat with "PROPH Obs") as %[?[?[Eq _]]]; [done|]. iModIntro.
+    split. { move=>/= x y H [[?[??]]?] ?. do 3 f_equiv. apply H. }
+    iIntros (? tid [[cloc [x pad]] xl] ???) "_ _ _ _ $ /=[p T] #Obs".
+    iDestruct "Obs" as %[x1 [Eq HObs]]. iModIntro.
     iDestruct "p" as (val d Ev) "[#⧖ [gho %phys]]".
     destruct d; first by done.
     destruct val as [|l]; last by done. destruct l as [| |]; [done| |done].
@@ -302,8 +302,7 @@ Section type_sum.
         rewrite to_xsum_pinj. iFrame "ghopers".
       - iPureIntro. simpl in phys. inversion phys. trivial.
     }
-    iApply (proph_obs_impl with "Obs"). intros π [xi [-> Ha]].
-    apply pinj_Inj in Eq. subst x1. apply Ha.
+    iPureIntro. exact HObs.
   Qed.
 
   Lemma type_case_shr_outer {𝔄l 𝔅l ℭl 𝔇} (tyl: typel 𝔄l) trl (T: tctx 𝔅l)
@@ -317,7 +316,7 @@ Section type_sum.
         (trl -!! i) post ((l, (s, pad)) -:: cl)))%type.
   Proof.
     move=> ->. iIntros (? Alv) "el". iApply typed_body_tctx_incl; [done|].
-    iIntros (tid [s ?] mask post iκs) "#LFT #TIME PROPH UNIQ #E L I C /=[p T] #?".
+    iIntros (tid [s ?] mask post iκs) "#LFT #TIME #UNIQ #E L I C /=[p T] #Obs".
     destruct s as [l [x pad]].
     replace x with (@of_xsum _ (~~) (𝔄l) (to_xsum x)); last by rewrite semi_iso'; trivial.
     refine (match (to_xsum x) with | xinj i x0 => _ end).
@@ -332,16 +331,16 @@ Section type_sum.
     iDestruct (guards_weaken_rhs_sep_r with "Gpt") as "#Grest".
     iDestruct (guards_weaken_rhs_sep_l with "Grest") as "#Gmain".
     wp_bind (!(LitV l.1))%E.
-    iApply (wp_persistent_time_receipt with "TIME ⧖"). { set_solver. } iIntros "H£ ⧖'".
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖"); [done|set_solver|]. iIntros "H£ ⧖'".
     iDestruct (lc_weaken (_)%nat with "H£") as "£1"; last first.
     {
-    iApply (wp_read_na_guarded_cells_singleton with "[L £1]"); first by solve_ndisj.
+    iApply (wp_read_guarded_singleton with "[L £1]"); first by solve_ndisj.
     { iFrame "Gdiscriminant". iFrame. }
     iNext. iIntros "L".
     wp_case. { split; [lia|]. by rewrite Nat2Z.id -vlookup_lookup plistc_to_vec_lookup. }
     iDestruct (big_sepHL_2_lookup with "el") as "el".
-    iApply ("el" $! _ ((_) -:: _) with "LFT TIME PROPH UNIQ E L I C [-] []"); last first.
-    { iApply proph_obs_impl; [|done]=>/= ?. by rewrite to_xsum_pinj. }
+    iApply ("el" $! _ ((_) -:: _) with "LFT TIME UNIQ E L I C [-] []"); last first.
+    { iDestruct "Obs" as %HObs. iPureIntro. move: HObs. by rewrite to_xsum_pinj. }
     iFrame "T". iExists _, _. iSplit; [done|]. iFrame "⧖".
     iFrame. simpl.
     replace (S d' + 1) with (S (d' + 1)) by lia.
@@ -366,16 +365,16 @@ Section type_sum.
         end)).
   Proof.
     iIntros (???) "el". iApply typed_body_tctx_incl; [done|]. via_tr_impl.
-    { iApply (type_case_shr_outer _ (pbyidx (λ i post '((l, (s, pad)) -:: cl), λ mask π,
-        match trl -!! i with inl otr => otr post ((l, (s, pad)) -:: cl) mask π | inr itr => _ end
+    { iApply (type_case_shr_outer _ (pbyidx (λ i post '((l, (s, pad)) -:: cl), λ mask,
+        match trl -!! i with inl otr => otr post ((l, (s, pad)) -:: cl) mask | inr itr => _ end
         : Prop))); [apply tctx_incl_refl|done|].
       rewrite !big_sepHL_2_big_sepN. iApply (big_sepN_impl with "el").
       iIntros "!>" (i) "?". rewrite pbyidx_plookup.
-      case (trl -!! i)=> ?. { via_tr_impl; first by done. intros post xl mask π Ha. 
+      case (trl -!! i)=> ?. { via_tr_impl; first by done. intros post xl mask Ha. 
           destruct xl as [[l [s pad]] cl]. trivial. }
       via_tr_impl.
       { iApply typed_body_tctx_incl; [apply tctx_unwrap_shr_xsum|done]. }
-      move=>/= ?[[?[??]]?]??. exact id. }
+      move=>/= ?[[?[??]]?]?. done. }
     move=> ?[[l [s pad]] ?]/=. case (to_xsum s) as [i ?] eqn: Eq. rewrite pbyidx_plookup.
     move: (trl -!! i). case; [done|]=>/= ??. eexists _. split; [|done].
     move: Eq=> /(f_equal of_xsum)=>/= <-. by rewrite semi_iso'.
@@ -403,26 +402,23 @@ Section type_sum.
   Lemma tctx_unwrap_uniq_xsum {𝔄l 𝔅l} i (tyl: typel 𝔄l) κ p (T: tctx 𝔅l) E L :
     lctx_lft_alive E L κ →
     tctx_incl E L (p ◁ &uniq{κ} (Σ! tyl) +:: T) (p +ₗ #1 ◁ &uniq{κ} (tyl +!! i) +:: T)
-      (λ post '(bor -:: bl), λ mask π, ∃a: ~~(𝔄l !!ₗ i), (uniq_bor_current bor).1 = pinj i a ∧
-        ∀a': (𝔄l !!ₗ i), (uniq_bor_future bor π).1 = pinj i a' →
-        ∀ (bor_inner: ~~ (uniq_borₛ (𝔄l !!ₗ i))), 
+      (λ post '(bor -:: bl), λ mask, ∃a: ~~(𝔄l !!ₗ i), (uniq_bor_current bor).1 = pinj i a ∧
+        ∀ (bor_inner: ~~ (uniq_borₛ (𝔄l !!ₗ i))),
           (uniq_bor_current bor_inner) = a →
-          (uniq_bor_future bor_inner π) = a' →
-          (*uniq_bor_loc bor_inner = uniq_bor_loc bor +ₗ 1 →*)
-          post (bor_inner -:: bl) mask π).
+          post (bor_inner -:: bl) mask).
   Proof.
     move=> Alv. split.
-    { move=>/= ?? Eq [[[[[[[l x0] ξi] d'] g'] idx][??]]?]. do 5 f_equiv. 
+    { move=>/= ?? Eq [[[[[[[l x0] ξi] d'] g'] idx][??]]?] ?. do 3 f_equiv.
       apply forall_proper=> ?. setoid_rewrite Eq. trivial. }
-    iIntros (G tid [x xl] mask post TimelessG) "#LFT #PROPH #UNIQ #E #L G /=[p T] #Obs".
+    iIntros (G tid [x xl] mask post TimelessG) "#LFT #UNIQ #E #L G /=[p T] %Obs".
     
     iMod (lctx_lft_alive_get_guards _ _ _ _ _ Alv with "L E G") as "[G #GuardsK]". { solve_ndisj. }
     
     iDestruct "p" as (val d Ev) "[#⧖ [Own %Phys]]".
-    iMod (proph_obs_sat with "PROPH Obs") as (πSat) "%X". { solve_ndisj. }
+
     destruct x as [[[[[l [x0 pad]] ξi] d'] g'] idx].
           
-    destruct X as [x1 [PinjEq X]]. simpl in PinjEq. subst x0.
+    destruct Obs as [x1 [PinjEq Obs]]. simpl in PinjEq. subst x0.
     (*replace x0 with (@of_xsum _ (~~) (𝔄l) (to_xsum x0)); last by rewrite semi_iso'; trivial.
     refine (match (to_xsum x0) with | xinj i x0 => _ end).*)
     
@@ -444,20 +440,13 @@ Section type_sum.
     iDestruct (heap_cloc_mapsto_fancy_vec_length_eq with "Pt1") as "%LenEq".
     
     have ?: Inhabited (𝔄l !!ₗ i) := populate (vπ x1 inhabitant).
-    iMod (uniq_intro x1 (vπ x1) (d', g') with "PROPH UNIQ") as (ζi) "[ζVo ζPc]"; [done|].
-    
+    iMod (uniq_intro x1 (vπ x1) (d', g') with "UNIQ") as (ζi) "[ζVo ζPc]"; [done|].
+
     set ξ := PrVar _ ξi.
     set ζ := PrVar _ ζi.
-    iDestruct (uniq_proph_tok with "ζVo ζPc") as "(ζVo & ζ & ζPc)".
-    iMod (uniq_preresolve ξ [ζ] (λ π, (of_xsum (xinj i (π ζ)), pad)) with
-      "UNIQ PROPH ξVo ξPc [$ζ]") as "(Obs' & (ζ & _) & ToξPc)"; [done| |done|].
-    { intros π π' Eqv. have Eqv2 := Eqv ζ. rewrite Eqv2; trivial.
-      set_solver. }
-
-    iCombine "Obs Obs'" as "#Obs2".
-    iSpecialize ("ζPc" with "ζ").
-
-    iDestruct ("ToBor" with "[ToξPc Pt1 Gho1 ζPc]") as "X"; last first.
+    (* Upstream preresolved [ξ]; with prophecies stripped we keep [ξ]'s
+       two agreement halves and retarget them on close. *)
+    iDestruct ("ToBor" with "[ξVo ξPc Pt1 Gho1 ζPc]") as "X"; last first.
      - iMod (fupd_mask_mono with "X") as "[Bor H1]". { set_solver. }
        iFrame "H1".
        iModIntro.
@@ -486,28 +475,16 @@ Section type_sum.
          }
          done.
        }
-       iApply proph_obs_impl; [|done]=>/= π.
-       intros [[x2 [Heq Ha]] Hb]. apply pinj_Inj in Heq. subst x2.
-       apply (Ha ((π ζ))); trivial.
-        + simpl. unfold uniq_bor_future. simpl. rewrite Hb. trivial.
+       iPureIntro. by apply Obs.
      -  rewrite split_pt_xsum_cells''. iDestruct "Pt1" as "(Pt1 & Pt2 & Pt3)".
-        iSplitL "ToξPc Pt1 Pt3". {
+        iSplitL "ξVo ξPc Pt1 Pt3". {
         iNext. iIntros "A".
         iMod (bi.later_exist_except_0 with "A") as (x1' d1 g1) "(#>⧖2 & ζPc & Gho1 & >Pt2)".
+        iMod (uniq_update ξ ((pinj i x1', pad) : ~~ (xsumₛ 𝔄l)) (vπ ((pinj i x1', pad) : ~~ (xsumₛ 𝔄l))) (d1, g1)
+                with "UNIQ ξVo ξPc") as "[_ξVo ξPc]". { solve_ndisj. }
         iModIntro.  iNext. iExists (pinj i x1', pad). iExists (d1). iExists (g1).
         iFrame.
         iSplit. { iApply (persistent_time_receipt_mono with "⧖2"). lia. }
-        iSplitL "ToξPc ζPc". {
-          iApply "ToξPc". 
-          iApply (proph_eqz_modify (λ π, (pinj i (π ζ), pad))).
-          { iApply proph_obs_true. intros π. trivial. }
-          iDestruct (proph_ctrl_eqz with "PROPH ζPc") as "Eqz2".
-          have HInj : Inj eq eq (λ t : 𝔄l !!ₗ i, (pinj i t, pad))
-            by intros ?? ha; inversion ha as [hb]; apply pinj_Inj in hb; trivial.
-          iDestruct (proph_eqz_constr (λ t, (pinj i t, pad)) with "Eqz2") as "Eqz3".
-          iApply (proph_eqz_eq with "Eqz3"); trivial.
-          fun_ext. intros x. simpl. rewrite psum_map1_pinj. trivial.
-        }
         iSplitL "Gho1".
           { unfold xsum_ty, ty_gho. rewrite to_xsum_pinj. iFrame "Gho1". }
           { rewrite split_pt_xsum_cells''. iFrame. }
@@ -530,7 +507,7 @@ Section type_sum.
         (trl -!! i) post (bor -:: cl)))%type.
   Proof.
     move=> ->. iIntros (? Alv) "el". iApply typed_body_tctx_incl; [done|].
-    iIntros (tid [s ?] mask post iκs) "#LFT #TIME PROPH UNIQ #E L I C /=[p T] #?".
+    iIntros (tid [s ?] mask post iκs) "#LFT #TIME #UNIQ #E L I C /=[p T] #Obs".
     destruct s as [[[[[l [x pad]] ξi] d'] g'] idx].
     replace x with (@of_xsum _ (~~) (𝔄l) (to_xsum x)); last by rewrite semi_iso'; trivial.
     refine (match (to_xsum x) with | xinj i x0 => _ end).
@@ -553,16 +530,16 @@ Section type_sum.
     iDestruct (guards_weaken_rhs_sep_r with "Gpt") as "#Grest".
     iDestruct (guards_weaken_rhs_sep_l with "Grest") as "#Gmain".
     wp_bind (!(LitV l.1))%E.
-    iApply (wp_persistent_time_receipt with "TIME ⧖"). { set_solver. } iIntros "H£ ⧖'".
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖"); [done|set_solver|]. iIntros "H£ ⧖'".
     iDestruct (lc_weaken (_)%nat with "H£") as "£1"; last first.
     {
-    iApply (wp_read_na_guarded_cells_singleton with "[L uniq £1]"); first by solve_ndisj.
+    iApply (wp_read_guarded_singleton with "[L uniq £1]"); first by solve_ndisj.
     { iFrame "Gdiscriminant". iFrame. }
     iNext. iIntros "[uniq L]".
     wp_case. { split; [lia|]. by rewrite Nat2Z.id -vlookup_lookup plistc_to_vec_lookup. }
     iDestruct (big_sepHL_2_lookup with "el") as "el".
-    iApply ("el" $! _ ((_) -:: _) with "LFT TIME PROPH UNIQ E L I C [-] []"); last first.
-    { iApply proph_obs_impl; [|done]=>/= ?. by rewrite to_xsum_pinj. }
+    iApply ("el" $! _ ((_) -:: _) with "LFT TIME UNIQ E L I C [-] []"); last first.
+    { iDestruct "Obs" as %HObs. iPureIntro. move: HObs. by rewrite to_xsum_pinj. }
     iFrame "T". iExists _, _. iSplit; [done|]. iFrame "⧖".
     iFrame. iFrame "pt". iSplit; last by done.
     iSplit; first by iFrame "Incl". iSplit; first by done.
@@ -581,25 +558,28 @@ Section type_sum.
       | inl otr => typed_body E L I C (p ◁ &uniq{κ} (Σ! tyl) +:: T') e otr
       | inr itr => typed_body E L I C (p +ₗ #1 ◁ &uniq{κ} ty +:: T') e itr
       end) -∗
-    typed_body E L I C T (case: !p of el) (trx ∘ (λ post '(bor -:: cl), λ mask π,
+    typed_body E L I C T (case: !p of el) (trx ∘ (λ post '(bor -:: cl), λ mask,
       let 'xinj i a := to_xsum (uniq_bor_current bor).1 in match trl -!! i with
-        | inl otr => otr post (bor -:: cl) mask π
-        | inr itr => ∀a': 𝔄l !!ₗ i, (uniq_bor_future bor π).1 = pinj i a' →
+        | inl otr => otr post (bor -:: cl) mask
+        | inr itr =>
           ∀ (bor_inner: ~~ (uniq_borₛ (𝔄l !!ₗ i))),
           (uniq_bor_current bor_inner) = a →
-          (uniq_bor_future bor_inner π) = a' →
-          itr post (bor_inner -:: cl) mask π
+          itr post (bor_inner -:: cl) mask
         end))%type.
   Proof.
     iIntros (???) "el". iApply typed_body_tctx_incl; [done|]. via_tr_impl.
-    { iApply (type_case_uniq_outer _ (pbyidx (λ i post '(bor -:: cl), λ mask π,
-        match trl -!! i with inl otr => otr post (bor -:: cl) mask π | inr itr => _ end
-        : Prop))); [apply tctx_incl_refl|done|].
+    { iApply (type_case_uniq_outer _ (pbyidx (λ i post '(bor -:: cl), λ mask,
+        match trl -!! i with
+        | inl otr => otr post (bor -:: cl) mask
+        | inr itr => ∃ a: ~~ (𝔄l !!ₗ i), (uniq_bor_current bor).1 = pinj i a ∧
+            ∀ (bor_inner: ~~ (uniq_borₛ (𝔄l !!ₗ i))),
+              uniq_bor_current bor_inner = a → itr post (bor_inner -:: cl) mask
+        end : Prop))); [apply tctx_incl_refl|done|].
       rewrite !big_sepHL_2_big_sepN. iApply (big_sepN_impl with "el").
       iIntros "!>" (i) "?". rewrite pbyidx_plookup.
       case (trl -!! i)=> ?; [by via_tr_impl; [done|]=> ?[[??]?]?|]. via_tr_impl.
       { iApply typed_body_tctx_incl; [by apply tctx_unwrap_uniq_xsum|done]. }
-      move=>/= ?[[??]?]??. exact id. }
+      move=>/= ?[[??]?]?. exact (λ H, H). }
     move=> ?[bor ?]/=. case (to_xsum (uniq_bor_current bor).1) as [i ?] eqn: Eq. rewrite pbyidx_plookup.
     move: (trl -!! i). case; [done|]=>/= ??. eexists _. split; [|done].
     move: Eq=> /(f_equal of_xsum)=>/= <-. by rewrite semi_iso'.
@@ -611,13 +591,11 @@ Section type_sum.
     tctx_extract_ctx E L +[p ◁ &uniq{κ} (Σ! tyl)] T T' trx → lctx_lft_alive E L κ →
     ([∗ hlist] ty;- e; tr ∈ tyl;- el'; trl,
       typed_body E L I C (p +ₗ #1 ◁ &uniq{κ} ty +:: T') e tr) -∗
-    typed_body E L I C T (case: !p of el) (trx ∘ (λ post '(bor -:: cl), λ mask π,
+    typed_body E L I C T (case: !p of el) (trx ∘ (λ post '(bor -:: cl), λ mask,
       let 'xinj i a := to_xsum (uniq_bor_current bor).1 in
-      ∀a': 𝔄l !!ₗ i, (uniq_bor_future bor π).1 = pinj i a' →
         ∀ (bor_inner: ~~ (uniq_borₛ (𝔄l !!ₗ i))),
         (uniq_bor_current bor_inner) = a →
-        (uniq_bor_future bor_inner π) = a' →
-        (trl -!! i) post (bor_inner -:: cl) mask π))%type.
+        (trl -!! i) post (bor_inner -:: cl) mask))%type.
   Proof.
     iIntros (???) "el". iApply typed_body_tctx_incl; [done|]. via_tr_impl.
     { iApply (type_case_uniq _ (pbyidx (λ i, inr (trl -!! i))));
@@ -630,18 +608,19 @@ Section type_sum.
   (** * Write *)
 
   Lemma type_sum_assign_instr {𝔄 𝔄' 𝔅 𝔅l} (tyl: typel 𝔅l) (i: fin _)
-      (ty: type 𝔄) (tyb: type 𝔅) (ty': type 𝔄')  p q gt st Φ E L I :
-    typed_write E L ty tyb ty' (Σ! tyl) gt st → resolve' E L tyb Φ →
+      (ty: type 𝔄) (tyb: type 𝔅) (ty': type 𝔄')  p q gt st E L I :
+    typed_write E L ty tyb ty' (Σ! tyl) gt st →
     typed_instr E L I +[p ◁ ty; q ◁ tyl +!! i] (p <-{Σ i} q) (λ _, +[p ◁ ty'])
-      (λ post '-[a; b], λ mask π, ∀ pad,
-        Φ (gt a) π (∀ z, st a (pinj i b, pad) z → post -[z] mask π)).
+      (λ post '-[a; b], λ mask, ∀ pad z,
+        st a (pinj i b, pad) z → post -[z] mask).
   Proof.
-    iIntros ([Eq Wrt] Rslv ???? (x & y &[]))
-      "#LFT #TIME PROPH #UNIQ #E L I (p & q & _) Obs".
+    iIntros ([Eq Wrt] ???? (x & y &[]))
+      "#LFT #TIME #UNIQ #E L I (p & q & _) %Obs".
     iMod (llctx_interp_make_guarded with "L") as (γ) "[H1 [H2 [#Ghalf #Halfback]]]". { solve_ndisj. }
     iDestruct (closed_hasty with "p") as %C1. iDestruct (closed_hasty with "q") as %C2.
     wp_apply (wp_hasty with "p"). iIntros (v d Heq) "#⧖ ty".
     
+    iApply fupd_pgl_wp.
     iMod (Wrt with "LFT UNIQ E Ghalf H1 ty") as (l d' H Heqv ->) "[(%vl & >↦ & A) [H [#Hguards Toty']]]". inversion Heqv. subst v.
     unfold ty_own.
     iDestruct "A" as "[tyb_ghos #>%tyb_phys]".
@@ -649,8 +628,9 @@ Section type_sum.
     destruct vl as [|v vl]. { rewrite Eq in Sz. done. }
     destruct l as [l cells]. destruct cells as [|cells0 cells]. { done. }
     
+    iModIntro.
     wp_bind (LitV (l, cells0 :: cells).1 <- #i)%E.
-    iApply (wp_persistent_time_receipt with "TIME ⧖"); [solve_ndisj|].
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖"); [done|solve_ndisj|].
     iIntros "H£ #⧖S".
     iDestruct (lc_weaken (_)%nat with "H£") as "£1"; first last.
     {
@@ -661,7 +641,7 @@ Section type_sum.
     iMod (mapsto_vec_untether_singleton _ _ _ ∅ with "↦1") as (v₀ l₀ c₀) "[%Hl [↦1 Retether]]".
     inversion Hl. subst l₀ c₀.
     
-    iApply (wp_write_na_guarded with "[H ↦1 £1]"). { solve_ndisj. }
+    iApply (wp_write_guarded _ (l, cells0) (#i)%V v₀ with "[H ↦1 £1]"). { solve_ndisj. }
       { rewrite heap_mapsto_cloc_emp_cons.
         iDestruct (guards_weaken_rhs_sep_l with "Hguards") as "Hguards2". iFrame "Hguards2".
         iFrame "H". iFrame "↦1". iFrame "£1". }
@@ -669,18 +649,17 @@ Section type_sum.
     
     wp_let.
     
-    wp_bind p. iApply wp_wand; [by iApply wp_eval_path|]. iIntros (?->).
+    wp_bind p. iApply (pgl_wp_wand with "[]"); [by iApply wp_eval_path|]. iIntros (?->).
     wp_op.
     wp_bind q. iApply (wp_hasty with "q"). iIntros (vb db ?) "#⧖' tyb'".
     
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     iCombine "⧖ ⧖'" as "⧖max".
-    iApply (wp_persistent_time_receipt with "TIME ⧖max"); [solve_ndisj|].
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖max"); [done|solve_ndisj|].
     iIntros "H£ #⧖S2".
-    iDestruct (lc_weaken (_ + _ + _ + _)%nat with "H£") as "[[[£1 £2] £3] £4]"; first last.
+    iDestruct (lc_weaken (_ + _)%nat with "H£") as "[£3 £4]"; first last.
     {
     
-    iDestruct (Rslv _ (⊤ ∖ (⊤ ∖ ↑Nllft ∖ ↑prophN ∖ ↑timeN ∖ ↑uniqN)) with "LFT PROPH UNIQ TIME E Ghalf H2 tyb_ghos") as "ToObs"; [set_solver|].
     iDestruct "tyb'" as "[tyb'_gho %tyb'_phys]".
     assert (ty_size (tyl +!! i) = 1) as Sz'. {
       rewrite <- (ty_size_eq _ y tid). rewrite tyb'_phys. trivial.
@@ -694,20 +673,13 @@ Section type_sum.
     }
     destruct cells as [|cells2 cells]. { done. }
     
-    iMod (lc_fupd_elim_later with "£1 ToObs") as "ToObs".
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iDestruct (lc_step_fupdN_elim_later with "£2 ToObs") as "ToObs".
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iDestruct "ToObs" as "[Obs' H1]".
-    
     rewrite heap_mapsto_cloc_fancy_vec_cons.
     iDestruct "↦2" as "[↦2 ↦3]".
     rewrite <- heap_complete_mapsto_fancy_singleton.
     iMod (mapsto_vec_untether_singleton _ _ _ ∅ with "↦2") as (v₁ l₁ c₁) "[%Hl₁ [↦2 Retether₁]]".
     inversion Hl₁. subst l₁ c₁.
        
-    iApply (wp_write_na_guarded with "[H ↦2 £3]"). { solve_ndisj. }
+    iApply (wp_write_guarded _ (l +ₗ 1, cells2) vb v₁ with "[H ↦2 £3]"). { solve_ndisj. }
       { rewrite heap_mapsto_cloc_emp_cons. rewrite heap_mapsto_cloc_emp_cons.
         iDestruct (guards_weaken_rhs_sep_r with "Hguards") as "Hguards2".
         iDestruct (guards_weaken_rhs_sep_l with "Hguards2") as "Hguards3".
@@ -716,8 +688,7 @@ Section type_sum.
     
     iMod (mapsto_vec_untether _ _ _ ∅ with "↦3") as (vlconcrete) "[↦3 [%Hlen3 Retether3]]".
     
-    iCombine "Obs Obs'" as "Obs".
-    iMod ("Toty'" $! (pinj i y, vlconcrete) with "[↦1 ↦2 ↦3 tyb'_gho] ⧖S2 £4 H") as (z) "[H2 [%Hz [ty' ty'phys]]]".
+    iMod ("Toty'" $! (pinj i y, vlconcrete) with "[↦1 ↦2 ↦3 tyb'_gho] ⧖S2 £4 H") as (z) "[H1 [%Hz [ty' ty'phys]]]".
     { iExists (FVal #i :: FVal vb :: fmap FVal vlconcrete). 
       rewrite heap_mapsto_cloc_fancy_vec_cons.
       rewrite heap_mapsto_cloc_fancy_vec_cons. iFrame. iNext.
@@ -738,11 +709,10 @@ Section type_sum.
     }
     iDestruct ("Halfback" with "H1 H2") as "L". iMod (fupd_mask_mono with "L") as "L". { solve_ndisj. }
     
-    iExists -[z]. iFrame "L I". iSplitR "Obs".
+    iExists -[z]. iFrame "L I". iModIntro. iSplit.
     - rewrite right_id tctx_hasty_val'; [|done]. iExists (S (S d' `max` db)). iFrame "#".
-      iFrame. iModIntro. iDestruct (ty_gho_depth_mono with "ty'") as "[$ _]". { lia. } { lia. }
-    - iApply proph_obs_impl; [|done]=>/= π [Ha Imp].
-      generalize Hz. generalize z. apply Imp. apply Ha.
+      iFrame. iDestruct (ty_gho_depth_mono with "ty'") as "[$ _]". { lia. } { lia. }
+    - iPureIntro. by apply (Obs vlconcrete z).
     }
     unfold advance_credits. nia.
     }
@@ -751,33 +721,34 @@ Section type_sum.
 
   Lemma type_sum_assign {𝔄 𝔄' 𝔅 𝔅l ℭl 𝔇l 𝔈} (tyl: typel 𝔅l) (i: fin _)
       (k: Z) (ty: type 𝔄) (tyb: type 𝔅) (ty': type 𝔄')
-      (T: tctx ℭl) (T': tctx 𝔇l) p q gt st Φ tr trx E L I (C: cctx 𝔈) e :
+      (T: tctx ℭl) (T': tctx 𝔇l) p q gt st tr trx E L I (C: cctx 𝔈) e :
     Closed [] e → k = i → tctx_extract_ctx E L +[p ◁ ty; q ◁ tyl +!! i] T T' trx →
-    typed_write E L ty tyb ty' (Σ! tyl) gt st → resolve' E L tyb Φ →
+    typed_write E L ty tyb ty' (Σ! tyl) gt st →
     typed_body E L I C (p ◁ ty' +:: T') e tr -∗
-    typed_body E L I C T (p <-{Σ k} q;; e) (trx ∘ (λ post '(a -:: b' -:: dl), λ mask π, forall pad,
-      Φ (gt a) π (forall z, st a (pinj i b', pad) z → tr post (z -:: dl) mask π))).
+    typed_body E L I C T (p <-{Σ k} q;; e) (trx ∘ (λ post '(a -:: b' -:: dl), λ mask, forall pad z,
+      st a (pinj i b', pad) z → tr post (z -:: dl) mask)).
   Proof.
-    iIntros (?->???) "e". iApply typed_body_tctx_incl; [done|].
+    iIntros (?->??) "e". iApply typed_body_tctx_incl; [done|].
     iApply type_seq; [by eapply type_sum_assign_instr|apply tctx_incl_refl| |done].
     by move=> ?[?[??]]/=.
   Qed.
 
   Lemma type_sum_unit_instr {𝔄 𝔄' 𝔅 𝔅l} (tyl: typel 𝔅l) (i: fin _)
-      (ty: type 𝔄) (tyb: type 𝔅) (ty': type 𝔄') f p gt st Φ E L I :
-    typed_write E L ty tyb ty' (Σ! tyl) gt st → resolve' E L tyb Φ →
+      (ty: type 𝔄) (tyb: type 𝔅) (ty': type 𝔄') f p gt st E L I :
+    typed_write E L ty tyb ty' (Σ! tyl) gt st →
     subtype E L () (tyl +!! i) f →
     typed_instr E L I +[p ◁ ty] (p <-{Σ i} ()) (λ _, +[p ◁ ty'])
-      (λ post '-[a], λ mask π, ∀ pad,
-        Φ (gt a) π (∀ z, st a (pinj i (f ~~$ₛ ()), pad) z → (post -[z] mask π))).
+      (λ post '-[a], λ mask, ∀ pad z,
+        st a (pinj i (f ~~$ₛ ()), pad) z → (post -[z] mask)).
   Proof.
-    iIntros ([Eq Wrt] Rslv Subtype ???? (x & []))
-      "#LFT #TIME PROPH #UNIQ #E L I (p & _) Obs".
+    iIntros ([Eq Wrt] Subtype ???? (x & []))
+      "#LFT #TIME #UNIQ #E L I (p & _) %Obs".
     iDestruct (Subtype with "L E") as "#(%Ssz & SIncl & Sgho & Sghopers & %Sphys)".
     iMod (llctx_interp_make_guarded with "L") as (γ) "[H1 [H2 [#Ghalf #Halfback]]]". { solve_ndisj. }
     iDestruct (closed_hasty with "p") as %C1.
     wp_apply (wp_hasty with "p"). iIntros (v d Heq) "#⧖ ty".
     
+    iApply fupd_pgl_wp.
     iMod (Wrt with "LFT UNIQ E Ghalf H1 ty") as (l d' H Heqv ->) "[(%vl & >↦ & A) [H [#Hguards Toty']]]". inversion Heqv. subst v.
     unfold ty_own.
     iDestruct "A" as "[tyb_ghos #>%tyb_phys]".
@@ -785,11 +756,12 @@ Section type_sum.
     destruct vl as [|v vl]. { rewrite Eq in Sz. done. }
     destruct l as [l cells]. destruct cells as [|cells0 cells]. { done. }
     
-    iApply wp_fupd.
+    iModIntro.
+    iApply pgl_wp_fupd.
     wp_bind (LitV (l, cells0 :: cells).1 <- #i)%E.
-    iApply (wp_persistent_time_receipt with "TIME ⧖"); [solve_ndisj|].
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖"); [done|solve_ndisj|].
     iIntros "H£ #⧖S".
-    iDestruct (lc_weaken (_ + _ + _ + _)%nat with "H£") as "[[[£1 £2] £3] £4]"; first last.
+    iDestruct (lc_weaken (_ + _)%nat with "H£") as "[£1 £4]"; first last.
     {
     
     rewrite heap_mapsto_cloc_fancy_vec_cons.
@@ -798,30 +770,21 @@ Section type_sum.
     iMod (mapsto_vec_untether_singleton _ _ _ ∅ with "↦1") as (v₀ l₀ c₀) "[%Hl [↦1 Retether]]".
     inversion Hl. subst l₀ c₀.
     
-    iApply (wp_write_na_guarded with "[H ↦1 £1]"). { solve_ndisj. }
+    iApply (wp_write_guarded _ (l, cells0) (#i)%V v₀ with "[H ↦1 £1]"). { solve_ndisj. }
       { rewrite heap_mapsto_cloc_emp_cons.
         iDestruct (guards_weaken_rhs_sep_l with "Hguards") as "Hguards2". iFrame "Hguards2".
         iFrame "H". iFrame "↦1". iFrame "£1". }
     iModIntro. iIntros "[↦1 H]".
     
-    wp_let. iApply wp_fupd. wp_seq.
+    wp_let. iApply pgl_wp_fupd. wp_seq.
     
-    iDestruct (Rslv _ (⊤ ∖ (⊤ ∖ ↑Nllft ∖ ↑prophN ∖ ↑timeN ∖ ↑uniqN)) with "LFT PROPH UNIQ TIME E Ghalf H2 tyb_ghos") as "ToObs"; [set_solver|].
     assert (ty_size (tyl +!! i) = 0) as Sz'. {
       rewrite <- Ssz.  done.
     }
     
-    iMod (lc_fupd_elim_later with "£2 ToObs") as "ToObs".
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iDestruct (lc_step_fupdN_elim_later with "£3 ToObs") as "ToObs".
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iDestruct "ToObs" as "[Obs' H1]".
-    
     iMod (mapsto_vec_untether _ _ _ ∅ with "↦2") as (vlconcrete) "[↦2 [%Hlen2 Retether2]]".
     
-    iCombine "Obs Obs'" as "Obs".
-    iMod ("Toty'" $! (pinj i (f ~~$ₛ ()), vlconcrete) with "[↦1 ↦2] ⧖S £4 H") as (z) "[H2 [%Hz [ty' ty'phys]]]".
+    iMod ("Toty'" $! (pinj i (f ~~$ₛ ()), vlconcrete) with "[↦1 ↦2] ⧖S £4 H") as (z) "[H1 [%Hz [ty' ty'phys]]]".
     { iExists (FVal #i :: fmap FVal vlconcrete). 
       rewrite heap_mapsto_cloc_fancy_vec_cons.
       iFrame. iNext.
@@ -842,51 +805,50 @@ Section type_sum.
     iDestruct ("Halfback" with "H1 H2") as "L". iMod (fupd_mask_mono with "L") as "L". { solve_ndisj. }
     
     iModIntro. iModIntro.
-    iExists -[z]. iFrame "L I". iSplitR "Obs".
+    iExists -[z]. iFrame "L I". iSplit.
     - rewrite right_id tctx_hasty_val'; [|done]. iExists (S (S d')). iFrame "#".
       iFrame. iDestruct (ty_gho_depth_mono with "ty'") as "[$ _]". { lia. } { lia. }
-    - iApply proph_obs_impl; [|done]=>/= π [Ha Imp].
-      generalize Hz. generalize z. apply Imp. apply Ha.
+    - iPureIntro. by apply (Obs vlconcrete z).
     }
     unfold advance_credits. nia.
   Qed.
 
   Lemma type_sum_unit {𝔄 𝔄' 𝔅 𝔅l ℭl 𝔇l 𝔈} (tyl: typel 𝔅l) (i: fin _) (k: Z)
       (ty: type 𝔄) (tyb: type 𝔅) (ty': type 𝔄') (T: tctx ℭl) (T': tctx 𝔇l)
-      f trx tr p gt st e Φ E L I (C: cctx 𝔈) :
+      f trx tr p gt st e E L I (C: cctx 𝔈) :
     Closed [] e → k = i → tctx_extract_ctx E L +[p ◁ ty] T T' trx →
-    typed_write E L ty tyb ty' (Σ! tyl) gt st → resolve' E L tyb Φ →
+    typed_write E L ty tyb ty' (Σ! tyl) gt st →
     subtype E L () (tyl +!! i) f →
     typed_body E L I C (p ◁ ty' +:: T') e tr -∗
     typed_body E L I C T (p <-{Σ k} ();; e) (trx ∘
-      (λ post '(a -:: dl), λ mask π, forall pad,
-        Φ (gt a) π (forall z, st a (pinj i (f ~~$ₛ ()), pad) z → tr post (z -:: dl) mask π))).
+      (λ post '(a -:: dl), λ mask, forall pad z,
+        st a (pinj i (f ~~$ₛ ()), pad) z → tr post (z -:: dl) mask)).
   Proof.
-    iIntros (?->????) "e". iApply typed_body_tctx_incl; [done|].
+    iIntros (?->???) "e". iApply typed_body_tctx_incl; [done|].
     iApply type_seq; [by eapply type_sum_unit_instr|by apply tctx_incl_refl| |done].
     by move=> ?[??]/=.
   Qed.
 
   Lemma type_sum_memcpy_instr {𝔄 𝔄' 𝔅 𝔅' ℭ ℭl} (tyl: typel ℭl) (i: fin _)
       (tyw: type 𝔄) (tyw': type 𝔄') (tyr: type 𝔅) (tyr': type 𝔅')
-      (tyb: type ℭ) p q gtw stw gtr str Φ E L I :
-    typed_write E L tyw tyb tyw' (Σ! tyl) gtw stw → resolve' E L tyb Φ →
+      (tyb: type ℭ) p q gtw stw gtr str E L I :
+    typed_write E L tyw tyb tyw' (Σ! tyl) gtw stw →
     typed_read E L tyr (tyl +!! i) tyr' gtr str →
     typed_instr E L I +[p ◁ tyw; q ◁ tyr]
       (p <-{(tyl +!! i).(ty_size),Σ i} !q) (λ _, +[p ◁ tyw'; q ◁ tyr'])
-      (λ post '-[a; b], λ mask π, ∀ pad,
-        Φ (gtw a) π (∀ zw zr,
-          stw a (pinj i (gtr b), pad) zw → str b zr →
-          post -[zw; zr] mask π)).
+      (λ post '-[a; b], λ mask, ∀ pad zw zr,
+        stw a (pinj i (gtr b), pad) zw → str b zr →
+        post -[zw; zr] mask).
   Proof.
-    iIntros ([Eq Wrt] Rslv Rd ???? (x & y &[]))
-      "#LFT #TIME PROPH #UNIQ #E L I (p & q & _) Obs".
+    iIntros ([Eq Wrt] Rd ???? (x & y &[]))
+      "#LFT #TIME #UNIQ #E L I (p & q & _) %Obs".
     iMod (llctx_interp_make_guarded with "L") as (γ) "[H1 [H2 [#Ghalf #Halfback]]]". { solve_ndisj. }
     iMod (fractional.frac_split_guard_in_half with "H2 Ghalf") as (γ2) "[H2 [H3 [#Ghalf2 #Halfback2]]]". { solve_ndisj. }
     
     iDestruct (closed_hasty with "p") as %C1. iDestruct (closed_hasty with "q") as %C2.
     wp_apply (wp_hasty with "p"). iIntros (v d Heq) "#⧖ ty".
     
+    iApply fupd_pgl_wp.
     iMod (Wrt with "LFT UNIQ E Ghalf H1 ty") as (l d' Hw Heqv ->) "[(%vl & >↦ & A) (Hw & #Hwpt & Totyw)]". inversion Heqv. subst v.
     unfold ty_own.
     iDestruct "A" as "[tyb_ghos #>%tyb_phys]".
@@ -894,8 +856,9 @@ Section type_sum.
     destruct vl as [|v vl]. { rewrite Eq in Sz. done. }
     destruct l as [l cells]. destruct cells as [|cells0 cells]. { done. }
     
+    iModIntro.
     wp_bind (LitV (l, cells0 :: cells).1 <- #i)%E.
-    iApply (wp_persistent_time_receipt with "TIME ⧖"); [solve_ndisj|].
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖"); [done|solve_ndisj|].
     iIntros "H£ #⧖S".
     iDestruct (lc_weaken (_ + _)%nat with "H£") as "£1"; first last.
     {
@@ -906,7 +869,7 @@ Section type_sum.
     iMod (mapsto_vec_untether_singleton _ _ _ ∅ with "↦1") as (v₀ l₀ c₀) "[%Hl [↦1 _Retether]]".
     inversion Hl. subst l₀ c₀.
     
-    iApply (wp_write_na_guarded with "[Hw ↦1 £1]"). { solve_ndisj. }
+    iApply (wp_write_guarded _ (l, cells0) (#i)%V v₀ with "[Hw ↦1 £1]"). { solve_ndisj. }
       { rewrite heap_mapsto_cloc_emp_cons.
         iDestruct (guards_weaken_rhs_sep_l with "Hwpt") as "Hguards2". iFrame "Hguards2".
         iFrame "Hw". iFrame "↦1". iFrame "£1". }
@@ -914,18 +877,19 @@ Section type_sum.
     
     wp_let.
     
-    wp_bind p. iApply wp_wand; [by iApply wp_eval_path|]. iIntros (?->).
+    wp_bind p. iApply (pgl_wp_wand with "[]"); [by iApply wp_eval_path|]. iIntros (?->).
     wp_op.
     wp_bind q. iApply (wp_hasty with "q"). iIntros (vb db ?) "#⧖' tyr".
     
-    iApply wp_fupd.
+    iApply pgl_wp_fupd.
     iCombine "⧖ ⧖'" as "⧖max".
-    iApply (wp_persistent_time_receipt with "TIME ⧖max"); [solve_ndisj|].
+    iApply (wp_persistent_time_receipt _ with "TIME ⧖max"); [done|solve_ndisj|].
     iIntros "H£ #⧖S2".
-    iDestruct (lc_weaken (_ + _ + _ + _ + _ + _ + _)%nat with "H£")
-        as "[[[[[[£1 £2] £3] £4] £5] £6] £7]"; first last.
+    iDestruct (lc_weaken (_ + _ + _ + _ + _)%nat with "H£")
+        as "[[[[£1 £4] £5] £6] £7]"; first last.
     {
     
+    iApply fupd_pgl_wp.
     iMod (Rd with "LFT E Ghalf2 H2 tyr £1") as (? vlb_concrete vlb Hr Heqv2 Hleneq) "(Hr & #Hrpt' & Retether & _ & Own' & Totyr')".
       inversion Heqv2. subst vb.
     iDestruct "Own'" as "[tyb'_gho #>%tyb'_phys]".
@@ -938,21 +902,13 @@ Section type_sum.
       apply (Hlia _ _ _ Sz h).
     }
     
-    iDestruct (Rslv _ (⊤ ∖ (⊤ ∖ ↑Nllft ∖ ↑prophN ∖ ↑timeN ∖ ↑uniqN)) with "LFT PROPH UNIQ TIME E Ghalf2 H3 tyb_ghos") as "ToObs"; [set_solver|].
-    
-    iMod (lc_fupd_elim_later with "£2 ToObs") as "ToObs".
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iDestruct (lc_step_fupdN_elim_later with "£3 ToObs") as "ToObs".
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iMod (fupd_mask_mono with "ToObs") as "ToObs". { solve_ndisj. }
-    iDestruct "ToObs" as "[Obs' H1]".
-    
     replace ((l +ₗ 1, cells) #↦!∗ vl)%I with ((l +ₗ 1, cells) #↦!∗ (take (length vlb) vl ++ List.skipn (length vlb) vl))%I. 2: {  f_equal. apply take_drop. }
     rewrite heap_cloc_mapsto_fancy_vec_app.
     iDestruct "↦2" as "[↦2 ↦3]".
     iMod (mapsto_vec_untether _ _ _ ∅ with "↦2") as (vl2_concrete) "[↦2 [%Hvlen2 _]]".
     iMod (mapsto_vec_untether _ _ _ ∅ with "↦3") as (vl3_concrete) "[↦3 [%Hvlen3 _]]".
     
+    iModIntro.
     iApply (wp_memcpy_guarded _ (cloc_take (l +ₗ 1, cells) (length (take (length vlb) vl))) l0 vl2_concrete vlb_concrete Hw Hr _ (S (S d' `max` db)) with "TIME [$↦2 Hwpt Hr Hw £4]"). { solve_ndisj. }
     { rewrite <- Sz'. rewrite Hvlen2. rewrite length_take. lia. }
     { congruence. } { replace (S (d' + 1)) with (S d' + 1) by lia.
@@ -969,8 +925,6 @@ Section type_sum.
        
     iModIntro. iIntros "[↦2 [Hw Hr]]".
     
-    iCombine "Obs Obs'" as "Obs".
-     
     leaf_open_laters "Hwpt" with "Hw" as "A". { trivial. }
     iMod (lc_fupd_elim_later with "£5 A") as "A".
     iMod (lc_fupd_elim_laterN with "£6 A") as "A". iMod "A" as "[prefix back]".
@@ -1005,20 +959,18 @@ Section type_sum.
           apply (Hlia _ _ _ HlenLe Sz).
     }
     iDestruct ("Totyr'" with "Hr") as "Totyr'".
-    iMod (fupd_mask_mono with "Totyr'") as (zr) "(%Hzr & H3 & tyr')". { solve_ndisj. }
-    iDestruct ("Halfback2" with "H3 H1") as "L". iMod (fupd_mask_mono with "L") as "L". { solve_ndisj. }
+    iMod (fupd_mask_mono with "Totyr'") as (zr) "(%Hzr & H2' & tyr')". { solve_ndisj. }
+    iDestruct ("Halfback2" with "H2' H3") as "L". iMod (fupd_mask_mono with "L") as "L". { solve_ndisj. }
     iDestruct ("Halfback" with "H1' L") as "L". iMod (fupd_mask_mono with "L") as "L". { solve_ndisj. }
     iModIntro.
-    iExists -[z; zr]. iFrame "L I". iSplitR "Obs".
+    iExists -[z; zr]. iFrame "L I". iSplit.
     - rewrite right_id.
       + iSplitL "tyw'"; (rewrite tctx_hasty_val'; [|done]); iExists (S (S d' `max` db)).
         * iFrame "⧖S2". iDestruct "tyw'" as "[gho phys]". iFrame.
           iDestruct (ty_gho_depth_mono with "gho") as "[$ _]"; lia.
         * iFrame "⧖S2". iDestruct "tyr'" as "[gho phys]". iFrame.
           iDestruct (ty_gho_depth_mono with "gho") as "[$ _]"; lia.
-    - iApply proph_obs_impl; [|done]=>/= ?[? Imp].
-      generalize Hzr. generalize Hz. generalize zr. generalize z. apply Imp.
-      trivial.
+    - iPureIntro. by apply (Obs vl3_concrete z zr).
    }
    unfold advance_credits. nia.
    }
@@ -1027,18 +979,17 @@ Section type_sum.
 
   Lemma type_sum_memcpy {𝔄 𝔄' 𝔅 𝔅' ℭ ℭl 𝔇l 𝔈l 𝔉} (tyl: typel ℭl) (i: fin _)
       (tyw: type 𝔄) (tyr: type 𝔅) (tyw': type 𝔄') (tyr': type 𝔅') (tyb: type ℭ) (k n: Z)
-      (T: tctx 𝔇l) (T': tctx 𝔈l) p q gtw stw gtr str trx tr e Φ E L I (C: cctx 𝔉) :
+      (T: tctx 𝔇l) (T': tctx 𝔈l) p q gtw stw gtr str trx tr e E L I (C: cctx 𝔉) :
     Closed [] e → k = i → tctx_extract_ctx E L +[p ◁ tyw; q ◁ tyr] T T' trx →
-    typed_write E L tyw tyb tyw' (Σ! tyl) gtw stw → resolve' E L tyb Φ →
+    typed_write E L tyw tyb tyw' (Σ! tyl) gtw stw →
     n = (tyl +!! i).(ty_size) → typed_read E L tyr (tyl +!! i) tyr' gtr str →
     typed_body E L I C (p ◁ tyw' +:: q ◁ tyr' +:: T') e tr -∗
     typed_body E L I C T (p <-{n,Σ k} !q;; e)
-      (trx ∘ (λ post '(a -:: b -:: el), λ mask π, forall pad,
-        Φ (gtw a) π (forall zw zr,
-          stw a (pinj i (gtr b), pad) zw → str b zr →
-          tr post (zw -:: zr -:: el) mask π))).
+      (trx ∘ (λ post '(a -:: b -:: el), λ mask, forall pad zw zr,
+        stw a (pinj i (gtr b), pad) zw → str b zr →
+        tr post (zw -:: zr -:: el) mask)).
   Proof.
-    iIntros (?->???->?) "e". iApply typed_body_tctx_incl; [done|].
+    iIntros (?->??->?) "e". iApply typed_body_tctx_incl; [done|].
     iApply type_seq; [by eapply type_sum_memcpy_instr|by apply tctx_incl_refl| |done].
     by move=> ?[?[??]]/=.
   Qed.

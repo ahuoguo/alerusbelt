@@ -9,7 +9,7 @@ Set Default Proof Using "Type".
 Implicit Type (𝔄 𝔅: syn_type) (𝔄l 𝔅l ℭl: syn_typel).
 
 Section product_split.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
   
   (** * General Split/Merger for Plain Pointer Types *)
   
@@ -69,10 +69,10 @@ Section product_split.
     ptr_homo_sub (@ptr) →
     (∀p 𝔄 𝔅 (ty: type 𝔄) (ty': type 𝔅),
         tctx_incl E L +[p +ₗ #0 ◁ ptr ty; p +ₗ #ty.(ty_size) ◁ ptr ty']
-          +[p ◁ ptr (ty * ty')] (λ post '-[(l, a); (l2, b)], λ mask π, l2 = l +ₗ ty.(ty_size) → post -[(l, (a, b))] mask π)) →
+          +[p ◁ ptr (ty * ty')] (λ post '-[(l, a); (l2, b)], λ mask, l2 = l +ₗ ty.(ty_size) → post -[(l, (a, b))] mask)) →
     𝔄l ≠ [] →
     ∀p, tctx_incl E L (hasty_ptr_offsets p (@ptr) tyl 0) +[p ◁ ptr (Π! tyl)]
-                      (λ post al mask π, ∀ l al', al = (spec_ptr_offsets al' tyl l) → post -[(l, al')] mask π).
+                      (λ post al mask, ∀ l al', al = (spec_ptr_offsets al' tyl l) → post -[(l, al')] mask).
   Proof.
     move=> HSub Merge. elim: tyl; [done|]=> ?? ty. case=>/=.
     { move=> _ _ ?. eapply tctx_incl_ext.
@@ -160,7 +160,7 @@ Notation hasty_shr_offsets p κ :=
   (hasty_ptr_cloc_offsets p (λ 𝔄, shr_bor (𝔄:=𝔄) κ)).
 
 Section product_split.
-  Context `{!typeG Σ}.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
 
   (** * Owning Pointers *)
 
@@ -169,8 +169,8 @@ Section product_split.
       +[p +ₗ #0 ◁ own_ptr n ty; p +ₗ #ty.(ty_size) ◁ own_ptr n ty']
       (λ post '-[(l, (a, b))], post -[(l, a); (l +ₗ ty.(ty_size), b)]).
   Proof.
-    split. { intros ?? H [[?[??]][]] ??. rewrite H. done. }
-    iIntros (G tid [[l [x y]][]] post mask ?) "#LFT #PROPH #UNIQ #E #GuardsL G [T _] #Obs".
+    split. { intros ?? H [[?[??]][]] ?. rewrite H. done. }
+    iIntros (G tid [[l [x y]][]] post mask ?) "#LFT #UNIQ #E #GuardsL G [T _] %Obs".
     iDestruct "T" as (v d) "(%path & #⧖ & [gho %phys])".
     destruct d as [|d']; first by done.
     iDestruct "gho" as "[↦ [free [gho1 gho2]]]".
@@ -187,18 +187,18 @@ Section product_split.
         iFrame "⧖". simpl. rewrite ty_size_eq. iFrame "↦'". iPureIntro. trivial. }
       done.
     }
-    iApply proph_obs_eq; [|done]=>/= π. trivial.
+    done.
   Qed.
 
   Lemma tctx_merge_own_prod {𝔄 𝔅} n (ty: type 𝔄) (ty': type 𝔅) p E L :
     tctx_incl E L +[p +ₗ #0 ◁ own_ptr n ty; p +ₗ #ty.(ty_size) ◁ own_ptr n ty']
-      +[p ◁ own_ptr n (ty * ty')] (λ post '-[(la, a); (lb, b)], λ mask π, lb = la +ₗ ty.(ty_size) → post -[(la, (a, b))] mask π).
+      +[p ◁ own_ptr n (ty * ty')] (λ post '-[(la, a); (lb, b)], λ mask, lb = la +ₗ ty.(ty_size) → post -[(la, (a, b))] mask).
   Proof.
     eapply tctx_incl_ext;
       [eapply tctx_incl_trans; [apply tctx_of_shift_loc_0|]
       |by intros; apply (iff_refl _)].
-    split. { intros ?? H [[??][[??][]]] ??. setoid_rewrite H. trivial. }
-    iIntros (G tid [[lx x][[ly y][]]] post mask ?) "#LFT #PROPH #UNIQ #E #GuardsL G [T1 [T2 _]] #Obs".
+    split. { intros ?? H [[??][[??][]]] ?. setoid_rewrite H. trivial. }
+    iIntros (G tid [[lx x][[ly y][]]] post mask ?) "#LFT #UNIQ #E #GuardsL G [T1 [T2 _]] %Obs".
     iDestruct "T1" as (v1 d1) "(%path1 & #⧖1 & [gho1 %phys1])".
     iDestruct "T2" as (v2 d2) "(%path2 & #⧖2 & [gho2 %phys2])".
     iCombine "⧖1 ⧖2" as "⧖".
@@ -218,7 +218,7 @@ Section product_split.
       rewrite heap_mapsto_fancy_vec_app -freeable_sz_split. rewrite ty_size_eq. iFrame. 
       done.
     }
-    iApply proph_obs_impl; [|done]=>/= π. intros Ha. apply Ha. trivial.
+    iPureIntro. apply Obs. trivial.
   Qed.
 
   Lemma tctx_split_own_xprod {𝔄l} n (tyl: typel 𝔄l) p E L :
@@ -231,7 +231,7 @@ Section product_split.
 
   Lemma tctx_merge_own_xprod {𝔄 𝔄l} n (tyl: typel (𝔄 :: 𝔄l)) p E L :
     tctx_incl E L (hasty_own_offsets p n tyl 0)
-      +[p ◁ own_ptr n (Π! tyl)] (λ post al mask π, ∀ l al', al = (spec_ptr_offsets al' tyl l) → post -[(l, al')] mask π).
+      +[p ◁ own_ptr n (Π! tyl)] (λ post al mask, ∀ l al', al = (spec_ptr_offsets al' tyl l) → post -[(l, al')] mask).
   Proof.
     apply (tctx_merge_ptr_xprod (λ _, own_ptr n));
     [apply _|solve_typing|move=> *; apply tctx_merge_own_prod|done].
@@ -244,8 +244,8 @@ Section product_split.
       +[p +ₗ #0 ◁ &shr{κ} ty; p +ₗ #ty.(ty_size) ◁ &shr{κ} ty']
       (λ post '-[(l, (a, b))], post -[(cloc_take l ty.(ty_size), a); (cloc_skip l ty.(ty_size), b)]).
   Proof.
-    split. { intros ?? H [[?[??]][]] ??. setoid_rewrite H. trivial. }
-    iIntros (G tid [[l [x y]][]] post mask ?) "#LFT #PROPH #UNIQ #E #GuardsL G [T _] #Obs".
+    split. { intros ?? H [[?[??]][]] ?. setoid_rewrite H. trivial. }
+    iIntros (G tid [[l [x y]][]] post mask ?) "#LFT #UNIQ #E #GuardsL G [T _] %Obs".
     iDestruct "T" as (v d) "(%path & #⧖ & [gho %phys])".
     destruct d as [|d']; first by done.
     iDestruct "gho" as "[#G↦ [#Ggho [#InnerPers1 #InnerPers2]]]".
@@ -268,7 +268,7 @@ Section product_split.
       }
       done.
     }
-    iApply proph_obs_eq; [|done]=>/= π. trivial.
+    done.
   Qed.
 
   Lemma tctx_split_shr_xprod {𝔄l} κ (tyl: typel 𝔄l) p E L :
@@ -287,18 +287,16 @@ Section product_split.
         +[p ◁ &uniq{κ} (ty * ty')]
         SplitBor
         (const +[p +ₗ #0 ◁ &uniq{κ} ty; p +ₗ #ty.(ty_size) ◁ &uniq{κ} ty'])
-        (λ post '-[bor], λ mask π, ∀ bor1 bor2,
+        (λ post '-[bor], λ mask, ∀ bor1 bor2,
             uniq_bor_loc bor1 = cloc_take (uniq_bor_loc bor) ty.(ty_size) →
             uniq_bor_loc bor2 = cloc_skip (uniq_bor_loc bor) ty.(ty_size) →
             (uniq_bor_current bor1) = fst (uniq_bor_current bor) →
-            (uniq_bor_future bor1 π) = fst (uniq_bor_future bor π) →
             (uniq_bor_current bor2) = snd (uniq_bor_current bor) →
-            (uniq_bor_future bor2 π) = snd (uniq_bor_future bor π) →
-            post -[bor1; bor2] mask π).
+            post -[bor1; bor2] mask).
   Proof.
     intros Alv Out.
     apply typed_instr_of_skip.
-    iIntros (x v d tid iκs mask post) "#LFT #TIME #PROPH #UNIQ E L $ %path Own Obs #⧖ ⧗ ⧗' £".
+    iIntros (x v d tid iκs mask post) "#LFT #TIME #UNIQ E L $ %path Own %Obs #⧖ ⧗ ⧗' £".
     iDestruct (Alv with "L E") as "#Alv".
     iMod (llctx_interp_make_guarded with "L") as (γ) "[H1 [H2 [#Ghalf #Halfback]]]". { solve_ndisj. }
     destruct x as [[[[[l x0] ξi] d'] g'] idx].
@@ -322,22 +320,14 @@ Section product_split.
     destruct x0 as [x0 y0].
     have ?: Inhabited 𝔄 := populate (vπ x0 inhabitant).
     have ?: Inhabited 𝔅 := populate (vπ y0 inhabitant).
-    iMod (uniq_intro x0 (vπ x0) (d', g') with "PROPH UNIQ") as (ζi) "[ζVo ζPc]"; [done|].
-    iMod (uniq_intro y0 (vπ y0) (d', g') with "PROPH UNIQ") as (ζ'i) "[ζ'Vo ζ'Pc]"; [done|].
-    
+    iMod (uniq_intro x0 (vπ x0) (d', g') with "UNIQ") as (ζi) "[ζVo ζPc]"; [done|].
+    iMod (uniq_intro y0 (vπ y0) (d', g') with "UNIQ") as (ζ'i) "[ζ'Vo ζ'Pc]"; [done|].
+
     set ξ := PrVar _ ξi.
     set ζ := PrVar _ ζi. set ζ' := PrVar _ ζ'i.
-    iDestruct (uniq_proph_tok with "ζVo ζPc") as "(ζVo & ζ & ζPc)".
-    iDestruct (uniq_proph_tok with "ζ'Vo ζ'Pc") as "(ζ'Vo & ζ' & ζ'Pc)".
-    iMod (uniq_preresolve ξ [ζ; ζ'] (λ π, (π ζ, π ζ')) with
-      "UNIQ PROPH ξVo ξPc [$ζ $ζ']") as "(Obs' & (ζ & ζ' &_) & ToξPc)"; [done| |done|].
-    { apply (proph_dep_prod [_] [_]); apply proph_dep_one. }
-
-    iCombine "Obs Obs'" as "#Obs".
-    iSpecialize ("ζPc" with "ζ"). iSpecialize ("ζ'Pc" with "ζ'").
-    
-    
-    iDestruct ("ToBor" with "[ToξPc Pt1 Gho1 ζPc ζ'Pc]") as "X"; last first.
+    (* Upstream preresolved [ξ] to [(π ζ, π ζ')]; with prophecies stripped
+       we keep [ξ]'s two agreement halves and retarget them on close. *)
+    iDestruct ("ToBor" with "[ξVo ξPc Pt1 Gho1 ζPc ζ'Pc]") as "X"; last first.
      - iMod (fupd_mask_mono with "X") as "[Bor H1]". { set_solver. }
        iDestruct ("Halfback" with "H1 H2") as "L".
        iMod (fupd_mask_mono with "L") as "$". { set_solver. }
@@ -377,21 +367,17 @@ Section product_split.
          }
          done.
        }
-       iApply proph_obs_impl; [|done]=>/= π.
-       intros [Ha Hb]. apply Ha; trivial.
-       + unfold uniq_bor_future. simpl. rewrite Hb. trivial.
-       + unfold uniq_bor_future. simpl. rewrite Hb. trivial.
-     - iSplitL "ToξPc". {
+       iPureIntro. apply Obs; trivial.
+     - iSplitL "ξVo ξPc". {
         iNext. iIntros "[A B]".
         iMod (bi.later_exist_except_0 with "A") as (x1 d1 g1) "(#>⧖2 & ζPc & Gho1 & >Pt1)".
-        iMod (bi.later_exist_except_0 with "B") as (x2 d2 g2) "(#>⧖3 & ζ'Pc & Gho2 & >Pt2)".       iModIntro.  iNext. iExists (x1, x2). iExists (d1 `max` d2). iExists (g1 `max` g2).
+        iMod (bi.later_exist_except_0 with "B") as (x2 d2 g2) "(#>⧖3 & ζ'Pc & Gho2 & >Pt2)".
+        iMod (uniq_update ξ ((x1, x2) : ~~ (𝔄 * 𝔅)%ST) (vπ ((x1, x2) : ~~ (𝔄 * 𝔅)%ST)) (d1 `max` d2, g1 `max` g2)
+                with "UNIQ ξVo ξPc") as "[_ξVo ξPc]". { solve_ndisj. }
+        iModIntro.  iNext. iExists (x1, x2). iExists (d1 `max` d2). iExists (g1 `max` g2).
         iCombine "⧖2 ⧖3" as "⧖4".
         iFrame.
         iSplit. { iApply (persistent_time_receipt_mono with "⧖4"). lia. }
-        iSplitL "ToξPc ζPc ζ'Pc". {
-          iApply "ToξPc". iApply (proph_eqz_constr2 with "[ζPc] [ζ'Pc]");
-        [iApply (proph_ctrl_eqz with "PROPH ζPc")|
-         iApply (proph_ctrl_eqz with "PROPH ζ'Pc")]. }
         rewrite heap_cloc_mapsto_fancy_vec_app.
         rewrite ty_size_eq. iFrame.
         iDestruct (ty_gho_depth_mono with "Gho1") as "[Gho1 _]". 3: {

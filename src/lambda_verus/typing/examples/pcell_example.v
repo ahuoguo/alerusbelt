@@ -1,12 +1,29 @@
+(** VerusBelt's PCell example, ported prophecy-free.
+
+    What changed relative to upstream:
+
+    - the predicate transformers lose their [proph_asn] argument;
+    - the [&uniq] creation step ([type_uniqbor_instr], borrow.v) no
+      longer constrains the value handed back when the lifetime dies, and
+      [Share] ([type_share_instr]) no longer carries the
+      "current = final" side condition that came from resolving the
+      borrow;
+    - the assignment rule has no [resolve'] premise (but does have
+      [StackOkay] / [ty_size = 1] premises);
+    - [type_endlft] only unblocks, it does not resolve;
+    - safety is stated as [SeriesC (pexec n …) = 1] (plus the pointwise
+      progress corollary) rather than [rtc erased_step] plus data-race
+      freedom. *)
 From iris.proofmode Require Import proofmode.
 From lrust.typing Require Export type function product programs bool own cont uninit pcell product_split borrow.
 From lrust.typing Require Export soundness.
+From clutch.prob Require Import distribution.
 From lrust.typing.examples Require Import assert.
 From lrust.lang Require Import lang notation.
 Set Default Proof Using "Type".
 
-Section assert.
-  Context `{!typeG Σ}.
+Section pcell_example.
+  Context `{!typeG Σ, !cnaInv_logicG Σ}.
 
   (*
   VerusBelt corresponding to the following simple Verus program:
@@ -68,7 +85,7 @@ Section assert.
       let: "b" := ("x" = "seventeen") in
       letalloc: "b'" <- "b" in
       (* call assert *)
-      let: "assert" := assert in
+      let: "assert" := assert_fn in
       letcall: "assert_ret" := "assert" ["b'"] in
       
       Endlft;;
@@ -86,18 +103,18 @@ Section assert.
   Lemma pcell_example_type :
     typed_val
         pcell_example
-        ((fn(∅) → ()) (λ (c: ~~ ()) 𝛷 '-[] , λ mask π, ∀ l, 𝛷 (l, ()) mask π))
+        ((fn(∅) → ()) (λ (c: ~~ ()) 𝛷 '-[] , λ mask, ∀ l, 𝛷 (l, ()) mask))
         (pcell_example, ()).
   Proof.
     unfold pcell_example. unlock.
     opose proof (@type_fn
-        _ _ _
+        _ _ _ ()
         []
         ()
         ()
         ()
         (λ y: (), FP ∅ +[] () AtomicClosed)
-        (λ (c: ~~ ()) 𝛷 '-[] , λ mask π, ∀ l, 𝛷 (l, ()) mask π)
+        (λ (c: ~~ ()) 𝛷 '-[] , λ mask, ∀ l, 𝛷 (l, ()) mask)
         (_)%E
         [] _ _ _
     ) as H.
@@ -111,8 +128,8 @@ Section assert.
     
     iApply (type_new 1 with "[]"). { lia. } iIntros (v_p). simpl_subst.
     iApply type_int. iIntros (v_int_init). simpl_subst.
-    iApply type_assign. { solve_typing. } { apply write_own; trivial. }
-        { apply (resolve'_just _ _ _ (const True)). apply resolve_just. }
+    iApply type_assign. { solve_typing. } { apply uninit_stack_okay. }
+        { apply int_stack_okay. } { done. } { apply write_own; trivial. }
     iApply (type_let with "[]").
       { apply (typed_pcell_from_own _ int). }
       { solve_typing. } { reflexivity. } iIntros (v_pcell_pair). simpl_subst.
@@ -166,23 +183,23 @@ Section assert.
     
     iApply type_int. iIntros (v17). simpl_subst.
     iApply type_int_eq. { solve_typing. } iIntros (v_eq). simpl_subst.
-    iApply (type_letalloc_1 bool_ty). { solve_typing. } 2: { trivial. }
-        { eapply (_: ∀ x, x ≡ x). } iIntros (v_b'). simpl_subst.
+    iApply (type_letalloc_1 bool_ty). { solve_typing. } { done. }
+    iIntros (v_b'). simpl_subst.
         
     iApply type_let. { apply assert_type. } { solve_typing. } { reflexivity. }
     iIntros (v_assert). simpl_subst.
     
-    iApply (@type_letcall Σ typeG0 () [boolₛ] () () _ _ _ ()
+    iApply (@type_letcall Σ typeG0 cnaInv_logicG0 () [boolₛ] () () _ _ _ ()
         (λ (p: ()), FP ∅ +[bool_ty] () AtomicClosed)).
       { solve_typing. } { apply lctx_ictx_alive_nil. solve_typing. }
       { solve_typing. } { solve_typing. }
     iIntros (v_assert_ret). simpl_subst.
     
-    iApply (type_endlft _ _ _ _ κ2). { solve_typing. } {
-      repeat (apply unblock_tctx_cons_just). apply unblock_tctx_nil.
+    iApply (type_endlft _ _ _ κ2). {
+      repeat (eapply unblock_tctx_cons_just). eapply unblock_tctx_nil.
     }
-    iApply (type_endlft _ _ _ _ κ1). { solve_typing. } {
-      repeat (apply unblock_tctx_cons_just). apply unblock_tctx_nil.
+    iApply (type_endlft _ _ _ κ1). {
+      repeat (eapply unblock_tctx_cons_just). eapply unblock_tctx_nil.
     }
     
     iApply (type_new_subtype () 0). { lia. } { apply uninit_unit_1. }
@@ -191,71 +208,53 @@ Section assert.
     iApply type_jump.
       { rewrite list_elem_of_singleton. reflexivity. }
       { solve_typing. }
-      { solve_typing. }
       { reflexivity. }
    }
       
    Unshelve.
-   2: { intros. reflexivity. }
    2: { eapply (composeₛ empty_prod_to_unitₛ uninit0_to_unitₛ). }
-   
-   (* Now that's we've type-checked it, we're effectively left with a predicate
-      from the cumulative predicate transformers; it loosely corresponds to the weakest pre
-      predicate that Verus would construct in its VC gen.
-      Verus would then use Z3 to dispatch the obligations; obviously, we'll do it in Rocq, here.
-      
-      Since the program is pretty trivial, we mostly just need to unfold and destruct
-      a bunch of stuff.
-   *)
-   
-   intros post [] mask π.
-   intros Ha l junk [loc i] Heq.
-   inversion Heq. subst i. subst l.
-   intros cells bor [[[l1 cells1] ξi] t].
-   destruct bor as [[[[[[l cells0] x0] ξi'] d'] g'] idx].
-   simpl. intros. subst x0. subst l.
-   simpl in H1. simpl in H2.
-   unfold trans_upper. simpl.
-   intros H3 m z Hl Hcureq.
-   destruct m as [[[[[[l' cells'] [cells2 x']] ξi''] d''] g''] idx'].
-   destruct z as [[[l [cells3 zval]] k1] k2].
-   intro. intros.
-   intros. unfold uniq_bor_current.
-   simpl in H4. simpl in H0.
-   unfold uniq_bor_current in Hcureq. inversion Hcureq.
-   
-   (* Now we finally get to the "proof obligations" *)
-   
-   (* confirm 2 cell ids are equal; this must be the precondition to a PCell operation *)
-   split; first by trivial.
-   
-   intros [zl z] Heqz loc4. inversion Heqz. subst z.
-   
-   (* 17=17, precondition for the assert *)
-   split; first by trivial.
-   
-   intros [retl retu] [y0 [y1 [y2 [y3 [y4 [y5 [y6 [y7 [y8 [y9 [y10 [y11 []]]]]]]]]]]]].
-   intros [<- [<- [<- [<- [<- [<- [<- [<- [<- [<- [<- [<- Hd]]]]]]]]]]]].
-   unfold trans_tail. simpl.
-   intros [w0 [w1 [w2 [w3 [w4 [w5 [w6 [w7 [w8 [w9 [w10 [w11 []]]]]]]]]]]]].
-   intros [<- [<- [<- [<- [<- [<- [<- [<- [<- [<- [<- [<- He]]]]]]]]]]]].
-   intros l0 junk0 Hconst. simpl. apply Ha.
+
+   (* Now that we've type-checked it, we're effectively left with a predicate
+      from the cumulative predicate transformers; it loosely corresponds to the
+      weakest-precondition predicate that Verus would construct in its VC gen.
+      Verus would then use Z3 to dispatch the obligations; we do it in Rocq. *)
+   intros post [] mask.
+   intros Ha.
+   unfold trans_upper, trans_tail. simpl.
+   intros l junk z ->. simpl.
+   intros cell_ids m b Hm1 Hm2 m0 b0 Hm01 Hm02.
+   rewrite Hm02. simpl.
+   (* proof obligation 1: the two cell-id sets agree (precondition of the
+      PCell borrow) *)
+   split; [exact Hm2|].
+   intros z0 Hz0 l2.
+   (* proof obligation 2: 17 = 17, the precondition of the assert *)
+   split; [done|].
+   intros ret xl' Hxl' xl'0 Hxl'0 l1 junk2. apply Ha.
   Qed. (* long Qed *)
    
-End assert.
+End pcell_example.
 
-(* Instantiate the type soundness theorem. This gives us the result that pcell_example
-   executes without getting stuck.
-
-   Note that the theorem is statement is independent of Iris, all typing rules, etc.
-   It's just a statement about the operational behavior of pcell_example.
- *)
-Theorem pcell_example_executes_without_getting_stuck σ t :
-  rtc erased_step ([pcell_example [exit_cont]%E], ∅) (t, σ) →
-  (∀ e, e ∈ t → is_Some (to_val e) ∨ reducible e σ).
+(** Instantiate the closed-program soundness theorem.  Upstream states
+    this with [rtc erased_step] and a data-race-freedom conjunct; the eris
+    port states safety as "the [n]-step partial-execution distribution
+    keeps all its mass", equivalently "every reachable configuration is a
+    value or reducible" (see [typing/soundness.v]). *)
+Theorem pcell_example_executes_without_getting_stuck `{!typePreG Σ}
+    (σ : language.state lrust_prob_lang) (n : nat) :
+  (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
+  SeriesC (pexec n (pcell_example [exit_cont]%E, σ)) = 1%R.
 Proof.
-  apply (type_soundness_closed pcell_example σ t (pcell_example, ())).
-  intros typeG0. apply pcell_example_type.
+  intros Hσ. apply (type_soundness_main _ (pcell_example, ())); [done|].
+  intros typeG0 cnaInv_logicG0. apply pcell_example_type.
 Qed.
 
-Print Assumptions pcell_example_executes_without_getting_stuck.
+Corollary pcell_example_progress `{!typePreG Σ}
+    (σ : language.state lrust_prob_lang) (n : nat) :
+  (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
+  ∀ ρ, (pexec n (pcell_example [exit_cont]%E, σ) ρ > 0)%R →
+       is_final ρ ∨ reducible ρ.
+Proof.
+  intros Hσ. apply (type_soundness_main_progress _ (pcell_example, ())); [done|].
+  intros typeG0 cnaInv_logicG0. apply pcell_example_type.
+Qed.

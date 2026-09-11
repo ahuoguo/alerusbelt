@@ -64,7 +64,8 @@ From lrust.util Require Import cancellable_na_invariants cancellable
 From guarding.lib Require Import fractional cancellable.
 From lrust.lifetime Require Import lifetime_full.
 From lrust.lang Require Import adequacy proofmode notation lang heap lifting time.
-From lrust.typing Require Import type programs rand_ubig.
+From lrust.typing Require Import type programs rand_ubig function product
+                                   cont_context type_context lft_contexts.
 Import uPred.
 Set Default Proof Using "Type".
 
@@ -383,4 +384,97 @@ Proof.
   intros Hσ Hε Htr Hbody.
   rewrite pexec_safety_relate.
   apply (type_soundness_credit tr post ε e σ (S n) Hσ Hε Htr Hbody).
+Qed.
+
+
+(** * Closed whole-program soundness
+
+    Upstream verisbelt states soundness for a [main : val] of type
+    [main_type] applied to [exit_cont]; the same statement is available
+    here, on top of [type_soundness] and friends.  [main_typed_body]
+    is upstream's [type_soundness] proof restated as a [typed_body]
+    derivation for the closed expression [main [exit_cont]]. *)
+
+Definition exit_cont : val := λ: [<>], #☠.
+
+Definition main_type `{!typeG Σ, !cnaInv_logicG Σ} : type (exec_funₛ unitₛ) :=
+  (fn(∅) → unit_ty)%T (λ (_: ~~()), (λ post '-[], λ mask, ∀ l, post (l, ()) mask)).
+
+Lemma main_typed_body `{!typeG Σ, !cnaInv_logicG Σ} (main : val) c :
+  typed_val main main_type c →
+  ⊢ typed_body (𝔄l := []) (𝔅 := unitₛ) [] []
+      (InvCtx [] static AtomicClosed) [] +[] (main [exit_cont]%E)
+      (λ _ _ _, True%type).
+Proof.
+  intros Hmain.
+  iIntros (tid xl mask post iκs) "#LFT #TIME #UNIQ _ _ Invctx _ _ _".
+  iApply fupd_pgl_wp.
+  iPoseProof (Hmain [] [] (InvCtx [] static AtomicClosed) tid
+                (λ _ _, True%type) mask iκs -[]
+                with "LFT TIME UNIQ [] [] Invctx [] [%]") as "Hm".
+  { by rewrite /elctx_interp. }
+  { by rewrite /llctx_interp big_sepL_nil. }
+  { done. }
+  { done. }
+  rewrite pgl_wp_value_fupd. iMod "Hm" as "Hmain". iModIntro.
+  iDestruct "Hmain" as ([[fxval fx] []]) "/= (_ & Invctx & [Hmain _] & _)".
+  iDestruct "Hmain" as (??) "(EQ & _ & Hmain)". rewrite eval_path_of_val.
+  iDestruct "EQ" as %[= <-]. iDestruct "Hmain" as "[Hmain %phys]".
+  inversion phys. subst fxval.
+  iDestruct "Hmain" as (f k j e ?) "(EQ & Hmain)". iDestruct "EQ" as %[= ->].
+  wp_rec.
+  iApply fupd_pgl_wp.
+  iMod (llftl_begin' with "LFT") as (ϝ) "Hϝ"; first done.
+  iDestruct (invctx_interp_call [] static AtomicClosed tid mask ϝ iκs
+               with "[] [] [Invctx]") as (iκs') "[Invctx _]".
+    { iApply lft_incl_static. }
+    { simpl. iApply lft_incl_static. }
+    { iFrame "Invctx". }
+  iModIntro.
+  iApply ("Hmain" $! () ϝ exit_cont -[] tid -[] mask (λ _ _, True) iκs'
+            with "LFT TIME UNIQ [] [Hϝ] [Invctx] [] [] [%]").
+  - by rewrite /elctx_interp /=.
+  - rewrite /llctx_interp /=. iSplit; last done. iExists ϝ. iFrame.
+    by rewrite /= left_id.
+  - iApply "Invctx".
+  - rewrite cctx_interp_singleton. simpl. iIntros (args [? []] mask') "_ _".
+    inv_vec args. iIntros (x) "_ /= ?". by wp_lam.
+  - done.
+  - done.
+Qed.
+
+(** [type_soundness] for a whole program [main [exit_cont]]. *)
+Theorem type_soundness_main `{!typePreG Σ} (main : val) c
+    (σ : language.state lrust_prob_lang) n :
+  (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
+  (∀ `{!typeG Σ, !cnaInv_logicG Σ}, typed_val main main_type c) →
+  SeriesC (pexec n (main [exit_cont]%E, σ)) = 1%R.
+Proof.
+  intros Hσ Hmain.
+  apply (type_soundness (𝔅 := unitₛ) (λ _ _ _, True%type) (λ _ _, True%type)); [done|done|].
+  intros HtypeG HcnaInv. by iApply main_typed_body.
+Qed.
+
+Corollary type_soundness_main_not_stuck `{!typePreG Σ} (main : val) c
+    (σ : language.state lrust_prob_lang) n :
+  (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
+  (∀ `{!typeG Σ, !cnaInv_logicG Σ}, typed_val main main_type c) →
+  probp (pexec n (main [exit_cont]%E, σ)) (λ ρ, is_final ρ ∨ reducible ρ) = 1%R.
+Proof.
+  intros Hσ Hmain.
+  apply (type_soundness_not_stuck (𝔅 := unitₛ) (λ _ _ _, True%type) (λ _ _, True%type));
+    [done|done|].
+  intros HtypeG HcnaInv. by iApply main_typed_body.
+Qed.
+
+Corollary type_soundness_main_progress `{!typePreG Σ} (main : val) c
+    (σ : language.state lrust_prob_lang) n :
+  (∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat) →
+  (∀ `{!typeG Σ, !cnaInv_logicG Σ}, typed_val main main_type c) →
+  ∀ ρ, (pexec n (main [exit_cont]%E, σ) ρ > 0)%R → is_final ρ ∨ reducible ρ.
+Proof.
+  intros Hσ Hmain.
+  apply (type_soundness_progress (𝔅 := unitₛ) (λ _ _ _, True%type) (λ _ _, True%type));
+    [done|done|].
+  intros HtypeG HcnaInv. by iApply main_typed_body.
 Qed.

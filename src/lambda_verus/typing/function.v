@@ -148,7 +148,7 @@ Section typing.
   (** Helper: split [invctx_interp] into a "callee-visible" view
       (with just the fn's lifetime ϝ as the lifetime witness) and a
       closer that puts the caller's invariants back. *)
-  Local Lemma invctx_interp_call Il ϝ' 𝛼 tid mask ϝ iκs :
+  Lemma invctx_interp_call Il ϝ' 𝛼 tid mask ϝ iκs :
       ϝ ⊑ ϝ' -∗
       ϝ ⊑ lft_intersect_list (fmap invctx_elt_unwrap Il) -∗
       invctx_interp tid mask iκs (InvCtx Il ϝ' 𝛼) -∗ ∃ iκs',

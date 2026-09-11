@@ -194,8 +194,69 @@ Section uniq_util.
    iFrame "GBor5".
   Qed.
   
-  (** [resolve_uniq_body] removed: it resolved the borrow's prophecy,
-      and [resolve] is stripped from this development. *)
+  (** [finalize_uniq_body]: upstream's [resolve_uniq_body] minus the
+      prophecy.  It still freezes the borrow at the observed [x d g] and
+      hands back a shared guard on the contents; what it no longer does is
+      resolve [ξ] (the [⟨π, π ξ = vπ x π⟩] conjunct and the
+      [uniq_resolve_guarded] step are gone, so [.VO] is simply dropped). *)
+  Lemma finalize_uniq_body {𝔄} (ty: type 𝔄) x ξi d g idx κ tid l E L G F :
+    Timeless G →
+    lctx_lft_alive E L κ → ↑Nllft ∪ ↑timeN ∪ ↑uniqN ⊆ F →
+    llft_ctx -∗ uniq_ctx -∗ time_ctx -∗ κ ⊑ ty_lft ty -∗ elctx_interp E -∗
+    (G &&{↑NllftG}&&> llctx_interp L) -∗
+    G -∗
+    uniq_body ty x ξi d g idx κ tid l ={F}=∗
+      G ∗ (@[κ] &&{↑NllftG; 1}&&> (ty_gho ty x d g tid ∗ l #↦!∗ ty_phys ty x tid)).
+  Proof.
+    intro Ti.
+    iIntros (Alv ?) "#LFT #UNIQ #TIME #In E #Guard G [Vo [⧗ Bor]] /=".
+    leaf_open "Guard" with "G" as "[L Back]". { solve_ndisj. }
+    iDestruct (Alv with "L E") as "#Alv".
+    iMod ("Back" with "L") as "G".
+    iDestruct (guards_transitive with "Guard Alv") as "#Guard_K".
+    iMod (fractional.frac_split_guard_in_half with "G Guard_K")
+      as (γ2) "[H2 [H3 [#Ghalf2 #Halfback2]]]". { solve_ndisj. }
+
+    iMod (llftl_begin with "LFT") as (κ') "[κ' #κ'end]". { solve_ndisj. }
+    iMod (llftl_borrow_shared _ κ' with "H2") as "[#Guards2Lat InhH2]". { solve_ndisj. }
+    iDestruct (guards_remove_later_rhs with "Guards2Lat") as "Guard2". iClear "Guards2Lat".
+    iDestruct (guards_transitive with "Guard2 Ghalf2") as "Incl".
+
+    have Inh𝔄 : Inhabited (~~ 𝔄) := populate x.
+    iDestruct (lft_bor_idx1 with "Bor") as "Bor".
+    iMod (llftl_bor_freeze with "LFT Bor") as (x') "Bor". { set_solver. }
+    iMod (llftl_bor_freeze with "LFT Bor") as (d') "Bor". { set_solver. }
+    iMod (llftl_bor_freeze with "LFT Bor") as (g') "Bor". { set_solver. }
+
+    iMod (llftl_reborrow with "LFT Incl Bor") as "[Bor OriginalBor]". { solve_ndisj. }
+    iMod (llftl_bor_acc with "LFT Bor κ'") as "[Inner ForallQ]". { solve_ndisj. }
+    iDestruct "Inner" as "(>#⧖ & Pc & Gho & >PT)".
+    iMod (uniq_strip_later with "Vo Pc") as "(%agree1 & %agree2 & Vo & Pc)".
+    subst x'. inversion agree2. subst d'. subst g'.
+
+    iMod (cumulative_persistent_time_receipt_get_credits with "TIME ⧗ ⧖") as "[⧖S £]";
+      first by solve_ndisj.
+    iDestruct (lc_weaken 1 with "£") as "£1". { unfold advance_credits. nia. }
+
+    iDestruct ("ForallQ" $! (⧖(S d `max` g) ∗
+        .PC[PrVar (𝔄 ↾ prval_to_inh (vπ x)) ξi] x (vπ x) (d, g) ∗
+        ty_gho ty x d g tid ∗ l #↦!∗ ty_phys ty x tid)%I with "[Pc Gho PT]") as "ForallQ".
+    { iSplitR. { iNext. iIntros "[A d]". iModIntro. iFrame "A". }
+      { iNext. iFrame. iFrame "⧖". } }
+    iMod (fupd_mask_mono with "ForallQ") as "[Borrow Al]". { solve_ndisj. }
+    iDestruct ("κ'end" with "Al") as "κ'ended".
+    iDestruct (lc_step_fupd_elim_later with "£1 κ'ended") as "κ'ended".
+    iMod (fupd_mask_mono with "κ'ended") as "#κ'ended". { solve_ndisj. }
+    iMod ("InhH2" with "κ'ended") as ">H2".
+    iDestruct ("Halfback2" with "H2 H3") as "G".
+    iMod (fupd_mask_mono with "G") as "G". { solve_ndisj. }
+
+    iDestruct ("OriginalBor" with "κ'ended") as "OriginalBor".
+    iMod (fupd_mask_mono with "OriginalBor") as "OriginalBor". { solve_ndisj. }
+    iMod (shr_bor_from_finalized_uniq_bor with "LFT OriginalBor") as "ShrBor".
+      { solve_ndisj. }
+    iModIntro. iFrame.
+  Qed.
 
   Lemma incl_uniq_body_pers_component {𝔄} (ty ty': type 𝔄) x ξi d g idx κ κ' tid l :
     κ' ⊑ κ -∗

@@ -269,9 +269,35 @@ Section typing.
   Qed.
   
 
-  (** [type_endlft], [type_resolve_instr], [type_resolve] removed:
-      they depended on the [resolve] / [resolve_unblock_tctx]
-      infrastructure which is unsound under eris. *)
+  (** [type_endlft]: end a local lifetime and unblock the blocked entries
+      it was guarding.  Upstream additionally resolved the context first
+      ([resolve_unblock_tctx]); with prophecies stripped there is nothing
+      to resolve, so only the [unblock_tctx] half survives. *)
+  Lemma type_endlft {𝔄l 𝔅l ℭ} (T: tctx 𝔄l) (T': tctx 𝔅l)
+      (f: plist indep_interp_of_syn_type 𝔄l → plist indep_interp_of_syn_type 𝔅l → Prop)
+      κ κl tr e E L I (C: cctx ℭ) :
+    Closed [] e → unblock_tctx E L κ T T' f →
+    typed_body E L I C T' e tr -∗
+    typed_body E (κ ⊑ₗ κl :: L) I C T (Endlft;; e)
+      (λ post xl mask, ∀ xl', f xl xl' → tr post xl' mask)%type.
+  Proof.
+    iIntros (? Un) "e %tid %xl %mask %post %iκs #LFT #TIME #UNIQ #E L' I C T %Obs".
+    iDestruct "L'" as "[(%κ0 & %Hκ & κ' & %ToDead) L]".
+    iDestruct (llftl_end' with "LFT κ'") as "To†"; [exact ToDead|].
+    do 2 wp_seq. wp_bind Skip.
+    iApply (pgl_wp_mask_mono _ (↑Nllft)); [done|].
+    iApply ((pgl_wp_step_fupd _ (↑Nllft) ∅ Skip ([†κ0])%I _)
+              ltac:(done) ltac:(set_solver) with "To†").
+    wp_seq. iIntros "#† !>". do 3 wp_seq.
+    iApply fupd_pgl_wp.
+    iMod (llctx_interp_make_guarded L ⊤ with "L") as (γ) "(H1 & H2 & #Ghalf & #Halfback)";
+      [solve_ndisj|].
+    iMod (Un with "LFT TIME E Ghalf H1 [] T") as (xl') "(H1 & T' & %Hf)".
+    { simpl in *. subst. rewrite llftl_end_inter. by iRight. }
+    iMod (fupd_mask_subseteq (↑NllftG)) as "Hcl"; [solve_ndisj|].
+    iMod ("Halfback" with "H1 H2") as "L". iMod "Hcl" as "_". iModIntro.
+    iApply ("e" with "LFT TIME UNIQ E L I C T' [%]"). by apply Obs.
+  Qed.
 
   Lemma type_path_instr {𝔄} p (ty: type 𝔄) E L I :
     typed_instr_ty E L I +[p ◁ ty] p ty (λ post '-[v], post v).
@@ -622,7 +648,23 @@ Section typing.
     destruct Extr as [Htrx _]=>?? /=. apply Htrx. by case.
   Qed.
 
-  (** [type_memcpy] convenience wrapper — pending [type_memcpy_instr] port. *)
+  (** [type_memcpy]: sequencing wrapper for [type_memcpy_instr].
+      Upstream's [resolve' E L tyb Φ] premise and [Φ] are gone. *)
+  Lemma type_memcpy {𝔄 𝔄' 𝔅 𝔅' ℭ ℭ' 𝔄l 𝔅l 𝔇} (tyw: type 𝔄) (tyw': type 𝔄')
+      (tyr: type 𝔅) (tyr': type 𝔅') (tyb: type ℭ) (tyb': type ℭ') gtw stw gtr
+      str (n: Z) pw pr E L (I: invctx) (C: cctx 𝔇) (T: tctx 𝔄l) (T': tctx 𝔅l) e trx tr :
+    Closed [] e → tctx_extract_ctx E L +[pw ◁ tyw; pr ◁ tyr] T T' trx →
+    typed_write E L tyw tyb tyw' tyb' gtw stw →
+    typed_read E L tyr tyb' tyr' gtr str → n = tyb'.(ty_size) →
+    typed_body E L I C (pw ◁ tyw' +:: pr ◁ tyr' +:: T') e tr -∗
+    typed_body E L I C T (pw <-{n} !pr;; e)
+      (trx ∘ (λ post '(a -:: b -:: bl), λ mask,
+                ∀ zw zr, stw a (gtr b) zw → str b zr →
+                  tr post (zw -:: zr -:: bl) mask))%type.
+  Proof.
+    iIntros (? Extr ???) "?". iApply type_seq; [by eapply type_memcpy_instr|done| |done].
+    destruct Extr as [Htrx _]=>?? /=. apply Htrx. by case=> [?[??]].
+  Qed.
 End typing.
 
 Ltac via_tr_impl :=

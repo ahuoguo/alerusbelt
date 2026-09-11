@@ -24,11 +24,7 @@ Section base.
   Next Obligation. done. Qed.
   Next Obligation. by iIntros. Qed.
   Next Obligation. by iIntros. Qed.
-  Next Obligation.
-    iIntros. iNext. iIntros "_ #G".
-    iApply (guards_transitive_additive with "G").
-    leaf_by_sep. iIntros "?". iExFalso. done.
-  Qed.
+  (* [ty_guard_proph] obligation elided: prophecy stripped. *)
   Next Obligation. iIntros. done. Qed.
   
   Global Instance base_copy {𝔄} : Copy (@base 𝔄).
@@ -38,16 +34,15 @@ Section base.
   Qed.
 
   Global Instance base_send {𝔄} : Send (@base 𝔄).
-  Proof. split=>//.
-     - intros. by apply syn_abstract_phys_eq.
-     - by iIntros.
+  Proof.
+    (* [send_change_tid] field elided: concurrency stripped. *)
+    split=>//. intros. by apply syn_abstract_phys_eq.
   Qed.
 
   Global Instance base_sync {𝔄} : Sync (@base 𝔄).
   Proof. done. Qed.
 
-  Lemma base_resolve {𝔄} E L Φ : resolve E L (@base 𝔄) Φ.
-  Proof. by iIntros. Qed.
+  (* [base_resolve] removed along with [resolve]. *)
 
   Lemma base_subtype {𝔄 𝔅} (f : 𝔄 →ₛ 𝔅) E L :
     (∀ x, ξl x = ξl ((~~!ₛ) f x)) →
@@ -74,4 +69,4 @@ Section base.
 
 End base.
 
-Global Hint Resolve base_resolve base_subtype base_eqtype : lrust_typing.
+Global Hint Resolve base_subtype base_eqtype : lrust_typing.
