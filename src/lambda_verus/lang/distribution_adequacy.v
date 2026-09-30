@@ -65,26 +65,26 @@ Section distribution_adequacy.
   Context (μ_impl : language.expr lrust_prob_lang).
 
   Hypothesis wp_μ_adv_comp :
-    ∀ `{!lrustGS Σ} (ε : R) (Dr : val → R) (L : R),
+    ∀ `{!lrustGS Σ} (ε : R) (F : val → R) (L : R),
       (0 <= ε)%R →
-      (∀ v, (0 <= Dr v <= L)%R) →
-      SeriesC (λ v, (Dr v * μ v)%R) = ε →
-      ⊢ ↯ ε -∗ WP μ_impl {{ v, ↯ (Dr v) }}.
+      (∀ v, (0 <= F v <= L)%R) →
+      SeriesC (λ v, (F v * μ v)%R) = ε →
+      ⊢ ↯ ε -∗ WP μ_impl {{ v, ↯ (F v) }}.
 
   Lemma wp_neq `{!lrustGS Σ} (v : val) :
     ⊢ ↯ (μ v) -∗ WP μ_impl {{ w, ⌜v ≠ w⌝ }}.
   Proof.
-    set (Dr := λ w, if bool_decide (v = w) then 1%R else 0%R).
-    assert (∀ w, (0 <= Dr w <= 1)%R) as HDr.
-    { intros w. rewrite /Dr. case_bool_decide; lra. }
-    assert (SeriesC (λ w, (Dr w * μ w)%R) = μ v) as Hsum.
+    set (F := λ w, if bool_decide (v = w) then 1%R else 0%R).
+    assert (∀ w, (0 <= F w <= 1)%R) as HDr.
+    { intros w. rewrite /F. case_bool_decide; lra. }
+    assert (SeriesC (λ w, (F w * μ w)%R) = μ v) as Hsum.
     { rewrite (SeriesC_ext _ (λ w, if bool_decide (w = v) then μ v else 0%R)).
       - apply SeriesC_singleton.
-      - intros w. rewrite /Dr. do 2 case_bool_decide; subst; try done; lra. }
+      - intros w. rewrite /F. do 2 case_bool_decide; subst; try done; lra. }
     iIntros "Herr".
     iApply (pgl_wp_wand with "[Herr]").
-    { iApply (wp_μ_adv_comp (μ v) Dr 1%R (pmf_pos μ v) HDr Hsum with "Herr"). }
-    iIntros (w) "Herr". rewrite /Dr. case_bool_decide; subst.
+    { iApply (wp_μ_adv_comp (μ v) F 1%R (pmf_pos μ v) HDr Hsum with "Herr"). }
+    iIntros (w) "Herr". rewrite /F. case_bool_decide; subst.
     - iExFalso. iApply (ec_contradict with "Herr"). lra.
     - done.
   Qed.
