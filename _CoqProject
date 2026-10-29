@@ -100,6 +100,12 @@ src/lambda_verus/lang/lib/memcpy.v
 src/lambda_verus/lang/lib/total_new_delete.v
 src/lambda_verus/lang/lib/total_memcpy.v
 
+# Total typing layer (Stage 3): Nola's typing/, retargeted and de-prophecised
+src/lambda_verus/typing_total/base.v
+src/lambda_verus/typing_total/syn_type.v
+src/lambda_verus/typing_total/uniq_cmra.v
+src/lambda_verus/typing_total/ctx.v
+
 # Type-specs
 
 src/lambda_verus/typing/syn_type.v
