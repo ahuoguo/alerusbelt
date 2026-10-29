@@ -91,6 +91,7 @@ src/lambda_verus/util/total_cell_map.v
 src/lambda_verus/lang/total_heap.v
 src/lambda_verus/lang/total_lifting_heap.v
 src/lambda_verus/lang/total_heap_adequacy.v
+src/lambda_verus/lang/total_lifetime.v
 src/lambda_verus/lang/total_heap_example.v
 src/lambda_verus/lang/lib/new_delete.v
 src/lambda_verus/lang/lib/memcpy.v
