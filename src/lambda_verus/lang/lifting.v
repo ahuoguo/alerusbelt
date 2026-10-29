@@ -22,7 +22,7 @@ Import uPred.
 Open Scope Z_scope.
 
 (** [lrustGS] bundles the heap, lifetime/threadpool and atomic-lock-counter
-    ghost state, an invariant interface (HasLc — required for eris's
+    ghost state, an invariant interface (HasLc - required for eris's
     [fupd_finally]-based adequacy, iris MR 1217), eris's error-credit
     ghost state, and the time-receipt ghost state.
 
@@ -30,7 +30,7 @@ Open Scope Z_scope.
     resources [⧖n] / [⧗n] used by the typing layer to pay for the
     later-credit cascade in nested [ty_gho] / [ty_gho_pers] depths.
     The actual *minting* of credits via [wp_persistent_time_receipt]
-    relies on [HasLc] later credits — see [time.v] for the time-step
+    relies on [HasLc] later credits - see [time.v] for the time-step
     invariant and the credit-extraction lemmas. *)
 Class lrustGS Σ := LRustGS {
   lrustGS_invGS : invGS_gen HasLc Σ;
@@ -595,7 +595,7 @@ Global Instance AsRec_rec_locked_val v f xl e :
   AsRec (of_val v) f xl e → AsRec (of_val (locked v)) f xl e.
 Proof. by unlock. Qed.
 
-(** [AsVal e] says [e] is the [of_val] of some value — used in [pure_rec]
+(** [AsVal e] says [e] is the [of_val] of some value - used in [pure_rec]
     to assert all argument expressions are values. *)
 Class AsVal (e : expr) := as_val : ∃ v, of_val v = e.
 Global Instance AsVal_lit l : AsVal (Lit l).
@@ -610,7 +610,7 @@ Global Hint Extern 1 (DoSubstL (_ :: _) (_ :: _) _ _) =>
   rewrite /DoSubstL; cbn; reflexivity : typeclass_instances.
 
 (** Recursive [DoSubstL] step.  Lets typeclass resolution peel a single
-    [(b, e)] off the front and recurse on the remaining tail —
+    [(b, e)] off the front and recurse on the remaining tail -
     crucially, the tail need not be syntactic [_ :: _], so this works
     when the tail is a [plistc binder _] / [map of_val plistc] that
     only reduces via a separate base-case instance (e.g.

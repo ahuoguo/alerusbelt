@@ -162,7 +162,7 @@ Section int.
 
   (** [type_nd_int_instr] / [type_nd_int] removed: [NdInt] models
       unbounded non-deterministic integer choice with no probabilistic
-      WP rule (cf. [lang.v]:786 — "[NdInt] is not expressible as a
+      WP rule (cf. [lang.v]:786 - "[NdInt] is not expressible as a
       distribution").  Re-introduce when a non-probabilistic-WP
       extension lands. *)
 

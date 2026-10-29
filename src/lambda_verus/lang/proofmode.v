@@ -12,7 +12,7 @@ Import uPred.
     fragment (value, bind, pure rule + [wp_rec/lam/let/seq/if/case])
     is ported here; the heap-touching tactics ([wp_alloc],
     [wp_read], [wp_write], [wp_free], [wp_eq_loc], [wp_nd_int]) and
-    the corresponding [tac_wp_*] lemmas are deferred — they need
+    the corresponding [tac_wp_*] lemmas are deferred - they need
     notation for [↦] and the heap-side WP rules to be re-derived
     against [pgl_wp]. *)
 Lemma tac_wp_value `{!lrustGS Σ} Δ E Φ e v :

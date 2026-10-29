@@ -4,7 +4,7 @@
 
     ** Verus credit encoding **
 
-    Verus models error credits as [Tracked<ErrorCreditResource(ε)>] —
+    Verus models error credits as [Tracked<ErrorCreditResource(ε)>] -
     a PCM token at a single global ghost location.  The eris [↯ε]
     has the same shape. We model error credits as follows:
 
@@ -16,7 +16,7 @@
     - [tracked_ty _] ≡ [Tracked<_>] (ghost wrapper, in [tracked.v]).
     - [own_ptr_0] is a 1-byte path-witness handle.  Needed because
       [tctx_elt_interp] requires [ty_phys = [FVal v]] for every
-      [p ◁ ty] entry — a 0-sized type can't live at a path.  This
+      [p ◁ ty] entry - a 0-sized type can't live at a path.  This
       file defines a minimal stand-in; could be replaced with
       [own.v:own_ptr 0] now that [own.v] is in build.  The handle
       [loc] is purely a tctx artifact, not a Verus concept (the
@@ -57,7 +57,7 @@ Section error_credit_type.
       type so it satisfies [tctx_elt_interp]'s path-witness.
 
       Differences vs [own.v:own_ptr 0]:
-      1. No heap mapsto / [freeable_sz] in [ty_gho] — [own_ptr]'s
+      1. No heap mapsto / [freeable_sz] in [ty_gho] - [own_ptr]'s
          [(fst x) ↦!∗ ty_phys (snd x) tid ∗ freeable_sz n ty.(ty_size)]
          degenerates to [True] when [ty_size = 0], but its presence
          still implies an allocation lifecycle.  Verus's
@@ -145,7 +145,7 @@ Section typing_rules.
       Mints a fresh [↯_T ε] at a user-supplied path [c] (which must
       evaluate to a literal location [l], typically picked as a magic
       handle like [#(LitLoc (42%positive, 1337))]).  The location is
-      a tctx artifact only — no allocation happens.
+      a tctx artifact only - no allocation happens.
 
       Soundness note (matches the Verus comment): the underlying
       [wp_err_pos] only fires inside a WP/fupd, which is exactly the
@@ -203,7 +203,7 @@ Section typing_rules.
 
   (** [type_thin_air_post_instr]: typed-instr analog of
       [wp_err_pos_post].  Given any [typed_instr], strengthens its
-      output tctx with a fresh [c ◁ error_credit_some_ty] — the credit
+      output tctx with a fresh [c ◁ error_credit_some_ty] - the credit
       type whose [ty_gho] contains [∃ ε > 0, ↯ ε].  This puts the
       existential *inside* the type rather than in a CPS quantifier,
       matching Verus's [thin_air] ensures-clause shape literally:
@@ -211,7 +211,7 @@ Section typing_rules.
           ensures ∃ε>0, ret.view() = Carrier(ε)
 
       Like [wp_err_pos_post], soundness comes from the underlying
-      [wp_err_pos] which only fires inside a WP — the proof invokes
+      [wp_err_pos] which only fires inside a WP - the proof invokes
       it on the WP that [typed_instr] unfolds to. *)
   Lemma type_thin_air_post_instr {𝔄l 𝔅l}
       (T: tctx 𝔄l) (e : expr) (T' : val → tctx 𝔅l)
@@ -331,7 +331,7 @@ Section typing_rules.
   (** [type_rand_case]: case-splitting variant of [type_rand_ubig_instr]
       that exposes the sample [n] as a Coq nat per branch.  For each
       [n < z], the body is typed with [#(Z.of_nat n) ◁ int] and
-      [c ◁ ↯_T (ε2 n)] at concrete values — letting
+      [c ◁ ↯_T (ε2 n)] at concrete values - letting
       [type_credit_contradict] absorb branches where [ε2 n = 1]. *)
   Lemma type_rand_case {𝔄l 𝔅} (z : Z) (ε1 : R) (ε2 : nat → R) (c : path) x e
       (T' : tctx 𝔄l) E L (I: invctx) (C: cctx 𝔅) :
@@ -382,7 +382,7 @@ Section typing_rules.
   Qed.
 
   (** [type_credit_contradict_after_rand]: variant matching the tctx
-      shape after [type_rand_case] — [int] head, then [↯_T 1], then rest. *)
+      shape after [type_rand_case] - [int] head, then [↯_T 1], then rest. *)
   Lemma type_credit_contradict_after_rand {𝔄l 𝔅} (T': tctx 𝔄l) E L
       (I: invctx) (C: cctx 𝔅) (z : Z) (p : path) e tr :
     ⊢ typed_body E L I C (#z ◁ int +:: p ◁ ↯_T 1 +:: T') e tr.

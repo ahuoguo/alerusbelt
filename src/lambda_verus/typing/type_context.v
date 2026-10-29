@@ -155,7 +155,7 @@ Section lemmas.
     tctx_elt_interp tid (p ◁ ty) vπ -∗ ⌜Closed [] p⌝.
   Proof. iIntros "(%&%&%&_)!%". by eapply eval_path_closed. Qed.
 
-  (** [resolve_tctx] and friends removed — they depended on [resolve]
+  (** [resolve_tctx] and friends removed - they depended on [resolve]
       which is unsound under eris (Clutch POPL'24). *)
 
   Lemma lemma_max_mul (d d0: nat) :

@@ -76,7 +76,7 @@ Section typing.
         llctx_interp L ∗ invctx_interp tid mask' iκs I' ∗ tctx_interp tid (T' v) xl' ∗ ⌜post xl' mask'⌝ }}.
   Global Arguments typed_instr {_ _} _ _ _ _ _%E _ _%type.
 
-  (** Writing and Reading — upstream verisbelt shape.  The closer
+  (** Writing and Reading - upstream verisbelt shape.  The closer
       receives an abstract [H : iProp Σ] gated by a leaf-guard
       [H &&{↑NllftG; d+1}&&> l #↦∗_].  Cell-level reads/writes through
       this guard are mediated by [wp_write_guarded] /
@@ -358,7 +358,7 @@ Section typing.
     destruct vl_concrete as [|v_read [|? ?]]; simpl in Sz1; try lia; [].
     destruct l as [l_loc l_trace]; simpl in *.
     iModIntro.
-    (* Apply [wp_read_guarded_singleton] — case-splits l_trace internally
+    (* Apply [wp_read_guarded_singleton] - case-splits l_trace internally
        and derives False for non-singleton traces. *)
     iApply (wp_read_guarded_singleton _ l_loc l_trace v_read Q (d+1)
               with "[$QPt $HQ $H£read]"); [solve_ndisj|].
@@ -419,7 +419,7 @@ Section typing.
     iDestruct "Htyb'" as "[Hgho_b' Hphys_b']".
     iApply pgl_wp_fupd.
     (* Combine ⧖dp and ⧖db into ⧖(dp `max` db) so wp_persistent_time_receipt
-       mints £(advance_credits (dp `max` db)) — enough for both [dp+1] and
+       mints £(advance_credits (dp `max` db)) - enough for both [dp+1] and
        [db+1] obligations. *)
     iAssert (⧖(dp `max` db))%I as "#⧖max".
     { rewrite persistent_time_receipt_sep. iFrame "#". }
@@ -604,7 +604,7 @@ Section typing.
       iDestruct (tyw'.(ty_gho_depth_mono) (S dr) finalw finalw finalw z tid
                   with "gho") as "[$ _]"; subst finalw; [lia|lia]. }
     iSplit; last done.
-    (* pr ◁ tyr' — bump depth to [finalw] matching upstream. *)
+    (* pr ◁ tyr' - bump depth to [finalw] matching upstream. *)
     rewrite /tctx_elt_interp /=.
     iExists (LitV (LitLoc l0.1)), finalw.
     iSplit; first done.

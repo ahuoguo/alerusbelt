@@ -10,7 +10,7 @@ Local Open Scope R.
 
 (** [assert]: a closed value that takes a bool argument [b], returns
     [#0] on [true], and goes to UB ([!(#☠)]) on [false].  Simple
-    (no fn-type wrapping) — coin_flip uses this with [wp_assert]. *)
+    (no fn-type wrapping) - coin_flip uses this with [wp_assert]. *)
 Definition assert : val :=
   (λ: ["b"], if: "b" then #0 else !(#☠))%V.
 

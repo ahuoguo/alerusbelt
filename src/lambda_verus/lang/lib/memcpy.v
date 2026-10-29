@@ -88,7 +88,7 @@ Proof.
     iDestruct (guards_weaken_rhs_sep_l with "rguard") as "#rguard1".
     iDestruct (guards_weaken_rhs_sep_r with "rguard") as "#rguard2".
     (* Split £(6*d+1) into £d (read) + £(3*d+1) (write_more_credits)
-       + £(2*d) (slack, discarded — the write returns £(6*d+1) for
+       + £(2*d) (slack, discarded - the write returns £(6*d+1) for
        the recursive call). *)
     iDestruct (lc_weaken (d + ((3*d+1) + (2*d))) with "H£") as "H£all";
       first lia.
