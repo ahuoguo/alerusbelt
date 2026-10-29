@@ -66,6 +66,7 @@ src/lambda_verus/util/atomic_lock_counter.v
 
 src/lambda_verus/lang/heap.v
 src/lambda_verus/lang/lang.v
+src/lambda_verus/lang/pure_exec.v
 src/lambda_verus/lang/adequacy.v
 src/lambda_verus/lang/lifting.v
 src/lambda_verus/lang/error_rules.v

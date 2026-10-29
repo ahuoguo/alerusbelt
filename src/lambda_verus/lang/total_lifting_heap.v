@@ -34,7 +34,7 @@ From nola.iris Require Import guard iprop.
 From nola.verus_halt Require Import na_inv_fork.
 From nola.verus_halt.util Require Import atomic_lock_counter.
 From lrust.util Require Import total_cell_map.
-From lrust.lang Require Export lang total_heap total_wsat.
+From lrust.lang Require Export lang pure_exec total_heap total_wsat.
 From lrust.lang Require Import tactics.
 Set Default Proof Using "Type".
 Import uPred ModwNotation GuardNotation TglWpwNotation iPropAppNotation.
@@ -506,3 +506,110 @@ Section rand.
   Qed.
 
 End rand.
+
+(** ** The remaining rules the typing layer needs
+
+    Ported from [nola/verus_halt/lang/lifting.v].  The memory orders are
+    gone with concurrency, so its [*_sc] and [*_na] families collapse
+    into the single rules above, and the compare-and-swap family has no
+    counterpart - [lrust_prob_lang] has no [CAS]. *)
+Section lifting_more.
+  Context `{!lrustTotGS FML Σ}.
+  Implicit Types (W : iProp Σ) (Φ : val → iProp Σ).
+
+  Local Lemma wsat_split' {W W' Wr : iProp Σ} `{!WsatIncl W W' Wr} :
+    W ⊢ W' ∗ Wr.
+  Proof. by rewrite (wsat_incl W W' Wr). Qed.
+  Local Lemma wsat_join' {W W' Wr : iProp Σ} `{!WsatIncl W W' Wr} :
+    W' -∗ Wr -∗ W.
+  Proof. rewrite (wsat_incl W W' Wr). by iIntros "$$". Qed.
+
+  (** The unguarded write, by instantiating the guarded one with the
+      formula standing for [True]. *)
+  Lemma twp_write_plain `{!WsatIncl W na_wsat Wr} s E l e v v' Φ :
+    IntoVal e v' →
+    total_heap.heap_mapsto l v -∗
+    (total_heap.heap_mapsto l v' -∗ Φ (LitV LitPoison)) -∗
+    WP[W] Write (Lit (LitLoc l)) e @ s; E [{ Φ }].
+  Proof.
+    iIntros (Hv) "Hl HΦ".
+    iApply (twp_write_guarded _ _ (l, []) _ v v' na_emptyx Φ Hv
+              with "[] [] [Hl] [HΦ]").
+    - rewrite na_emptyx_sem /total_heap.heap_complete_mapsto /=.
+      iApply guard_true.
+    - by rewrite na_emptyx_sem.
+    - by rewrite total_heap.heap_cloc1_mapsto_val.
+    - iIntros "_ Hl". iApply "HΦ". by rewrite total_heap.heap_cloc1_mapsto_val.
+  Qed.
+
+  (** Pointer equality.  In [lrust_prob_lang] this is a *pure* step:
+      [bin_op_eval_fn] decides it with [lit_eq_dec] and never consults the
+      heap, where lambda-rust's relational [lit_eq] makes comparing a
+      dangling pointer non-deterministic.  So this rule is stronger than
+      Nola's [twp_eq_loc], which needs both points-to assertions and the
+      world satisfaction to rule the dangling case out. *)
+  Lemma twp_eq_loc W s E (l1 l2 : loc) P Φ :
+    (P ⊢ Φ (LitV (lit_of_bool (bool_decide (l1 = l2))))) →
+    P ⊢ WP[W] BinOp EqOp (Lit (LitLoc l1)) (Lit (LitLoc l2)) @ s; E [{ Φ }].
+  Proof.
+    iIntros (Hpost) "P". rewrite Hpost.
+    iApply (twp_pure_step_fupd (erisWpGS0 := ErisW W) E _
+              (Lit (lit_of_bool (bool_decide (l1 = l2)))) True 1 Φ s
+              (pure_eq_loc l1 l2) I).
+    iApply (tgl_wp_value (erisWpGS0 := ErisW W) _ _ _ _
+              (LitV (lit_of_bool (bool_decide (l1 = l2))))).
+    iApply "P".
+  Qed.
+
+  (** ** The n-ary argument list
+
+      Pure weakest-precondition combinators; no heap, so no world
+      satisfaction. *)
+  Lemma twp_app_ind W s E f (el : list expr)
+      (Ql : vec (val → iProp Σ) (length el)) vs Φ :
+    AsVal f →
+    ([∗ list] eQ ∈ zip el Ql, WP[W] eQ.1 @ s; E [{ eQ.2 }]) -∗
+      (∀ vl : vec val (length el),
+         ([∗ list] vQ ∈ zip vl Ql, vQ.2 $ vQ.1) -∗
+         WP[W] App f (of_val <$> vs ++ vl) @ s; E [{ Φ }]) -∗
+      WP[W] App f ((of_val <$> vs) ++ el) @ s; E [{ Φ }].
+  Proof.
+    intros [vf <-]. revert vs Ql.
+    induction el as [|e el IH]=>/= vs Ql; inv_vec Ql; simpl.
+    - iIntros "_ H". iSpecialize ("H" $! [#]). rewrite !app_nil_r /=.
+      by iApply "H".
+    - iIntros (Q Ql) "[He Hl] HΦ".
+      change (App (of_val vf) ((of_val <$> vs) ++ e :: el)) with
+        (fill_item (AppRCtx vf vs el) e).
+      iApply (tgl_wp_bind (erisWpGS0 := ErisW W)).
+      iApply (tgl_wp_wand (erisWpGS0 := ErisW W) with "He").
+      iIntros (v) "HQ /=".
+      rewrite cons_middle (assoc app) -(fmap_app _ _ [v]).
+      iApply (IH _ _ with "Hl"). iIntros "%vl Hvl". rewrite -assoc.
+      iApply ("HΦ" $! (v:::vl)). iFrame.
+  Qed.
+
+  Lemma twp_app_vec W s E f el (Ql : vec (val → iProp Σ) (length el)) Φ :
+    AsVal f →
+    ([∗ list] eQ ∈ zip el Ql, WP[W] eQ.1 @ s; E [{ eQ.2 }]) -∗
+      (∀ vl : vec val (length el),
+         ([∗ list] vQ ∈ zip vl Ql, vQ.2 $ vQ.1) -∗
+         WP[W] App f (of_val <$> (vl : list val)) @ s; E [{ Φ }]) -∗
+      WP[W] App f el @ s; E [{ Φ }].
+  Proof. iIntros (Hf). by iApply (twp_app_ind _ _ _ _ _ _ []). Qed.
+
+  Lemma twp_app (Ql : list (val → iProp Σ)) W s E f el Φ :
+    length Ql = length el → AsVal f →
+    ([∗ list] eQ ∈ zip el Ql, WP[W] eQ.1 @ s; E [{ eQ.2 }]) -∗
+      (∀ vl : list val, ⌜length vl = length el⌝ -∗
+         ([∗ list] k ↦ vQ ∈ zip vl Ql, vQ.2 $ vQ.1) -∗
+         WP[W] App f (of_val <$> (vl : list val)) @ s; E [{ Φ }]) -∗
+      WP[W] App f el @ s; E [{ Φ }].
+  Proof.
+    iIntros (Hlen Hf) "Hel HΦ". rewrite -(vec_to_list_to_vec Ql).
+    generalize (list_to_vec Ql). rewrite Hlen. clear Hlen Ql=>Ql.
+    iApply (twp_app_vec with "Hel"). iIntros (vl) "Hvl".
+    iApply ("HΦ" with "[%] Hvl"). by rewrite length_vec_to_list.
+  Qed.
+
+End lifting_more.
