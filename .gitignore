@@ -17,3 +17,12 @@ builddep/
 Makefile.coq
 Makefile.coq.conf
 _opam
+
+.claude/
+.vscode/
+.DS_Store
+
+# Vendored, unmodified Nola checkout; see README-NOLA.md for how to obtain
+# and build it.  Not committed because it is 4 MB of a third-party library
+# we do not patch - drop this line if you would rather carry a snapshot.
+src/nola/

@@ -1,3 +1,9 @@
+# Nola (vendored): later-free ghost state.  Upstream https://github.com/hopv/nola,
+# at the `verus_halt` branch used by PLAN-TOTAL-ERIS.md.  Only the load path is
+# declared here; the files are built by Nola's own Makefile (see README-NOLA.md),
+# so they are not listed and `make` in this project does not rebuild them.
+-Q src/nola nola
+
 # Leaf (guarding)
 
 -Q src/guarding guarding
@@ -69,14 +75,31 @@ src/lambda_verus/lang/tactics.v
 src/lambda_verus/lang/time.v
 src/lambda_verus/lang/distribution_adequacy.v
 src/lambda_verus/lang/approx_distribution_adequacy.v
+
+# Total correctness: eris's [tgl_wp] over [lrust_prob_lang]
+src/lambda_verus/lang/total_wsat.v
+src/lambda_verus/lang/total_lifting.v
+src/lambda_verus/lang/total_error_rules.v
+src/lambda_verus/lang/total_proofmode.v
+src/lambda_verus/lang/total_adequacy.v
+src/lambda_verus/lang/total_guard.v
+src/lambda_verus/lang/total_examples.v
+src/lambda_verus/lang/total_sinv_example.v
+
+# Later-free stack: Nola's cell logic and heap, retargeted, over [tgl_wp]
+src/lambda_verus/util/total_cell_map.v
+src/lambda_verus/lang/total_heap.v
+src/lambda_verus/lang/total_lifting_heap.v
+src/lambda_verus/lang/total_heap_adequacy.v
+src/lambda_verus/lang/total_heap_example.v
 src/lambda_verus/lang/lib/new_delete.v
 src/lambda_verus/lang/lib/memcpy.v
 
 # Type-specs
 
 src/lambda_verus/typing/syn_type.v
-# src/lambda_verus/prophecy/syn_type.v
-# src/lambda_verus/prophecy/prophecy.v
+src/lambda_verus/prophecy/syn_type.v
+src/lambda_verus/prophecy/prophecy.v
 src/lambda_verus/typing/base.v
 src/lambda_verus/typing/uniq_cmra.v
 src/lambda_verus/typing/lifetime.v
