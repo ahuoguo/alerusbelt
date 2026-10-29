@@ -107,6 +107,8 @@ src/lambda_verus/typing_total/uniq_cmra.v
 src/lambda_verus/typing_total/ctx.v
 src/lambda_verus/typing_total/lifetime.v
 src/lambda_verus/typing_total/lft_contexts.v
+src/lambda_verus/typing_total/inv_context.v
+src/lambda_verus/typing_total/type.v
 
 # Type-specs
 

@@ -184,6 +184,19 @@ Class verus_haltGS (FML : oFunctor) Σ : Type := VerusHaltGS {
     mints no credit per step - what would be unsound is minting one, see
     [nola/bi/paradox.v]'s [twp_loop] - and nothing below uses [£]. *)
   #[global] verus_halt_invGS :: invGS_gen HasLc Σ;
+  (** Eris's error credits, which Nola has no counterpart for: the ghost
+    state behind the error budget [ε] of the quantitative
+    almost-sure-termination judgement.
+
+    This is a *field* rather than a separate [Context `{!ecGS Σ}], so that
+    [verus_halt_lrustGS] below is discharged by [verus_haltGS] alone.  With
+    it outside, that instance has a premise no typing context supplies, so
+    every search for [invGS Σ] - and there are many, [invGS] being reachable
+    from [lrustTotGS] through [erisWpGS'] - descends the whole
+    [lrustTotGS] subtree before failing.  That is the difference between
+    [typing_total/inv_context.v] elaborating its [Context] line in a second
+    and not finishing in five minutes. *)
+  #[global] verus_halt_ecGS :: ecGS Σ;
   #[global] verus_halt_llftGS :: llft_logicGS Σ;
   (** The borrow bookkeeping's names, apart from the rest of the
     lifetime logic's.  This is the field an execution level varies:
@@ -445,8 +458,9 @@ Section verus_halt.
   (** The program logic.  Against Nola's [lrustGS_gen HasNoLc] this is
       [lrustTotGS], which additionally carries eris's error-credit ghost
       state and keeps [HasLc]: later credits existing is harmless, since
-      [tgl_wp] mints none per step. *)
-  Context `{!ecGS Σ}.
+      [tgl_wp] mints none per step.  The error-credit ghost state comes
+      from [verus_halt_ecGS], a field of [verus_haltGS]; see the note
+      there for why it is not a separate assumption. *)
   #[export] Instance verus_halt_lrustGS : lrustTotGS FML Σ := {|
     lrustTotGS_invGS := verus_halt_invGS;
     lrustTotGS_na_invGS := na_inv_invG;

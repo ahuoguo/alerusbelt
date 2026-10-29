@@ -11,7 +11,13 @@ From iris.proofmode Require Import proofmode reduction environments coq_tactics.
 From iris.proofmode Require Export proofmode.
 From clutch.eris Require Export total_weakestpre.
 From clutch.eris Require Import total_lifting.
-From lrust.lang Require Export tactics lifting.
+(** [pure_exec], not [lifting]: the partial stack's [lrustGS],
+    [lrustGS_invGS_inst : invGS Σ] and [lrustGS_erisWpGS] would otherwise
+    stay in scope all the way up the total typing layer, where they make
+    typeclass search for the semantic interfaces of [typing_total/ctx.v]
+    diverge - [typing_total/inv_context.v]'s [Context] line goes from one
+    second to over two minutes with them. *)
+From lrust.lang Require Export tactics pure_exec.
 Set Default Proof Using "Type".
 Import uPred.
 

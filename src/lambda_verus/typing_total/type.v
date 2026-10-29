@@ -45,11 +45,15 @@
   [resolve] loses its [|={F}▷=>^(d*(g+1))]. *)
 
 From iris.algebra Require Import numbers list dfrac_agree.
-From nola.verus_halt.util Require Export basic vector fancy_lists
-  cancellable_na_invariants.
 From lrust.lang Require Export total_proofmode notation total_heap.
 From lrust.typing_total Require Export base ctx uniq_cmra lft_contexts
   lifetime.
+(** Our [util], not Nola's, and *after* the line above.  [SemiIso]/[Iso] are
+  declared in both copies of [util/basic.v], and [syn_type.v]'s [Isoₛ] is
+  built over ours; with Nola's copy winning the name, [rewrite semi_iso']
+  matches the term but finds no instance. *)
+From lrust.util Require Export basic vector fancy_lists
+  cancellable_na_invariants.
 From nola.verus_halt Require Import frac_guard.
 From nola.bi Require Import guard modw.
 From nola.iris Require Import point.
@@ -240,27 +244,19 @@ Record type `{!typeG FML Σ} 𝔄 := {
     (d ≤ d')%nat → (g ≤ g')%nat →
       sem (ty_gho_persx x d g tid) -∗ sem (ty_gho_persx x d' g' tid);
   
-  (** The original's guard index [n] and the [▷^(d*(g+1))] in front are both
-    gone: a guard introduces no later, so composing two of them introduces
-    none either.
+  (** [ty_guard_proph] field elided, as in [typing/type.v]: prophecy
+    infrastructure is stripped because eris is unsound under prophecies
+    (Clutch POPL'24).  Nola's field reads
 
-    What is *not* gone is the world satisfaction.  A guarded former hides its
-    argument behind a judgment - it has to, or it is not [Productive] - and
-    reading that judgment back needs [Wguard].  Building a guard does not
-    give it: [guard]'s frame is [P * (P -* W * T)], so the only way to [W]
-    consumes [P].  So the law hands its conclusion out under [Wguard],
-    exactly as [nola/examples/rust_halt/type.v]'s [TyOpAt] is a fupd over
-    [rust_halt_wsat].  The prophecy variable is quantified *inside*, so that
-    one opening serves the whole family - which is the form every caller
-    wants. *)
-  ty_guard_proph κ x d g tid R :
-      llft_ctx -∗
-      κ ⊑ lft_intersect_list ty_lfts -∗
-      bor_sem (ty_gho_persx x d g tid) -∗
-      (R &&{Wguard}&&> @[κ]) -∗
-      (R &&{Wguard}&&> bor_sem (ty_ghox x d g tid)) -∗
-      |->[Wguard] (∀ ξ, ⌜ξ ∈ ξl x⌝ -∗ (R &&{Wguard}&&> 1:[ξ]));
-  
+      ty_guard_proph κ x d g tid R :
+        llft_ctx -∗ κ ⊑ lft_intersect_list ty_lfts -∗
+        bor_sem (ty_gho_persx x d g tid) -∗ (R &&{Wguard}&&> @[κ]) -∗
+        (R &&{Wguard}&&> bor_sem (ty_ghox x d g tid)) -∗
+        |->[Wguard] (∀ ξ, ⌜ξ ∈ ξl x⌝ -∗ (R &&{Wguard}&&> 1:[ξ]));
+
+    and its only purpose is to feed [resolve], whose section is excised
+    here for the same reason. *)
+
   ty_gho_pers_pers_at sem : alt_sem sem → ∀ x d g tid,
       Persistent (sem (ty_gho_persx x d g tid)) ;
   ty_gho_pers_impl x d g tid :
@@ -517,14 +513,9 @@ Record simple_type `{!typeG FML Σ} 𝔄 := {
     (d ≤ d')%nat → (g ≤ g')%nat → sem (st_ghox x d g tid) -∗
         sem (st_ghox x d' g' tid) ;
         
-  st_guard_proph κ x d g tid R :
-      llft_ctx -∗
-      κ ⊑ lft_intersect_list st_lfts -∗
-      bor_sem (st_ghox x d g tid) -∗
-      (R &&{Wguard}&&> @[κ]) -∗
-      (R &&{Wguard}&&> bor_sem (st_ghox x d g tid)) -∗
-      |->[Wguard] (∀ ξ, ⌜ξ ∈ ξl x⌝ -∗ (R &&{Wguard}&&> 1:[ξ]));
-      
+  (** [st_guard_proph] elided, like [ty_guard_proph] above: prophecy
+    stripped. *)
+
   st_concrete x tid : all_concrete (st_phys x tid) ;
 }.
 Global Instance: Params (@vπ) 5 := {}.
@@ -575,9 +566,6 @@ Next Obligation.
   have ? := st_gho_persistent_at st sem Hs. iIntros "#A".
   by iApply (st_gho_depth_mono_at st sem Hs).
 Qed.
-Next Obligation. intros FML Σ typeG0 𝔄 st κ x d g tid R.
-    iIntros. iApply (st_guard_proph 𝔄 st κ x d g tid R); trivial;
-    try iFrame. Qed.
 Next Obligation.
   intros FML Σ typeG0 𝔄 st sem Hs x d g tid.
   apply (st_gho_persistent_at st sem Hs).
@@ -653,8 +641,6 @@ Next Obligation. move=> >. apply pt_size_eq. Qed.
 Next Obligation. move=> >. apply pt_size_eq2. Qed.
 Next Obligation. move=> >. apply pt_phys_eq2. Qed.
 Next Obligation. move=> >. intros. by iIntros "$". Qed.
-Next Obligation. move=> >. iIntros "_ _ _ _ _ !>" (ξ) "%Hin".
-  rewrite (pt_non_prophetic) in Hin; trivial. set_solver. Qed.
 Next Obligation. intros. apply pt_concrete. Qed.
 
 Lemma st_of_pt_gho `{!typeG FML Σ} {𝔄} (pt: plain_type 𝔄) x d g tid :
@@ -695,8 +681,6 @@ Next Obligation. move=> * //=. by rewrite gt_size0. Qed.
 Next Obligation. move=> * //=. by rewrite gt_phys0. Qed.
 Next Obligation. move=> *. by iIntros "$". Qed.
 Next Obligation. move=> *. by iIntros "$". Qed.
-Next Obligation. move=> >. iIntros "_ _ _ _ _ !>" (ξ) "%Hin".
-  rewrite gt_non_prophetic in Hin; trivial. set_solver. Qed.
 Next Obligation.
   move=> ???? gt sem Hs *. rewrite (empty_sem_at Hs). exact _.
 Qed.
@@ -1089,7 +1073,7 @@ Proof.
   case=> [αT βst ET HTα HTE|αT ET HTα HTE]; case=> [αU βsU EU HUα HUE|αU EU HUα HUE].
   - apply (type_lft_morphism_add _ (αT ⊓ αU) (βst ++ βsU)
                                  (ET ++ EU ++ ((λ β, β ⊑ₑ αU) <$> βst)))=>ty.
-    + iApply lft_equiv_trans. iApply HTα. rewrite -assoc.
+    + iApply lft_equiv_trans; [iApply HTα|]. rewrite -assoc.
       iApply lft_intersect_equiv_proper; [iApply lft_equiv_refl|iApply HUα].
     + rewrite HTE HUE !elctx_interp_app big_sepL_app -!assoc.
       setoid_rewrite (dincl_equiv_proper_r _ _ _ (HUα _)). iSplit.
@@ -1103,7 +1087,7 @@ Proof.
         iIntros "!> * _ #[??]". by iApply dincl_glb.
   - apply (type_lft_morphism_const _ (αT ⊓ αU)
             (ET ++ EU ++ ((λ β, β ⊑ₑ αU) <$> βst)))=>ty.
-    + iApply lft_equiv_trans. iApply HTα.
+    + iApply lft_equiv_trans; [iApply HTα|].
       iApply lft_intersect_equiv_proper; [iApply lft_equiv_refl|iApply HUα].
     + rewrite HTE HUE !elctx_interp_app big_sepL_fmap.
       do 5 f_equiv. by apply dincl_equiv_proper_r.
@@ -1248,7 +1232,7 @@ Section type_contractive.
     TypeContractive (λ _: type 𝔅, ty).
   Proof. split; move=>// *. eright=> _; by [iApply lft_equiv_refl|]. Qed.
 
-  Global Instance id_type_ne {𝔄} : TypeNonExpansive (id: type 𝔄 → type 𝔄).
+  Global Instance id_type_ne {𝔄} : TypeNonExpansive (Datatypes.id : type 𝔄 → type 𝔄).
   Proof. split=>//. by apply type_lft_morphism_id_like. Qed.
 
   Global Instance type_list_non_expansive_nil {𝔄} :
@@ -1498,12 +1482,12 @@ Section subtyping.
         * iIntros "!>" (sem Hsem x dd gg tid) "x".
           iDestruct ("EqOwn" $! sem Hsem (g ~~$ₛ x) dd gg tid) as "[F B]".
           have Hiso : (f ~~$ₛ (g ~~$ₛ x)) = x
-            by destruct Isoₛ0; rewrite semi_iso'.
+            by rewrite semi_iso'.
           rewrite Hiso. iSplitL "x"; [by iApply "B"|iIntros "y"; by iApply "F"].
         * iIntros "!>" (sem Hsem x dd gg tid) "x".
           iDestruct ("EqOwnPers" $! sem Hsem (g ~~$ₛ x) dd gg tid) as "[_ B]".
           have Hiso : (f ~~$ₛ (g ~~$ₛ x)) = x
-            by destruct Isoₛ0; rewrite semi_iso'.
+            by rewrite semi_iso'.
           rewrite Hiso. by iApply "B".
         * iPureIntro. iIntros (x tid). rewrite (EqPhys (g ~~$ₛ x)).
             destruct Isoₛ0. rewrite semi_iso'. trivial.
@@ -1541,7 +1525,7 @@ Section subtyping.
         - iIntros "L". iDestruct (X with "L") as "#Q".
           iModIntro. iIntros "E". iDestruct ("Q" with "E") as "[B [C [D [E F]]]]".
           iFrame.
-    + intros X. rewrite <- eqtype_unfold in X. apply X. done.
+    + intros X. rewrite <- eqtype_unfold in X; [apply X|done].
   Qed.
 
   Global Instance type_incl_ne {𝔄 𝔅} n :
@@ -1824,20 +1808,8 @@ Section subtyping.
     by iApply type_incl_ghost_type.
   Qed.
 
-  (** resolve *)
-
-  Lemma resolve_subtype {𝔄 𝔅} E L (ty: type 𝔄) (ty': type 𝔅) f Φ :
-    subtype E L ty ty' f → resolve E L ty' Φ → resolve E L ty (Φ ∘ ~~!ₛ f).
-  Proof.
-    iIntros (Sub Rslv) "* LFT PROPH UNIQ E tok ty W".
-    iDestruct (Ltok_acc with "tok W") as "[L1 back]".
-    iDestruct (Sub with "L1") as "#Sub".
-    iDestruct ("back" with "L1") as "[W tok]".
-    iDestruct ("Sub" with "E") as "#(_ & _ & #InOwn & _)".
-    iDestruct ("InOwn" $! _ alt_here with "ty") as "[ty' _]".
-    unfold "∘".
-    by iApply (Rslv with "LFT PROPH UNIQ E tok ty' W").
-  Qed.
+  (** [resolve_subtype] elided with the rest of [resolve]; see the note at
+    the head of the file. *)
 End subtyping.
 
 (** * Utility *)
@@ -1924,14 +1896,12 @@ Section type_util.
 End type_util.
 
 Global Hint Resolve ty_outlives_E_elctx_sat tyl_outlives_E_elctx_sat : lrust_typing.
-Global Hint Resolve resolve'_post | 5 : lrust_typing.
-Global Hint Resolve resolvel_nil resolve'_just
-  subtype_refl eqtype_refl subtypel_nil eqtypel_nil : lrust_typing.
+Global Hint Resolve subtype_refl eqtype_refl subtypel_nil eqtypel_nil
+  : lrust_typing.
 (* We use [Hint Extern] instead of [Hint Resolve] here, because
-  [resolvel_cons], [subtypel_cons] and [eqtypel_cons]
-  work with [apply] but not with [simple apply] *)
-Global Hint Extern 0 (resolvel _ _ _ _) => apply resolvel_cons : lrust_typing.
+  [subtypel_cons] and [eqtypel_cons] work with [apply] but not with
+  [simple apply] *)
 Global Hint Extern 0 (subtypel _ _ _ _ _) => apply subtypel_cons : lrust_typing.
 Global Hint Extern 0 (eqtypel _ _ _ _ _ _) => apply eqtypel_cons : lrust_typing.
 
-Global Hint Opaque resolve resolve' subtype eqtype : lrust_typing.
+Global Hint Opaque subtype eqtype : lrust_typing.
