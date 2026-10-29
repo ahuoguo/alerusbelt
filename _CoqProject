@@ -109,6 +109,8 @@ src/lambda_verus/typing_total/lifetime.v
 src/lambda_verus/typing_total/lft_contexts.v
 src/lambda_verus/typing_total/inv_context.v
 src/lambda_verus/typing_total/type.v
+src/lambda_verus/typing_total/type_context.v
+src/lambda_verus/typing_total/cont_context.v
 
 # Type-specs
 

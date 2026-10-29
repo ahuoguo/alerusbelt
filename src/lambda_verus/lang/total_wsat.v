@@ -110,6 +110,31 @@ Section wsat.
     iMod ("big" with "W") as "[W big]". iApply "big". iFrame.
   Qed.
 
+  (** The same, with the update also left on the postcondition. *)
+  Lemma fupdw_tgl_wpw_fupdw {e s E W Φ} :
+    (|=[W]{E}=> WP[W] e @ s; E [{ Φ }]) ⊢
+      WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }].
+  Proof.
+    case eq: (to_val e)=>/=.
+    - rewrite !tgl_wp_unfold /tgl_wp_pre eq. iIntros "Φ !>". by iMod "Φ" as ">$".
+    - rewrite fupdw_tgl_wpw_nonval; [|done]. apply tgl_wp_mono. by iIntros.
+  Qed.
+  Lemma fupdw_tgl_wpw_fupdw' {e s E W Φ} :
+    (|=[W]{E}=> WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }]) ⊢
+      WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }].
+  Proof. rewrite fupdw_tgl_wpw_fupdw. apply tgl_wp_mono. iIntros (?) ">$". Qed.
+
+  (** [IsFUpdW] is what makes [iMod] work on a [W]-threaded update in front
+      of a [tgl_wpw] goal: [nola.bi.modw] derives the [ElimModal] instances
+      from it.  Nola's counterparts for [wpw] and [twpw] are
+      [wpw_nonval_is_fupdw] and [twpw_nonval_is_fupdw]. *)
+  #[export] Instance tgl_wpw_nonval_is_fupdw {e s E W Φ} :
+    IsFUpdW (to_val e = None) W E (WP[W] e @ s; E [{ Φ }]).
+  Proof. exact fupdw_tgl_wpw_nonval. Qed.
+  #[export] Instance tgl_wpw_fupdw_is_fupdw {e s E W Φ} :
+    IsFUpdW True W E (WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }])%I.
+  Proof. move=> _. exact fupdw_tgl_wpw_fupdw'. Qed.
+
   (** Change the world satisfaction of [tgl_wpw].
 
       Given that [W] can be exchanged for [W'] and back, a proof carried
