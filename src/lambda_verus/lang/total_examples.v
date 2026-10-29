@@ -104,3 +104,60 @@ Proof.
   eapply (lrust_twp_mass_lim_exec _ _ ε 0%nat (λ v, v = #0)); [done|lra|].
   intros ?. iIntros "_ Hε". by iApply geo_spec.
 Qed.
+
+(** ** The sampler's output distribution, exactly
+
+    [geo_terminates] says the program converges; combining it with the
+    partial side says *what it converges to*.  Both halves come from the
+    same [geo_spec]: a total derivation at every positive credit, which
+    [tgl_wp_pgl_wp'] also reads as a partial one.
+
+    The point is the bound.  [approx_distribution_adequacy.v]'s
+    [distr_approx_tv] gives [εs + εt/2], and the slack [εt] has to be
+    assumed of a partially-proved program.  Here it is discharged, and
+    for an almost-surely-terminating sampler it vanishes: the total
+    variation distance to the specification is [0]. *)
+From clutch.prelude Require Import Series_ext.
+From lrust.lang Require Import approx_distribution_adequacy
+                               total_distribution_adequacy.
+
+Set Default Proof Using "All".
+
+Section exact.
+  Context `{!lrustErisGpreS Σ}.
+  Context (σ : common.language.state lrust_prob_lang).
+  Hypothesis Hσ : ∀ l ls v, σ !! l = Some (ls, v) → ls = RSt 0%nat.
+
+  (** The partial half: [geo] returns [#0], with no error. *)
+  Lemma geo_pgl : pgl (lim_exec (geo [ #☠ ]%E, σ)) (λ w, w = LitV (LitInt 0)) 0.
+  Proof.
+    apply pgl_epsilon_limit; [lra|]. intros ε Hε.
+    rewrite /pgl. apply lim_exec_continuous_prob. intros n.
+    apply (lrust_wp_pgl _ σ n ε 0%nat (λ w, w = LitV (LitInt 0)) Hσ
+             ltac:(lra)).
+    intros ?. iIntros "_ Hε". iApply tgl_wp_pgl_wp'.
+    by iApply geo_spec.
+  Qed.
+
+  (** Hence the value distribution is exactly the Dirac at [#0]. *)
+  Theorem geo_exact :
+    (tv_dist (lim_exec (geo [ #☠ ]%E, σ)) (dret (LitV (LitInt 0))) <= 0)%R.
+  Proof.
+    eapply (distribution_adequacy_ast _ _ σ Hσ 0 0%nat).
+    { apply dret_mass. }
+    { (* overshoot: [geo] can only land where [dret #0] does *)
+      intros P. rewrite Rplus_0_r.
+      destruct (P (LitV (LitInt 0))) eqn:HP0.
+      - (* the specification gives this set probability 1 *)
+        rewrite (prob_dret_true _ P HP0).
+        rewrite /pgl. etrans; [apply prob_le_1|lra].
+      - (* [geo] almost surely avoids it, by [geo_pgl] *)
+        rewrite (prob_dret_false _ P HP0).
+        apply (pgl_mon_pred _ (λ w, w = LitV (LitInt 0))); [|exact geo_pgl].
+        intros a ->. exact HP0. }
+    intros εt Hεt ?. iIntros "_ Hε".
+    iApply (tgl_wp_wand with "[Hε] []");
+      [by iApply geo_spec|by iIntros (?) "_"].
+  Qed.
+
+End exact.

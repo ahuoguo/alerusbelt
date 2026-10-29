@@ -82,6 +82,7 @@ src/lambda_verus/lang/total_lifting.v
 src/lambda_verus/lang/total_error_rules.v
 src/lambda_verus/lang/total_proofmode.v
 src/lambda_verus/lang/total_adequacy.v
+src/lambda_verus/lang/total_distribution_adequacy.v
 src/lambda_verus/lang/total_guard.v
 src/lambda_verus/lang/total_examples.v
 src/lambda_verus/lang/total_sinv_example.v
