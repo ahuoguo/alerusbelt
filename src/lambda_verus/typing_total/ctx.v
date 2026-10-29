@@ -49,8 +49,10 @@ From iris.algebra Require Import auth gset.
 From iris.proofmode Require Import proofmode.
 Import GuardNotation ModwNotation iPropAppNotation.
 
-(** Nola gets this from [nola.prelude]; this tree does not import it. *)
-Set Default Proof Using "Type*".
+(** This tree's files set [Default Proof Using "Type"] without [Local], so
+    it leaks in through the imports; Nola's typing layer sets nothing and
+    lets Coq infer each proof's section variables.  Clear it. *)
+Unset Default Proof Using.
 Export iPropAppNotation.
 
 (** [nola.verus_halt.lifetime.lifetime_full] keeps these [Local], but the typing
