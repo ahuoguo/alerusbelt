@@ -211,6 +211,48 @@ Section lifting.
     by iApply ("HΦ" with "G Hl").
   Qed.
 
+  (** ** The two guarded rules under Nola's names
+
+      The typing layer applies these ten times across
+      [nola/verus_halt/typing/], always as [iApply (lemma _ … _ Gx with
+      "[…]")] followed by [iIntros] on the postcondition.  Nola states them
+      as Texan triples; the total stack has none (see [total_wsat.v]), so
+      these are the same rules written out - one bundled precondition, then
+      the continuation - which is what a triple unfolds to and what
+      [iApply] sees.  Keeping the names means a ported file does not have to
+      be edited at the call sites.
+
+      The cells argument [c] is the one Nola's [Read]/[Write] take an
+      ordering argument for; concurrency is stripped, so there is one
+      ordering and it is implicit. *)
+  Lemma twp_write_na_guarded `{!WsatIncl W na_wsat Wr} s E l c e v v'
+      (Gx : FML $oi Σ) Φ :
+    IntoVal e v' →
+    ((na_sem Gx &&{na_wsat}&&> ((l, c) #↦_)) ∗ na_sem Gx ∗ (l, c) #↦ v) -∗
+    (((l, c) #↦ v' ∗ na_sem Gx) -∗ Φ (LitV LitPoison)) -∗
+    WP[W] Write (Lit (LitLoc l)) e @ s; E [{ Φ }].
+  Proof.
+    iIntros (?) "(#Gv & G & Hl) HΦ".
+    iApply (twp_write_guarded s E (l, c) e v v' Gx with "Gv G Hl").
+    iIntros "G Hl". iApply "HΦ". iFrame.
+  Qed.
+
+  Lemma twp_read_na_guarded_cells_singleton `{!WsatIncl W na_wsat Wr} s E l
+      (c : list (list cell_id)) v (Gx : FML $oi Σ) Φ :
+    ((na_sem Gx &&{na_wsat}&&> (l ↦[^ c ]∗ [v])) ∗ na_sem Gx) -∗
+    (na_sem Gx -∗ Φ v) -∗
+    WP[W] Read (Lit (LitLoc l)) @ s; E [{ Φ }].
+  Proof.
+    iIntros "(#gd & G) HΦ".
+    rewrite /total_heap.heap_mapsto_cells_val_vec /=.
+    case: c=> [|c0 c'].
+    - (* No cells for the one value: the guarded assertion is [False]. *)
+      iApply (twp_read_guarded_cells s E l [] v (na_sem Gx) with "[] G HΦ").
+      by iApply guard_false.
+    - iApply (twp_read_guarded_cells s E l c0 v (na_sem Gx) with "[] G HΦ").
+      rewrite /total_heap.heap_mapsto_cells_fancy. by iApply guard_rhs_sep_l.
+  Qed.
+
   (** ** Sampling
 
       [Rand] does not touch the heap, so the world satisfaction goes

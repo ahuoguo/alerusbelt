@@ -56,9 +56,18 @@ Qed.
 Notation tgl_wpw W := (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W))).
 
 Module TglWpwNotation.
-  (** The stuckness argument is [twp_default] at the *same* instance, not a
-      literal [()]: [tgl_wp'] is sealed, so [twp_default] does not reduce,
-      and a literal would not match eris's own [WP e [{ Φ }]]. *)
+  (** The stuckness argument is the literal [()].
+
+      It used to be [twp_default] at the same instance, so that the
+      notation would match eris's own [WP e [{ Φ }]] - but [twp_default]
+      is a *projection of the instance*, and [tgl_wp'] is sealed, so
+      [WP[W] e [{ Φ }]] and [WP[W'] e [{ Φ }]] then differed in their
+      stuckness argument and no [W]-changing lemma could be applied
+      between them ([tgl_wpw_incl_fupd] above, and so
+      [typed_body_at_wsat] in [typing_total/programs.v]).  Eris fixes the
+      stuckness type to [unit], so the literal is the same value; where a
+      goal does have to meet eris's own notation, [destruct twp_default]
+      closes the gap, as eris's own [total_adequacy.v] does. *)
   Notation "'WP[' W ']' e @ s ; E [{ Φ } ]" :=
     (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W)) s E e%E Φ)
     (at level 20, e, Φ at level 200, only parsing) : bi_scope.
@@ -66,20 +75,16 @@ Module TglWpwNotation.
     (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W)) s E e%E (λ v, Q))
     (at level 20, e, Q at level 200, only parsing) : bi_scope.
   Notation "'WP[' W ']' e @ E [{ Φ } ]" :=
-    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W))
-       (@twp_default _ _ _ _ (@tgl_wp' _ _ (ErisW W))) E e%E Φ)
+    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W)) () E e%E Φ)
     (at level 20, e, Φ at level 200, only parsing) : bi_scope.
   Notation "'WP[' W ']' e @ E [{ v , Q } ]" :=
-    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W))
-       (@twp_default _ _ _ _ (@tgl_wp' _ _ (ErisW W))) E e%E (λ v, Q))
+    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W)) () E e%E (λ v, Q))
     (at level 20, e, Q at level 200, only parsing) : bi_scope.
   Notation "'WP[' W ']' e [{ Φ } ]" :=
-    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W))
-       (@twp_default _ _ _ _ (@tgl_wp' _ _ (ErisW W))) ⊤ e%E Φ)
+    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W)) () ⊤ e%E Φ)
     (at level 20, e, Φ at level 200, only parsing) : bi_scope.
   Notation "'WP[' W ']' e [{ v , Q } ]" :=
-    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W))
-       (@twp_default _ _ _ _ (@tgl_wp' _ _ (ErisW W))) ⊤ e%E (λ v, Q))
+    (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W)) () ⊤ e%E (λ v, Q))
     (at level 20, e, Q at level 200, only parsing) : bi_scope.
 
   (** No Texan triples.  Every spelling tried - [[{ P }]][W], [{{ P }}][W],
@@ -123,6 +128,36 @@ Section wsat.
     (|=[W]{E}=> WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }]) ⊢
       WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }].
   Proof. rewrite fupdw_tgl_wpw_fupdw. apply tgl_wp_mono. iIntros (?) ">$". Qed.
+
+  (** The update in the *postcondition*, rather than in front.  Nola's
+      [twpw_fupdw_fupdw]; the induction is the same, with eris's [glm] in
+      place of the raw step clause.  What makes it work is that at a value
+      the world satisfaction is free - the WP has already given back
+      [state_interp] - so the postcondition's update can be run there. *)
+  Lemma tgl_wpw_fupdw_fupdw {e s E W Φ} :
+    WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }] ⊢
+      (|=[W]{E}=> WP[W] e @ s; E [{ Φ }]).
+  Proof.
+    enough (go : ∀ Ψ, WP[W] e @ s; E [{ Ψ }] -∗
+      ∀ Φ, □ (∀ v, Ψ v =[W]{E}=∗ Φ v) =[W]{E}=∗ WP[W] e @ s; E [{ Φ }]).
+    { iIntros "twp". iApply (go with "twp"). iIntros "!>" (?) "$". }
+    iIntros (Ψ) "twp". iRevert (e E Ψ) "twp".
+    iApply (tgl_wp_ind (erisWpGS0 := ErisW W)); [solve_proper|].
+    iIntros "!>" (e F Ψ) "twp". iIntros (Φ2) "#ΨΦ".
+    rewrite (tgl_wp_unfold (erisWpGS0 := ErisW W)) /tgl_wp_pre /=.
+    case (to_val e) as [v|] eqn:?.
+    { iIntros "W". by iMod ("ΨΦ" with "twp W") as ">[$$]". }
+    iIntros "$". iIntros "!>" (n σ ε) "[[W st] err]".
+    iMod ("twp" with "[$W $st $err]") as "big". iModIntro.
+    iApply (glm_mono_pred with "[] big").
+    iIntros ([e2 σ2] ε2) "H". iMod "H" as "[[W st] [err [rec _]]]".
+    iMod ("rec" with "ΨΦ W") as "[W rec]". by iFrame.
+  Qed.
+  Lemma tgl_wpw_fupdw_nonval {e s E W Φ} : to_val e = None →
+    WP[W] e @ s; E [{ v, |=[W]{E}=> Φ v }] ⊢ WP[W] e @ s; E [{ Φ }].
+  Proof.
+    move=> ?. by rewrite tgl_wpw_fupdw_fupdw fupdw_tgl_wpw_nonval.
+  Qed.
 
   (** [IsFUpdW] is what makes [iMod] work on a [W]-threaded update in front
       of a [tgl_wpw] goal: [nola.bi.modw] derives the [ElimModal] instances

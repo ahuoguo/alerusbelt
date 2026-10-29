@@ -111,6 +111,7 @@ src/lambda_verus/typing_total/inv_context.v
 src/lambda_verus/typing_total/type.v
 src/lambda_verus/typing_total/type_context.v
 src/lambda_verus/typing_total/cont_context.v
+src/lambda_verus/typing_total/programs.v
 
 # Type-specs
 

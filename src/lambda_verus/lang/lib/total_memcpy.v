@@ -37,7 +37,7 @@ Section memcpy.
 
     The destination cells are owned ([l1 #↦∗ vl1]) but their *chain* is only
     guarded, which is why [Gw] is needed as well as [Gr]. *)
-  Lemma twp_memcpy_guarded `{!WsatIncl W na_wsat Wr} {s E} (n : nat) :
+  Lemma twp_memcpy_guarded_sep `{!WsatIncl W na_wsat Wr} {s E} (n : nat) :
     ∀ (l1 l2 : cloc) vl1 vl2 Gw Gr,
     length vl1 = n → length vl2 = n →
     ∀ Φ,
@@ -83,6 +83,28 @@ Section memcpy.
       ltac:(done) ltac:(done) _ with "↦l gw2 gr2 Gw Gr").
     iIntros "↦l Gw Gr". iApply ("→Φ" with "[↦1 ↦l] Gw Gr").
     rewrite heap_mapsto_cloc_vals_vec_cons. iFrame.
+  Qed.
+
+  (** The same rule under Nola's name and in Nola's bundled shape: one
+      precondition, then the continuation, which is what the Texan triple
+      [nola/verus_halt/lang/lib/memcpy.v] states unfolds to.  The typing
+      layer applies it that way, so keeping the shape means a ported file
+      does not have to be edited at the call site. *)
+  Lemma twp_memcpy_guarded `{!WsatIncl W na_wsat Wr} {s E} (n : nat) :
+    ∀ (l1 l2 : cloc) vl1 vl2 Gw Gr,
+    length vl1 = n → length vl2 = n →
+    ∀ Φ,
+    (l1 #↦∗ vl1 ∗
+     (na_sem Gw &&{na_wsat}&&> l1 #↦∗_) ∗
+     (na_sem Gr &&{na_wsat}&&> (l2.1 ↦[^ l2.2]∗ vl2)) ∗
+     na_sem Gw ∗ na_sem Gr) -∗
+    ((l1 #↦∗ vl2 ∗ na_sem Gw ∗ na_sem Gr) -∗ Φ (LitV LitPoison)) -∗
+    WP[W] #(l1.1) <-{n} !#(l2.1) @ s; E [{ Φ }].
+  Proof.
+    iIntros (?????? ?? Φ) "(↦ & #gw & #gr & Gw & Gr) →Φ".
+    iApply (twp_memcpy_guarded_sep n _ _ vl1 vl2 Gw Gr
+      ltac:(done) ltac:(done) _ with "↦ gw gr Gw Gr").
+    iIntros "↦ Gw Gr". iApply "→Φ". iFrame.
   Qed.
 
   (** The unguarded copy, as in Iris's lrust *)

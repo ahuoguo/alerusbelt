@@ -88,5 +88,5 @@ Proof.
                 (erisWpGS0 := @ErisW _ Σ (@lrustTotGS_erisWpGS' FML Σ HlrustTotGS) W)
                 0 e ∅ ε' (λ _, True)) as "Hadq".
   iSpecialize ("Hadq" with "[-]"); last iApply "Hadq".
-  iFrame "HW Hctx Hs". iExact "Hwp".
+  iFrame "HW Hctx Hs". destruct twp_default. iExact "Hwp".
 Qed.

@@ -475,7 +475,7 @@ Proof.
                 1 e σ ε' (λ _, True)) as "H".
   iSpecialize ("H" with "[-]"); last iApply "H".
   iSplitR "Hs Hwp"; last first.
-  { iFrame "Hs". iExact "Hwp". }
+  { iFrame "Hs". destruct twp_default. iExact "Hwp". }
   rewrite /state_interp /=. iFrame "HW". iSplitR "A Hbool".
   - rewrite /heap.heap_ctx. iExists ∅. iFrame "Hvγ Hfγ".
     iSplit.
