@@ -81,6 +81,16 @@ Module TglWpwNotation.
     (@twp _ _ _ _ (@tgl_wp' _ _ (ErisW W))
        (@twp_default _ _ _ _ (@tgl_wp' _ _ (ErisW W))) ⊤ e%E (λ v, Q))
     (at level 20, e, Q at level 200, only parsing) : bi_scope.
+
+  (** No Texan triples.  Every spelling tried - [[{ P }]][W], [{{ P }}][W],
+      [WT[W] {{ P }}] - shares a prefix with a notation eris already has in
+      scope ([[[{ P }]] e …] or [WP e {{ Φ }}]), the parser commits to that
+      one and then fails.  The total stack states its rules in explicit
+      weakest-precondition form instead:
+
+        P -∗ (Q -∗ Φ pat) -∗ WP[W] e @ s; E [{ Φ }]
+
+      which is what a triple unfolds to anyway. *)
 End TglWpwNotation.
 Import TglWpwNotation.
 
