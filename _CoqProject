@@ -131,6 +131,8 @@ src/lambda_verus/typing_total/own.v
 src/lambda_verus/typing_total/ghost.v
 src/lambda_verus/typing_total/programs_util_own.v
 src/lambda_verus/typing_total/sum.v
+src/lambda_verus/typing_total/uniq_util.v
+src/lambda_verus/typing_total/uniq_bor.v
 
 # Type-specs
 
