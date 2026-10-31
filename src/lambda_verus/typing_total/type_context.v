@@ -25,6 +25,9 @@
 
 From iris.proofmode Require Import proofmode.
 From lrust.typing_total Require Import type ctx lft_contexts.
+(** [ctx_wp], for the [lrustTotGS] instance: this file states weakest
+  preconditions.  See the head of [typing_total/ctx_wp.v]. *)
+From lrust.typing_total Require Import ctx_wp.
 (** Our [util] last, so that its [SemiIso] wins the name over Nola's; see
   [typing_total/type.v]. *)
 From lrust.util Require Import basic.
@@ -32,6 +35,14 @@ From nola.bi Require Import guard modw.
 From nola.iris Require Import point.
 Import GuardNotation ModwNotation TglWpwNotation.
 Unset Default Proof Using.
+(** [iris.prelude.options] sets [Default Goal Selector "!"], which rejects a
+  bare tactic while more than one goal is focused.  It reaches this file
+  through our imports and not through Nola's, so Nola's proofs - written
+  against the default [1], "act on the first goal" - would otherwise need a
+  focus fix every few lemmas.  Restoring [1] is a lint setting, not a
+  soundness one. *)
+Set Default Goal Selector "1".
+Unset Suggest Proof Using.
 
 Implicit Type (𝔄 𝔅 ℭ: syn_type) (𝔄l 𝔅l ℭl 𝔇l: syn_typel).
 

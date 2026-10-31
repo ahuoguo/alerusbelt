@@ -13,6 +13,14 @@ From lrust.typing_total Require Export base ctx lifetime lft_contexts
 From nola.bi Require Import guard modw.
 Import GuardNotation ModwNotation.
 Unset Default Proof Using.
+(** [iris.prelude.options] sets [Default Goal Selector "!"], which rejects a
+  bare tactic while more than one goal is focused.  It reaches this file
+  through our imports and not through Nola's, so Nola's proofs - written
+  against the default [1], "act on the first goal" - would otherwise need a
+  focus fix every few lemmas.  Restoring [1] is a lint setting, not a
+  soundness one. *)
+Set Default Goal Selector "1".
+Unset Suggest Proof Using.
 
 Inductive invctx_elt : Type :=
   | InvCtx_open (κ: lft).

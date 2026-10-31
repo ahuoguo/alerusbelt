@@ -53,6 +53,14 @@ Import GuardNotation ModwNotation iPropAppNotation.
     it leaks in through the imports; Nola's typing layer sets nothing and
     lets Coq infer each proof's section variables.  Clear it. *)
 Unset Default Proof Using.
+(** [iris.prelude.options] sets [Default Goal Selector "!"], which rejects a
+  bare tactic while more than one goal is focused.  It reaches this file
+  through our imports and not through Nola's, so Nola's proofs - written
+  against the default [1], "act on the first goal" - would otherwise need a
+  focus fix every few lemmas.  Restoring [1] is a lint setting, not a
+  soundness one. *)
+Set Default Goal Selector "1".
+Unset Suggest Proof Using.
 Export iPropAppNotation.
 
 (** [nola.verus_halt.lifetime.lifetime_full] keeps these [Local], but the typing
@@ -461,15 +469,14 @@ Section verus_halt.
       [tgl_wp] mints none per step.  The error-credit ghost state comes
       from [verus_halt_ecGS], a field of [verus_haltGS]; see the note
       there for why it is not a separate assumption. *)
-  #[export] Instance verus_halt_lrustGS : lrustTotGS FML Σ := {|
-    lrustTotGS_invGS := verus_halt_invGS;
-    lrustTotGS_na_invGS := na_inv_invG;
-    lrustTotGS_alcGS := verus_halt_alcG;
-    lrustTotGS_heapGS := verus_halt_heapGS;
-    lrustTotGS_naSem := verus_halt_NaSem;
-    lrustTotGS_heapSem := _;
-    lrustTotGS_ecGS := _;
-  |}.
+  (** The [lrustTotGS] instance lives in [typing_total/ctx_wp.v], not
+      here.  [ctx.v] is imported by every typing file, and having the
+      instance in scope makes elaborating a type former pathologically
+      slow: [typing_total/sum.v]'s [xsum_ty] took over ten minutes, and
+      one second with the instance removed, with no other change and with
+      every field of the record replaced by a constant.  Only the files
+      that state weakest preconditions need it, and they import
+      [ctx_wp.v]. *)
 
   (** The global world satisfaction.
 

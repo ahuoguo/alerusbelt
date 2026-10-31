@@ -4,21 +4,11 @@ From lrust.util Require Import non_atomic_cell_map update.
 From guarding Require Import guard.
 From lrust.lifetime Require Import lifetime_full.
 From iris.base_logic.lib Require Import later_credits.
+(** The term and its notations live beside no program logic, so that the
+    total stack can have them without this file's [lrustGS]; see
+    [lib/memcpy_defs.v]. *)
+From lrust.lang.lib Require Export memcpy_defs.
 Set Default Proof Using "Type".
-
-Definition memcpy : val :=
-  rec: "memcpy" ["dst";"len";"src"] :=
-    if: "len" ≤ #0 then #☠
-    else "dst" <- !"src";;
-         "memcpy" ["dst" +ₗ #1 ; "len" - #1 ; "src" +ₗ #1].
-
-Notation "e1 <-{ n } ! e2" :=
-  (App (of_val memcpy) [e1%E; Lit (LitInt n); e2%E])
-  (at level 80, n at next level, format "e1  <-{ n }  ! e2") : expr_scope.
-
-Notation "e1 <-{ n ',Σ' i } ! e2" :=
-  (e1%E%E <- #(LitInt i);; e1 +ₗ #(LitInt 1) <-{n} !e2)%E
-  (at level 80, n, i at next level, format "e1  <-{ n ,Σ  i }  ! e2") : expr_scope.
 
 Lemma wp_memcpy `{!lrustGS Σ} E l1 l2 vl1 vl2 (n : Z) :
   ↑non_atomic_cell_map.naN ⊆ E →

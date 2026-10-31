@@ -26,7 +26,10 @@ From nola.bi Require Import modw guard.
 From lrust.util Require Import total_cell_map.
 From lrust.lang Require Export notation total_heap total_wsat
                                total_lifting_heap total_proofmode.
-From lrust.lang.lib Require Export memcpy.
+(** [memcpy_defs], not [memcpy]: see the note in
+    [lib/new_delete_defs.v] for why the partial file must not be
+    exported here. *)
+From lrust.lang.lib Require Export memcpy_defs.
 Set Default Proof Using "Type".
 Import ModwNotation GuardNotation TglWpwNotation.
 

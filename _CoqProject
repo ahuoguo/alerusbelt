@@ -95,6 +95,8 @@ src/lambda_verus/lang/total_lifting_heap.v
 src/lambda_verus/lang/total_heap_adequacy.v
 src/lambda_verus/lang/total_lifetime.v
 src/lambda_verus/lang/total_heap_example.v
+src/lambda_verus/lang/lib/memcpy_defs.v
+src/lambda_verus/lang/lib/new_delete_defs.v
 src/lambda_verus/lang/lib/new_delete.v
 src/lambda_verus/lang/lib/memcpy.v
 src/lambda_verus/lang/lib/total_new_delete.v
@@ -105,6 +107,7 @@ src/lambda_verus/typing_total/base.v
 src/lambda_verus/typing_total/syn_type.v
 src/lambda_verus/typing_total/uniq_cmra.v
 src/lambda_verus/typing_total/ctx.v
+src/lambda_verus/typing_total/ctx_wp.v
 src/lambda_verus/typing_total/lifetime.v
 src/lambda_verus/typing_total/lft_contexts.v
 src/lambda_verus/typing_total/inv_context.v
@@ -112,6 +115,22 @@ src/lambda_verus/typing_total/type.v
 src/lambda_verus/typing_total/type_context.v
 src/lambda_verus/typing_total/cont_context.v
 src/lambda_verus/typing_total/programs.v
+src/lambda_verus/typing_total/bool.v
+src/lambda_verus/typing_total/int.v
+src/lambda_verus/typing_total/cont.v
+src/lambda_verus/typing_total/freeable_util.v
+src/lambda_verus/typing_total/programs_util.v
+src/lambda_verus/typing_total/base_type.v
+src/lambda_verus/typing_total/levels.v
+src/lambda_verus/typing_total/mod_ty.v
+src/lambda_verus/typing_total/tracked.v
+src/lambda_verus/typing_total/shr_bor.v
+src/lambda_verus/typing_total/product.v
+src/lambda_verus/typing_total/uninit.v
+src/lambda_verus/typing_total/own.v
+src/lambda_verus/typing_total/ghost.v
+src/lambda_verus/typing_total/programs_util_own.v
+src/lambda_verus/typing_total/sum.v
 
 # Type-specs
 

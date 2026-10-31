@@ -1,18 +1,12 @@
 From lrust.lang Require Export notation.
 From lrust.lang Require Import heap proofmode.
 From lrust.lang.lib Require Import memcpy.
+(** [new], [delete] and the [letalloc:] notations now live beside no
+    program logic at all, so that the total stack can have them without
+    the partial one's [lrustGS]; see [lib/new_delete_defs.v]. *)
+From lrust.lang.lib Require Export new_delete_defs.
 Set Default Proof Using "Type".
 Open Scope Z_scope.
-
-Definition new : val :=
-  λ: ["n"],
-    if: "n" ≤ #0 then #((42%positive, 1337):loc)
-    else Alloc "n".
-
-Definition delete : val :=
-  λ: ["n"; "loc"],
-    if: "n" ≤ #0 then #☠
-    else Free "n" "loc".
 
 Section specs.
   Context `{!lrustGS Σ}.
@@ -41,15 +35,3 @@ Section specs.
       wp_if; try wp_free; by iApply "HΦ".
   Qed.
 End specs.
-
-Notation "letalloc: x <- e1 'in' e2" :=
-  ((Lam [BNamed x%string%E] (Seq (Var x <- e1) e2))
-    [App (of_val new) [ #(LitInt 1)]])%E
-  (at level 102, x at level 1, e1, e2 at level 150) : expr_scope.
-
-Notation "letalloc: x <-{ n } ! e1 'in' e2" :=
-  ((Lam [BNamed x%string%E%E]
-    (Seq (Var x <-{n%Z%E} !e1) e2))
-    [App (of_val new) [ Lit (LitInt n)]])%E
-  (at level 102, x at level 1, e1, e2 at level 150,
-    format "letalloc:  x  <-{ n }  ! e1  'in'  e2") : expr_scope.
