@@ -33,3 +33,11 @@ Section ctx_wp.
     lrustTotGS_ecGS := _;
   |}.
 End ctx_wp.
+
+(** Let the projections reduce.  [heapGS], [na_invG] and friends are
+    reachable both directly, as fields of [verus_haltGS], and through this
+    instance; the two terms are convertible but not syntactically equal,
+    and [iSpecialize] matches syntactically, so a heap rule stated over
+    [lrustTotGS] could not be applied to a points-to produced by the
+    typing layer. *)
+Global Arguments verus_halt_lrustGS {_ _ _ _ _} /.

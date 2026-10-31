@@ -22,7 +22,7 @@
     redone against eris's [twp_lift_atomic_head_step] and
     [lrust_prob_lang]'s [head_step_prob]. *)
 From Stdlib Require Import Reals Psatz.
-From iris.proofmode Require Import proofmode.
+From iris.proofmode Require Import proofmode environments coq_tactics reduction.
 From iris.base_logic.lib Require Export fancy_updates.
 From clutch.base_logic Require Export error_credits.
 From clutch.eris Require Export total_weakestpre.
@@ -36,6 +36,10 @@ From nola.verus_halt.util Require Import atomic_lock_counter.
 From lrust.util Require Import total_cell_map.
 From lrust.lang Require Export lang pure_exec total_heap total_wsat.
 From lrust.lang Require Import tactics.
+(** [total_proofmode] for [twp_value_head], used by the heap tactics at
+    the foot of this file.  No cycle: [total_proofmode] imports only
+    [tactics] and [pure_exec] from the language, deliberately. *)
+From lrust.lang Require Export total_proofmode.
 Set Default Proof Using "Type".
 Import uPred ModwNotation GuardNotation TglWpwNotation iPropAppNotation.
 
@@ -655,3 +659,75 @@ Section lifting_more.
   Qed.
 
 End lifting_more.
+
+(** * Surface tactics for the plain heap rules
+
+    [lang/total_proofmode.v] deliberately has no heap tactics: it must not
+    depend on the heap, or the program logic leaks into every file that
+    only builds types (see the note at its head).  They belong here, where
+    the heap already is.
+
+    Against [lang/proofmode.v]'s [tac_wp_read] and [tac_wp_write] these
+    drop the [MaybeIntoLaterNEnvs] premise - there is no [▷] to commute
+    under - and the [↑naN ⊆ E] side condition, which the [WsatIncl]
+    instance now carries. *)
+Section proofmode.
+  Context `{!lrustTotGS FML Σ}.
+  Implicit Type (W : iProp Σ) (Φ : val → iProp Σ).
+
+  Lemma tac_twp_read `{!WsatIncl W na_wsat Wr} K Δ s E i l v Φ :
+    envs_lookup i Δ = Some (false, total_heap.heap_mapsto l v)%I →
+    envs_entails Δ (WP[W] fill K (of_val v) @ s; E [{ Φ }]) →
+    envs_entails Δ (WP[W] fill K (Read (Lit $ LitLoc l)) @ s; E [{ Φ }]).
+  Proof.
+    rewrite envs_entails_unseal=> ? HΔ. rewrite -tgl_wp_bind.
+    rewrite envs_lookup_split //= HΔ. iIntros "[↦ →twp]".
+    by iApply (twp_read with "↦").
+  Qed.
+
+  Lemma tac_twp_write `{!WsatIncl W na_wsat Wr} K Δ Δ' s E i l v e v' Φ :
+    IntoVal e v' →
+    envs_lookup i Δ = Some (false, total_heap.heap_mapsto l v)%I →
+    envs_simple_replace i false
+      (Esnoc Enil i (total_heap.heap_mapsto l v')) Δ = Some Δ' →
+    envs_entails Δ' (WP[W] fill K (Lit LitPoison) @ s; E [{ Φ }]) →
+    envs_entails Δ (WP[W] fill K (Write (Lit $ LitLoc l) e) @ s; E [{ Φ }]).
+  Proof.
+    rewrite envs_entails_unseal=> ?? Hsimpl HΦ. rewrite -tgl_wp_bind.
+    rewrite envs_simple_replace_singleton_sound //=.
+    iIntros "[↦ →env]". iApply (twp_write_plain with "↦")=>//.
+    iIntros "↦". iApply HΦ. by iApply "→env".
+  Qed.
+End proofmode.
+
+Tactic Notation "twp_read" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) => reshape_expr e ltac:(fun K e' =>
+    match e' with
+    | Read _ => eapply (tac_twp_read K)
+    end);
+    (* [eapply] resolves the [WsatIncl] instance itself, so there are two
+       goals: the lookup and the continuation. *)
+    [let l := match goal with
+              | |- _ = Some (_, (total_heap.heap_mapsto ?l _)%I) => l end in
+     iAssumptionCore || fail "twp_read: cannot find" l "↦ ?"
+    |simpl; try twp_value_head]
+  | _ => fail "twp_read: not a 'twp'"
+  end.
+
+Tactic Notation "twp_write" :=
+  iStartProof;
+  lazymatch goal with
+  | |- envs_entails _ (twp ?s ?E ?e ?Q) => reshape_expr e ltac:(fun K e' =>
+    match e' with
+    | Write _ _ => eapply (tac_twp_write K)
+    end);
+    [tc_solve                          (* IntoVal *)
+    |let l := match goal with
+              | |- _ = Some (_, (total_heap.heap_mapsto ?l _)%I) => l end in
+     iAssumptionCore || fail "twp_write: cannot find" l "↦ ?"
+    |reduction.pm_reflexivity
+    |simpl; try twp_value_head]
+  | _ => fail "twp_write: not a 'twp'"
+  end.
