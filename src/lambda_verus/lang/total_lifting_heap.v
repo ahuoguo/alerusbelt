@@ -658,6 +658,21 @@ Section lifting_more.
     iApply ("HΦ" with "[%] Hvl"). by rewrite length_vec_to_list.
   Qed.
 
+  (** Nola's names for the plain read and write.  Concurrency is stripped,
+      so there is one ordering and it is implicit; [Na1Ord] is gone from
+      the syntax and these are the only read and write there are. *)
+  Lemma twp_read_na `{!WsatIncl W na_wsat Wr} s E l v Φ :
+    total_heap.heap_mapsto l v -∗
+    (total_heap.heap_mapsto l v -∗ Φ v) -∗
+    WP[W] Read (Lit $ LitLoc l) @ s; E [{ Φ }].
+  Proof. apply twp_read. Qed.
+
+  Lemma twp_write_na `{!WsatIncl W na_wsat Wr} s E l e v v' Φ :
+    IntoVal e v →
+    total_heap.heap_mapsto l v' -∗
+    (total_heap.heap_mapsto l v -∗ Φ (LitV LitPoison)) -∗
+    WP[W] Write (Lit $ LitLoc l) e @ s; E [{ Φ }].
+  Proof. move=> ?. by apply twp_write_plain. Qed.
 End lifting_more.
 
 (** * Surface tactics for the plain heap rules
