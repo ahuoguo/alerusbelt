@@ -22,8 +22,10 @@ From nola.bi Require Import deriv.
 From nola.iris Require Export cif.
 From lrust.typing_total Require Export ctx.
 From nola.verus_halt Require Import na_inv_fork.
-From lrust.util Require Import cancellable_na_invariants
-  atomic_lock_counter.
+(** Nola's [util], not ours: ours belongs to the partial
+  stack and pulls in [lrust.lifetime], which makes [ra]
+  resolve to that tree's. *)
+From nola.verus_halt.util Require Import cancellable_na_invariants atomic_lock_counter.
 Import iPropAppNotation ModwNotation CsemNotation GuardNotation
   DsemNotation.
 (** Our [util] last, so that its [SemiIso] wins the name over Nola's; see

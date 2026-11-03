@@ -18,7 +18,10 @@ From iris.proofmode Require Import proofmode.
 From lrust.typing_total Require Export type.
 From lrust.typing_total Require Import type_context programs
   programs_util_own own ghost tracked shr_bor product inv_context lft_contexts.
-From lrust.util Require Import cancellable_na_invariants.
+(** Nola's [util], not ours: ours belongs to the partial
+  stack and pulls in [lrust.lifetime], which makes [ra]
+  resolve to that tree's. *)
+From nola.verus_halt.util Require Import cancellable_na_invariants.
 From nola.verus_halt.lifetime Require Import lifetime_full.
 From nola.bi Require Import guard modw.
 From lrust.lang Require Import total_wsat.

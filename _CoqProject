@@ -143,6 +143,9 @@ src/lambda_verus/typing_total/function.v
 src/lambda_verus/typing_total/recursion.v
 src/lambda_verus/typing_total/protocol.v
 src/lambda_verus/typing_total/type_sum.v
+src/lambda_verus/typing_total/atomic_inv.v
+src/lambda_verus/typing_total/model.v
+src/lambda_verus/typing_total/model_inst.v
 
 # Type-specs
 
