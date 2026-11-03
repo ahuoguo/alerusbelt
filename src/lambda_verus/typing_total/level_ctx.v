@@ -85,7 +85,7 @@
 
 From iris.algebra Require Import gmap_view agree auth gset.
 From iris.proofmode Require Import proofmode.
-From lrust.lang Require Import total_adequacy total_proofmode notation.
+From lrust.lang Require Import total_adequacy total_heap_adequacy total_proofmode notation.
 From lrust.typing_total Require Export model_inst.
 From lrust.typing_total Require Import type_context programs.
 From nola.bi Require Import modw.
@@ -112,10 +112,10 @@ Unset Suggest Proof Using.
   Moved here from [typing/soundness.v], which now takes it from this file:
   allocating one level and allocating [L] of them are the same lemma. *)
 Class verus_haltGpreS (FML : oFunctor) Σ : Type := VerusHaltGpreS {
-  #[global] verus_halt_preG_lrust :: lrustGpreS FML Σ;
+  #[global] verus_halt_preG_lrust :: lrustTotGpreS FML Σ;
   #[global] verus_halt_preG_llft :: llft_logicGpreS Σ;
   #[global] verus_halt_preG_sinv :: sinvGpreS FML Σ;
-  #[global] verus_halt_preG_proph :: prophPreG Σ;
+  (** No [prophPreG]: [verus_haltGS] has no [prophG] field. *)
   #[global] verus_halt_preG_uniq :: uniqPreG Σ;
   #[global] verus_halt_preG_cna :: cnaGpreS FML Σ;
   #[global] verus_halt_preG_frac :: fracGuardGpreS FML Σ;
@@ -128,13 +128,13 @@ Class verus_haltGpreS (FML : oFunctor) Σ : Type := VerusHaltGpreS {
 }.
 
 Definition verus_haltΣ FML `{!oFunctorContractive FML} : gFunctors :=
-  #[lrustΣ FML; llft_logicΣ; sinvΣ FML; prophΣ; uniqΣ; cnaΣ FML;
+  #[lrustTotΣ FML; llft_logicΣ; sinvΣ FML; uniqΣ; cnaΣ FML;
     fracGuardΣ FML; GFunctor (constRF (authUR (gsetUR lft)));
     fracKeyΣ llctx; fracKeyΣ (gmultiset lft); twostateΣ].
 
 (** [solve_inG] does not scale here.  Its last step is
   [split; (assumption || by apply _)], which hands each of the ten fields
-  to typeclass resolution; on [lrustGpreS FML Σ] that search does not
+  to typeclass resolution; on [lrustTotGpreS FML Σ] that search does not
   terminate in any practical time (measured: over eight hours, against
   0.00s for the named instance).  So the fields are discharged by name,
   and the [subΣ] hypothesis is taken apart one entry at a time rather
@@ -144,16 +144,15 @@ Definition verus_haltΣ FML `{!oFunctorContractive FML} : gFunctors :=
 Proof.
   intros H. unfold verus_haltΣ in H.
   apply subG_inv in H as [Hlrust H]. apply subG_inv in H as [Hllft H].
-  apply subG_inv in H as [Hsinv H]. apply subG_inv in H as [Hproph H].
+  apply subG_inv in H as [Hsinv H].
   apply subG_inv in H as [Huniq H]. apply subG_inv in H as [Hcna H].
   apply subG_inv in H as [Hfrac H]. apply subG_inv in H as [Hetern H].
   apply subG_inv in H as [Hllctx H]. apply subG_inv in H as [Hlfts H].
   apply subG_inv in H as [Hts _].
   split.
-  - by apply subG_lrustGpreS.
+  - by apply subG_lrustTotGpreS.
   - by apply subG_lt_logicΣ.
   - by apply subG_sinvΣ.
-  - by apply subG_prophPreG.
   - by apply subG_uniqPreG.
   - by apply subG_cnaGpreS.
   - by apply subG_fracGuardGpreS.
@@ -219,7 +218,7 @@ End wsat_at.
 
 Section level.
   Context `{!typingC CON} {JUDG Σ}
-    `{!verus_haltGpreS (cifOF CON) Σ, !invGS_gen HasNoLc Σ,
+    `{!verus_haltGpreS (cifOF CON) Σ, !invGS_gen HasLc Σ,
       !typingJ CON JUDG Σ}.
 
   (** *** One level's ghost names
@@ -249,25 +248,27 @@ Section level.
   }.
 
   (** The port's [verus_haltGS_at]: one level's ghost state, with the shared
-    parts - the heap, the prophecies, the unique borrows - handed in. *)
+    parts - the heap, the error credits, the unique borrows - handed in.
+    Nola hands in a [prophG] here; this port has no prophecy assignment,
+    so the slot is eris's [ecGS] instead. *)
   (** The general form, with the levels *above* this one supplied.
     [verus_haltGS_of] is this at [emp], which is what every level
     package and the single-level development use; the levelled [FnFml]
     of [typing/fn_inst.v] is the one that fills it. *)
   Definition verus_haltGS_of_lv (hLlft : llft_logicGS Σ)
       (hGS : heapGS (cifOF CON) Σ)
-      (hP : prophG Σ) (hU : uniqG Σ) (n : verus_haltNames) (Wx : iProp Σ)
+      (hEc : ecGS Σ) (hU : uniqG Σ) (n : verus_haltNames) (Wx : iProp Σ)
     : verus_haltGS (cifOF CON) Σ :=
-    VerusHaltGS (cifOF CON) Σ _ hLlft (an_bor n) (an_sinv n) hGS
+    VerusHaltGS (cifOF CON) Σ _ hEc hLlft (an_bor n) (an_sinv n) hGS
       (NaInvGS (cifOF CON) Σ (@sinvGS_pre _ _ (an_sinv n)) _ (an_naInv n))
-      _ hP hU (an_cna n) (an_frac n) _ (an_llctx n) (an_lfts n) _
+      _ hU (an_cna n) (an_frac n) _ (an_llctx n) (an_lfts n) _
       (an_shr n) (an_eternal n) (an_store n) Wx.
 
   Definition verus_haltGS_of (hLlft : llft_logicGS Σ)
       (hGS : heapGS (cifOF CON) Σ)
-      (hP : prophG Σ) (hU : uniqG Σ) (n : verus_haltNames)
+      (hEc : ecGS Σ) (hU : uniqG Σ) (n : verus_haltNames)
     : verus_haltGS (cifOF CON) Σ :=
-    verus_haltGS_of_lv hLlft hGS hP hU n emp.
+    verus_haltGS_of_lv hLlft hGS hEc hU n emp.
 
   (** *** Allocating one level
 
@@ -285,12 +286,12 @@ Section level.
   Lemma verus_halt_names_alloc_lv :
     ⊢ |==> ∃ (hLlft : llft_logicGS Σ) (n : verus_haltNames),
       llft_shared_wits ∗ ∀ (hGS : heapGS (cifOF CON) Σ)
-      (hP : prophG Σ) (hU : uniqG Σ) (Wx : iProp Σ) (Cs : Csem CON JUDG Σ)
+      (hEc : ecGS Σ) (hU : uniqG Σ) (Wx : iProp Σ) (Cs : Csem CON JUDG Σ)
       (Js : Jsem JUDG (iProp Σ))
       (CS : @typingCS CON JUDG Σ _
-        (verus_haltGS_of_lv hLlft hGS hP hU n Wx) _ Cs Js),
+        (verus_haltGS_of_lv hLlft hGS hEc hU n Wx) _ Cs Js),
       @verus_halt_wsat_core_at CON _ JUDG Σ
-        (verus_haltGS_of_lv hLlft hGS hP hU n Wx) _ Cs Js CS.
+        (verus_haltGS_of_lv hLlft hGS hEc hU n Wx) _ Cs Js CS.
   Proof.
     iMod (frac_key_wsat_alloc (K:=llctx)) as (Hllctx) "Wllctx".
     iMod (frac_key_wsat_alloc (K:=gmultiset lft)) as (Hlfts) "Wlfts".
@@ -309,7 +310,7 @@ Section level.
     iExists Hllft,
       (VerusHaltNames Hbor Hsinv γna Hcna Hfrac Hllctx Hlfts shr γe γst).
     iFrame "Wits".
-    iIntros (hGS hP hU Wx Cs Js CS).
+    iIntros (hGS hEc hU Wx Cs Js CS).
     rewrite /verus_halt_wsat_core_at /verus_halt_wsat_core.
     iSplitR "Wcna Wna"; last first.
     { iSplitL "Wcna"; first by iApply "Wcna".
@@ -329,15 +330,15 @@ Section level.
   Lemma verus_halt_names_alloc :
     ⊢ |==> ∃ (hLlft : llft_logicGS Σ) (n : verus_haltNames),
       llft_shared_wits ∗ ∀ (hGS : heapGS (cifOF CON) Σ)
-      (hP : prophG Σ) (hU : uniqG Σ) (Cs : Csem CON JUDG Σ)
+      (hEc : ecGS Σ) (hU : uniqG Σ) (Cs : Csem CON JUDG Σ)
       (Js : Jsem JUDG (iProp Σ))
-      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hP hU n) _ Cs Js),
-      @verus_halt_wsat_core_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hEc hU n) _ Cs Js),
+      @verus_halt_wsat_core_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
         Cs Js CS.
   Proof.
     iMod verus_halt_names_alloc_lv as (hLlft n) "[Wits W]". iModIntro.
     iExists hLlft, n. iFrame "Wits".
-    iIntros (hGS hP hU Cs Js CS). iApply ("W" $! hGS hP hU emp%I Cs Js CS).
+    iIntros (hGS hEc hU Cs Js CS). iApply ("W" $! hGS hEc hU emp%I Cs Js CS).
   Qed.
 
   (** *** Allocating a *further* level
@@ -351,10 +352,10 @@ Section level.
   Lemma verus_halt_names_alloc_more (hLlft : llft_logicGS Σ) :
     llft_shared_wits -∗ |==> ∃ n : verus_haltNames,
       ∀ (hGS : heapGS (cifOF CON) Σ)
-      (hP : prophG Σ) (hU : uniqG Σ) (Cs : Csem CON JUDG Σ)
+      (hEc : ecGS Σ) (hU : uniqG Σ) (Cs : Csem CON JUDG Σ)
       (Js : Jsem JUDG (iProp Σ))
-      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hP hU n) _ Cs Js),
-      @verus_halt_wsat_lvl_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hEc hU n) _ Cs Js),
+      @verus_halt_wsat_lvl_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
         Cs Js CS.
   Proof.
     iIntros "#Wits".
@@ -370,7 +371,7 @@ Section level.
       as (γst) "Wstore".
     iModIntro.
     iExists (VerusHaltNames Hbor Hsinv γna Hcna Hfrac Hllctx Hlfts shr γe γst).
-    iIntros (hGS hP hU Cs Js CS).
+    iIntros (hGS hEc hU Cs Js CS).
     rewrite /verus_halt_wsat_lvl_at /verus_halt_wsat_lvl.
     iSplitR "Wbor Wcna Wna"; last first.
     { iDestruct ("Wbor" $! _ _ _ _) as "[Wbw Wbo]".
@@ -411,13 +412,13 @@ End level.
   this is what lets them differ *by level* rather than only by name. *)
 Section family.
   Context `{!typingC CON} {JUDG Σ}
-    `{!verus_haltGpreS (cifOF CON) Σ, !invGS_gen HasNoLc Σ,
+    `{!verus_haltGpreS (cifOF CON) Σ, !invGS_gen HasLc Σ,
       !typingJ CON JUDG Σ}.
   (** The lifetime logic is *shared*: one [llft_logicGS] for the whole
     run, beside the heap, the prophecies and the unique borrows.  That is
     the thing this file used to get wrong on purpose. *)
   Context (hLlft : llft_logicGS Σ).
-  Context (hGS : heapGS (cifOF CON) Σ) (hP : prophG Σ) (hU : uniqG Σ).
+  Context (hGS : heapGS (cifOF CON) Σ) (hEc : ecGS Σ) (hU : uniqG Σ).
   Implicit Type (j k L : nat).
 
   (** The semantic half of a level, at given names *)
@@ -425,9 +426,9 @@ Section family.
     lvl_Cs : Csem CON JUDG Σ;
     lvl_Js : Jsem JUDG (iProp Σ);
     lvl_CS :
-      @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hP hU n) _ lvl_Cs lvl_Js;
+      @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hEc hU n) _ lvl_Cs lvl_Js;
     lvl_JS :
-      @typingJS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hP hU n) _
+      @typingJS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hEc hU n) _
         lvl_Cs lvl_Js lvl_CS;
   }.
   Arguments lvl_Cs {_} _. Arguments lvl_Js {_} _.
@@ -438,17 +439,17 @@ Section family.
     the top of this file), so it sits beside the family rather than in
     it. *)
   Definition lvl_wsat_core {n} (p : LvlAt n) : iProp Σ :=
-    @verus_halt_wsat_core_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+    @verus_halt_wsat_core_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
       (lvl_Cs p) (lvl_Js p) (lvl_CS p).
 
   (** Its two halves.  [lvl_wsat_shared] is held **once** for the whole
     run - there is one lifetime algebra, one kill order, one minted set
     and one outlives relation - and [lvl_wsat_lvl] once per level. *)
   Definition lvl_wsat_shared {n} (p : LvlAt n) : iProp Σ :=
-    @verus_halt_wsat_shared_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+    @verus_halt_wsat_shared_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
       (lvl_Cs p) (lvl_Js p) (lvl_CS p).
   Definition lvl_wsat_lvl {n} (p : LvlAt n) : iProp Σ :=
-    @verus_halt_wsat_lvl_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+    @verus_halt_wsat_lvl_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
       (lvl_Cs p) (lvl_Js p) (lvl_CS p).
 
   Lemma lvl_wsat_core_split {n} (p : LvlAt n) :
@@ -465,7 +466,7 @@ Section family.
     execution level can open a guard stored there. *)
   Definition verus_halt_shared (P : ∀ k n, LvlAt n) (ns : list verus_haltNames)
     : iProp Σ :=
-    match ns with [] => emp | n0 :: _ => lvl_wsat_shared (P 0 n0) end.
+    match ns with [] => emp | n0 :: _ => lvl_wsat_shared (P 0%nat n0) end.
 
   (** The whole family: the shared half once, and one half per level.
     The list index *is* the execution level. *)
@@ -493,7 +494,7 @@ Section family.
     verus_halt_wsat_below P ns j' ⊣⊢
       verus_halt_wsat_below P ns j ∗
         [∗ list] k ↦ n ∈ drop j (take j' ns),
-          lvl_wsat_lvl (P (length (take j ns) + k) n).
+          lvl_wsat_lvl (P (length (take j ns) + k)%nat n).
   Proof.
     move=> Hle. rewrite /verus_halt_wsat_below.
     rewrite -{1}(take_drop j (take j' ns)) big_sepL_app take_take Nat.min_l //.
@@ -503,7 +504,7 @@ Section family.
   #[export] Instance wsat_incl_verus_halt_below {P ns j j'} (Hle : (j ≤ j')%nat) :
     WsatIncl (verus_halt_wsat_below P ns j') (verus_halt_wsat_below P ns j)
       ([∗ list] k ↦ n ∈ drop j (take j' ns),
-         lvl_wsat_lvl (P (length (take j ns) + k) n)) :=
+         lvl_wsat_lvl (P (length (take j ns) + k)%nat n)) :=
     verus_halt_wsat_below_le Hle.
 
   (** A full run of top level [length ns] is [verus_halt_wsat_below P ns
@@ -562,14 +563,14 @@ Section family.
     [typing/levels.v] makes abstractly, now at the port's own state. *)
   Definition names_wsat n : iProp Σ :=
     ∀ (Cs : Csem CON JUDG Σ) (Js : Jsem JUDG (iProp Σ))
-      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hP hU n) _ Cs Js),
-      @verus_halt_wsat_core_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hEc hU n) _ Cs Js),
+      @verus_halt_wsat_core_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
         Cs Js CS.
 
   Definition names_wsat_lvl n : iProp Σ :=
     ∀ (Cs : Csem CON JUDG Σ) (Js : Jsem JUDG (iProp Σ))
-      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hP hU n) _ Cs Js),
-      @verus_halt_wsat_lvl_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hP hU n) _
+      (CS : @typingCS CON JUDG Σ _ (verus_haltGS_of hLlft hGS hEc hU n) _ Cs Js),
+      @verus_halt_wsat_lvl_at CON _ JUDG Σ (verus_haltGS_of hLlft hGS hEc hU n) _
         Cs Js CS.
 
   Lemma names_wsat_lvl_of {n} (p : LvlAt n) :
@@ -604,9 +605,9 @@ Arguments lvl_wsat_lvl {_ _ _ _ _ _ _ _ _ _ _ _} _.
   it, and the rest with [verus_halt_names_alloc_more], which does not. *)
 Section alloc_family.
   Context `{!typingC CON} {JUDG Σ}
-    `{!verus_haltGpreS (cifOF CON) Σ, !invGS_gen HasNoLc Σ,
+    `{!verus_haltGpreS (cifOF CON) Σ, !invGS_gen HasLc Σ,
       !typingJ CON JUDG Σ}.
-  Context (hGS : heapGS (cifOF CON) Σ) (hP : prophG Σ) (hU : uniqG Σ).
+  Context (hGS : heapGS (cifOF CON) Σ) (hEc : ecGS Σ) (hU : uniqG Σ).
 
   (** [L] further levels against one lifetime logic.  The induction is
     on [L] alone, with [hLlft] and its witnesses fixed outside it -
@@ -614,7 +615,7 @@ Section alloc_family.
     every step, which is the very thing being removed. *)
   Lemma verus_halt_names_more_list_alloc (hLlft : llft_logicGS Σ) L :
     llft_shared_wits -∗ |==> ∃ ns : list verus_haltNames, ⌜length ns = L⌝ ∗
-      [∗ list] n ∈ ns, names_wsat_lvl hLlft hGS hP hU n.
+      [∗ list] n ∈ ns, names_wsat_lvl hLlft hGS hEc hU n.
   Proof.
     induction L as [|L IH].
     { iIntros "_ !>". iExists []. iSplitR; [done|]. by rewrite big_sepL_nil. }
@@ -629,8 +630,8 @@ Section alloc_family.
   Lemma verus_halt_names_list_alloc L :
     ⊢ |==> ∃ (hLlft : llft_logicGS Σ) (n0 : verus_haltNames)
       (ns : list verus_haltNames), ⌜length ns = L⌝ ∗
-      names_wsat hLlft hGS hP hU n0 ∗
-      [∗ list] n ∈ ns, names_wsat_lvl hLlft hGS hP hU n.
+      names_wsat hLlft hGS hEc hU n0 ∗
+      [∗ list] n ∈ ns, names_wsat_lvl hLlft hGS hEc hU n.
   Proof.
     iMod verus_halt_names_alloc as (hLlft n0) "[#Wits W0]".
     iMod (verus_halt_names_more_list_alloc hLlft L with "Wits")
@@ -642,14 +643,14 @@ Section alloc_family.
   Lemma verus_halt_wsats_alloc L :
     ⊢ |==> ∃ (hLlft : llft_logicGS Σ) (ns : list verus_haltNames),
       ⌜length ns = S L⌝ ∗
-      ∀ P : ∀ k n, LvlAt hLlft hGS hP hU n,
-        verus_halt_wsats hLlft hGS hP hU P ns.
+      ∀ P : ∀ k n, LvlAt hLlft hGS hEc hU n,
+        verus_halt_wsats hLlft hGS hEc hU P ns.
   Proof.
     iMod (verus_halt_names_list_alloc L) as (hLlft n0 ns Hlen) "[W0 Wns]".
     iModIntro. iExists hLlft, (n0 :: ns).
     iSplitR; [iPureIntro; by rewrite /= Hlen|]. iIntros (P).
     rewrite /verus_halt_wsats /verus_halt_shared big_sepL_cons.
-    iDestruct (names_wsat_split hLlft hGS hP hU (P 0 n0) with "W0")
+    iDestruct (names_wsat_split hLlft hGS hEc hU (P 0%nat n0) with "W0")
       as "[$ $]".
     iApply (big_sepL_impl with "Wns"). iIntros "!>" (k n _) "W".
     by iApply names_wsat_lvl_of.
@@ -679,37 +680,32 @@ Section lv_wp.
     at another [invGS_gen] is a different proposition, and the world
     satisfactions here and the weakest precondition have to agree on it. *)
   Context `{!typingC CON} {JUDG Σ}
-    `{!verus_haltGpreS (cifOF CON) Σ, !iris'GS_gen HasNoLc Λ Σ,
+    `{!verus_haltGpreS (cifOF CON) Σ, !erisWpGS' Λ Σ,
       !typingJ CON JUDG Σ}.
   Context {hLlft : llft_logicGS Σ}
-    {hGS : heapGS (cifOF CON) Σ} {hP : prophG Σ} {hU : uniqG Σ}.
+    {hGS : heapGS (cifOF CON) Σ} {hEc : ecGS Σ} {hU : uniqG Σ}.
   Implicit Type j : nat.
 
   Lemma verus_halt_wsat_below_acsr {P ns j j'} (Hle : (j ≤ j')%nat) {E} :
-    ⊢ □ (verus_halt_wsat_below hLlft hGS hP hU P ns j' ={E}=∗
-         verus_halt_wsat_below hLlft hGS hP hU P ns j ∗
-         (verus_halt_wsat_below hLlft hGS hP hU P ns j ={E}=∗
-            verus_halt_wsat_below hLlft hGS hP hU P ns j')).
+    ⊢ □ (verus_halt_wsat_below hLlft hGS hEc hU P ns j' ={E}=∗
+         verus_halt_wsat_below hLlft hGS hEc hU P ns j ∗
+         (verus_halt_wsat_below hLlft hGS hEc hU P ns j ={E}=∗
+            verus_halt_wsat_below hLlft hGS hEc hU P ns j')).
   Proof.
-    iIntros "!>". rewrite (verus_halt_wsat_below_le hLlft hGS hP hU (P:=P) (ns:=ns) Hle).
+    iIntros "!>". rewrite (verus_halt_wsat_below_le hLlft hGS hEc hU (P:=P) (ns:=ns) Hle).
     iIntros "[W Wr]". iModIntro. iFrame "W". iIntros "W !>". iFrame.
   Qed.
 
   Lemma twpw_verus_halt_le {P ns j j'} (Hle : (j ≤ j')%nat) {s E e Φ} :
-    WP[verus_halt_wsat_below hLlft hGS hP hU P ns j] e @ s; E [{ Φ }] ⊢
-    WP[verus_halt_wsat_below hLlft hGS hP hU P ns j'] e @ s; E [{ Φ }].
+    WP[verus_halt_wsat_below hLlft hGS hEc hU P ns j] e @ s; E [{ Φ }] ⊢
+    WP[verus_halt_wsat_below hLlft hGS hEc hU P ns j'] e @ s; E [{ Φ }].
   Proof.
     iIntros "twp". iApply (tgl_wpw_incl_fupd (E:=E) with "[] twp"); [done|].
     iApply (verus_halt_wsat_below_acsr Hle).
   Qed.
 
-  Lemma wpw_verus_halt_le {P ns j j'} (Hle : (j ≤ j')%nat) {s E e Φ} :
-    WP[verus_halt_wsat_below hLlft hGS hP hU P ns j] e @ s; E {{ Φ }} ⊢
-    WP[verus_halt_wsat_below hLlft hGS hP hU P ns j'] e @ s; E {{ Φ }}.
-  Proof.
-    iIntros "wp". iApply (wpw_incl_fupd (E:=E) with "[] wp"); [done|].
-    iApply (verus_halt_wsat_below_acsr Hle).
-  Qed.
+  (** Nola has a second copy of this for its partial [WP]; the total
+    stack has only [tgl_wp], so there is nothing to state twice. *)
 End lv_wp.
 
 (** ** [ty-lev] for the *judgment*
@@ -730,15 +726,15 @@ Section lv_body.
     `{!verus_haltGpreS (cifOF CON) Σ, !typingJ CON JUDG Σ}.
   Context `{!typeG (cifOF CON) Σ}.
   Context {hLlft : llft_logicGS Σ} {hGS : heapGS (cifOF CON) Σ}
-    {hP : prophG Σ} {hU : uniqG Σ}.
+    {hEc : ecGS Σ} {hU : uniqG Σ}.
 
   (** The judgment at execution level [j]: its world satisfaction
     mentions only the levels below [j], which is the whole point - it is
     what lets [fn]'s interpretation be given without a cycle. *)
-  Definition typed_body_lv {𝔄l 𝔅} (P : ∀ k n, LvlAt hLlft hGS hP hU n)
+  Definition typed_body_lv {𝔄l 𝔅} (P : ∀ k n, LvlAt hLlft hGS hEc hU n)
       (ns : list verus_haltNames) (j : nat) :=
     typed_body_at (𝔄l:=𝔄l) (𝔅:=𝔅)
-      (verus_halt_wsat_below hLlft hGS hP hU P ns j ∗ send_wsat).
+      (verus_halt_wsat_below hLlft hGS hEc hU P ns j ∗ send_wsat).
 
   Lemma typed_body_lv_le {𝔄l 𝔅} {P ns j j'} (Hle : (j ≤ j')%nat)
       E L I C T e tr :
@@ -746,12 +742,14 @@ Section lv_body.
     typed_body_lv (𝔄l:=𝔄l) (𝔅:=𝔅) P ns j' E L I C T e tr.
   Proof.
     rewrite /typed_body_lv. iApply typed_body_at_wsat. iIntros "!> [W $]".
-    rewrite (verus_halt_wsat_below_le hLlft hGS hP hU (P:=P) (ns:=ns) Hle).
+    rewrite (verus_halt_wsat_below_le hLlft hGS hEc hU (P:=P) (ns:=ns) Hle).
     iDestruct "W" as "[W Wr]". iFrame "W". iIntros "!> [W $] !>". iFrame.
   Qed.
 End lv_body.
 
-(** [Eq_rect_eq] and nothing else, as the rest of the port. *)
+(** [Eq_rect_eq] plus the classical axioms the real numbers come with -
+  eris's error credits are [R]-valued, so [Classical_Prop.classic] and
+  friends reach every file in the total stack.  Nothing else. *)
 Print Assumptions verus_halt_names_alloc.
 Print Assumptions typed_body_lv_le.
 Print Assumptions verus_halt_wsats_alloc.

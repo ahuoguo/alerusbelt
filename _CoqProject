@@ -146,6 +146,7 @@ src/lambda_verus/typing_total/type_sum.v
 src/lambda_verus/typing_total/atomic_inv.v
 src/lambda_verus/typing_total/model.v
 src/lambda_verus/typing_total/model_inst.v
+src/lambda_verus/typing_total/level_ctx.v
 
 # Type-specs
 

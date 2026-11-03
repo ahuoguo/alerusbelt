@@ -37,6 +37,16 @@ Class lrustTotGpreS (FML : oFunctor) (Σ : gFunctors) : Type := LRustTotGpreS {
   #[global] lrustTotGpreS_ec :: ecGpreS Σ;
 }.
 
+(** Nola's [lrustΣ], plus [ecΣ] for eris's error credits. *)
+Definition lrustTotΣ FML `{!oFunctorContractive FML} : gFunctors :=
+  #[invΣ; na_invΣ; alc_logicΣ;
+    GFunctor (constRF (authR total_heap.heapUR));
+    GFunctor (constRF (authR total_heap.heap_freeableUR));
+    na_logicΣ loc val FML; ecΣ].
+Global Instance subG_lrustTotGpreS {FML Σ} `{!oFunctorContractive FML} :
+  subG (lrustTotΣ FML) Σ → lrustTotGpreS FML Σ.
+Proof. solve_inG. Qed.
+
 (** Allocate the heap on the empty state, with the interpretation left
     open; Nola's [heap_init]. *)
 Lemma total_heap_init `{!lrustTotGpreS FML Σ, !invGS_gen HasLc Σ} :
