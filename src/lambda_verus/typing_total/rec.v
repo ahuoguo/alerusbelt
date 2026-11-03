@@ -974,7 +974,7 @@ Section tyd.
     interpretations: [resolve] is a statement about the *ambient* one, and
     nothing in the induction asks for more. *)
   Definition tyd_resolve_at {𝔄} (E : elctx) (L : llctx) (T : tydata 𝔄)
-      (Φ : ~~𝔄 → proph_asn → Prop) (d : nat) : Prop :=
+      (Φ : ~~𝔄 → Prop) (d : nat) : Prop :=
     ∀ γ q F x g tid, Nverus_haltE ⊆ F →
       llft_ctx -∗ uniq_ctx -∗ elctx_interp E -∗ Ltok γ L q -∗
       bor_sem (tyd_ghox T x d g tid) =[verus_halt_wsat]{F}=∗
@@ -985,7 +985,7 @@ Section tyd.
     is [tyd_incl_lt]'s counterpart, and it is a plain [Prop] because
     [tyd_resolve_at] is. *)
   Definition tyd_resolve_lt {𝔄} (E : elctx) (L : llctx) (T : tydata 𝔄)
-      (Φ : ~~𝔄 → proph_asn → Prop) (d : nat) : Prop :=
+      (Φ : ~~𝔄 → Prop) (d : nat) : Prop :=
     ∀ d', (d' < d)%nat → tyd_resolve_at E L T Φ d'.
 
   (** It transports along a pointwise equivalence of the ghost data, which

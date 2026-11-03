@@ -165,7 +165,7 @@ Section Storable.
   Proof.
     apply typed_instr_of_skip_own_own_t; [done|done|].
     move=> l1 x1 d tid iκs post mask.
-    iIntros "_ _ _ _ L I gho Obs $ !>". iExists d, (x1, (d, S d)).
+    iIntros "_ _ _ L I gho Obs $ !>". iExists d, (x1, (d, S d)).
     iFrame "L I". rewrite storable_ty_gho /=. iFrame "gho".
     iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=> Ha. apply Ha.
   Qed.
@@ -179,7 +179,7 @@ Section Storable.
   Proof.
     apply typed_instr_of_skip_own_own_t; [done|done|].
     move=> l1 [x0 [d0 g0]] d tid iκs post mask.
-    iIntros "_ _ _ _ L I gho Obs $ !>". iExists (d0 `max` g0), x0.
+    iIntros "_ _ _ L I gho Obs $ !>". iExists (Nat.max d0 g0), x0.
     iFrame "L I". rewrite storable_ty_gho /= tracked_ty_gho. iSplitL "gho".
     { iApply (ty_gho_depth_mono with "gho"); lia. }
     iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=> Ha. apply Ha.
@@ -201,7 +201,7 @@ Section Storable.
   Proof.
     move=> Alv. apply typed_instr_of_skip.
     move=> [l [x0 [d0 g0]]] v d tid post mask iκs.
-    iIntros "_ _ _ #E L I %Hp [gho %Hphys] #Obs W".
+    iIntros "_ _ #E L I %Hp [gho %Hphys] #Obs W".
     iDestruct (shr_bor_gho_elim with "gho") as (dd gg Hdd Hgg)
       "#(cells & g & _)". simpl.
     iDestruct (Alv with "L E") as "#Alv".
@@ -215,9 +215,9 @@ Section Storable.
     iMod (store_ty_gho_pers ty x0 d0 g0 tid with "pers Wg") as "[Wg #St]".
     iDestruct (wsat_join (W:=verus_halt_wsat) with "Wg Wr") as "W".
     iModIntro. iFrame "W L I". iExists -[(l, x0)]. iSplitL.
-    - iSplitL; [|done]. iExists v, (S (d0 `max` g0)). iSplit; [done|]. iSplitR; [|done].
+    - iSplitL; [|done]. iExists v, (S (Nat.max d0 g0)). iSplit; [done|]. iSplitR; [|done].
       iApply (shr_bor_gho_intro_st κ (tracked_ty ty) (l, x0)
-        (S (d0 `max` g0)) (S (d0 `max` g0)) d0 g0 tid); [lia|lia| | |].
+        (S (Nat.max d0 g0)) (S (Nat.max d0 g0)) d0 g0 tid); [lia|lia| | |].
       + iExact "cells".
       + iExact "g".
       + iExact "St".
@@ -897,10 +897,10 @@ Section StorageProtocol.
     iModIntro. iFrame "W".
     iApply (twp_new 0); [lia|done|]. iIntros (l) "(† & ↦)".
     iExists -[((l, []), s)]. iFrame "L". iSplitL.
-    - iSplitL; [|done]. iExists _, (S (dd `max` gg)); iSplitR=>//=.
+    - iSplitL; [|done]. iExists _, (S (Nat.max dd gg)); iSplitR=>//=.
       iSplitR; [|done].
       iApply (shr_bor_gho_intro_st κ (tracked_ty (ty_of_gt tyC)) ((l, []), s)
-        (S (dd `max` gg)) (S (dd `max` gg)) dd gg); [lia|lia| | |].
+        (S (Nat.max dd gg)) (S (Nat.max dd gg)) dd gg); [lia|lia| | |].
       + iApply dguard_cells_nil.
       + iApply "gC".
       + iApply "St".
@@ -956,10 +956,10 @@ Section StorageProtocol.
     iModIntro. iFrame "W".
     iApply (twp_new 0); [lia|done|]. iIntros (l) "(† & ↦)".
     iExists -[((l, []), (γ, x2))]. iFrame "L". iSplitL.
-    - iSplitL; [|done]. iExists _, (S (dd `max` gg)); iSplitR=>//=.
+    - iSplitL; [|done]. iExists _, (S (Nat.max dd gg)); iSplitR=>//=.
       iSplitR; [|done].
       iApply (shr_bor_gho_intro_st κ storage_resource_ty ((l, []), (γ, x2))
-        (S (dd `max` gg)) (S (dd `max` gg)) dd gg); [lia|lia| | |].
+        (S (Nat.max dd gg)) (S (Nat.max dd gg)) dd gg); [lia|lia| | |].
       + iApply dguard_cells_nil.
       + iApply "gw".
       + iApply "St".
@@ -1028,10 +1028,10 @@ Section StorageProtocol.
     iModIntro. iFrame "W".
     iApply (twp_new 0); [lia|done|]. iIntros (l) "(† & ↦)".
     iExists -[((l, []), (γ1, y))]. iFrame "L". iSplitL.
-    - iSplitL; [|done]. iExists _, (S (dd1 `max` gg1)); iSplitR=>//=.
+    - iSplitL; [|done]. iExists _, (S (Nat.max dd1 gg1)); iSplitR=>//=.
       iSplitR; [|done].
       iApply (shr_bor_gho_intro_st κ storage_resource_ty ((l, []), (γ1, y))
-        (S (dd1 `max` gg1)) (S (dd1 `max` gg1)) dd1 gg1); [lia|lia| | |].
+        (S (Nat.max dd1 gg1)) (S (Nat.max dd1 gg1)) dd1 gg1); [lia|lia| | |].
       + iApply dguard_cells_nil.
       + iApply "gy".
       + iApply "St".

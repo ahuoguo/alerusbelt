@@ -55,7 +55,6 @@ Proof.
 Qed.
 
 (** [subst_plv_renew] is gone: [typing/] does not have it. *)
-
 Definition boxl (𝔄l: syn_typel) : syn_typel := (fmap at_locₛ 𝔄l).
 Notation fn_spec 𝔄l 𝔅 ℭ := ((~~ℭ) → predl_trans' (boxl 𝔄l) (at_locₛ 𝔅)).
 
@@ -79,7 +78,6 @@ Section fn.
     fp.(fp_oty).(ty_E) ++ ty_outlives_E fp.(fp_oty) ϝ.
 
   (** [fp_E_ne] is gone: [typing/] does not have it. *)
-
   Lemma elctx_sat_fp_E (fp: fn_params) ϝ ϝ' L :
     fp_E_ex fp = const [] →
     elctx_sat (ϝ' ⊑ₑ ϝ :: fp_E fp ϝ) L (fp_E fp ϝ').
@@ -434,11 +432,11 @@ Section fn.
     iIntros "(%fb & %kb & %bl & %e & %H & %Hrec & #body)".
     iExists fb, kb, bl, e, H. iSplit; [done|].
     iIntros "!>" (y ϝ k wl). rewrite /typed_body /typed_body_at.
-    iIntros (tid' xl mask post iκs) "A B C D E F G H2 I".
+    iIntros (tid' xl mask post iκs) "A B C D E F G H2".
     iApply (tgl_wpw_incl_fupd (E:=∅) (W:=verus_halt_wsat)
       (W':=fn_wsat_lv j)); [set_solver| |].
     { rewrite fn_wsat_top. by iApply fn_wsat_lv_acc. }
-    by iApply ("body" with "A B C D E F G H2 I").
+    by iApply ("body" with "A B C D E F G H2").
   Qed.
 
   (** Introduction.  The premise is a Coq-level entailment, which is
@@ -491,7 +489,51 @@ Section typing.
   Context `{!typeG FML Σ} `{FnFml0 : !FnFml}.
 
   (*
-  (** [fn_type_contractive] is gone: [typing/] does not have it. *)
+  Global Instance fn_type_contractive {A 𝔄l 𝔅 ℭ} E
+         (IT: A → type ℭ → typel 𝔄l) (OT: A → type ℭ → type 𝔅) :
+    (∀x, ListTypeNonExpansive (IT x)) → (∀x, TypeNonExpansive (OT x)) →
+    TypeContractive (λ ty, fn (λ x, FP (E x) (IT x ty) (OT x ty))).
+  Proof.
+    move=> NeIT NeOT.
+    have Eq: (∀n ty ty', ty.(ty_size) = ty'.(ty_size) → (⊢ ty_lft ty ≡ₗ ty_lft ty') →
+      elctx_interp ty.(ty_E) ≡ elctx_interp ty'.(ty_E) →
+      (∀vπ d tid vl, dist_later n (ty.(ty_own) vπ d tid vl) (ty'.(ty_own) vπ d tid vl)) →
+      (∀vπ d κ tid l, (ty.(ty_shr) vπ d κ tid l) ≡{n}≡ (ty'.(ty_shr) vπ d κ tid l)) →
+      ∀vπ vl,
+        (fn (λ x, FP (E x) (IT x ty) (OT x ty))).(ty_own) vπ 0 xH vl ≡{n}≡
+        (fn (λ x, FP (E x) (IT x ty') (OT x ty'))).(ty_own) vπ 0 xH vl); last first.
+    { split; [|done| |].
+      - apply (type_lft_morphism_const _ static [])=>//= ?. apply lft_equiv_refl.
+      - move=> *. by apply Eq.
+      - move=>/= n *. apply bi.exist_ne=> ?. apply bi.sep_ne; [done|].
+        apply uPred_primitive.later_contractive. destruct n=>/=; [done|by apply Eq]. }
+    move=>/= n ty ty' *. apply bi.exist_ne=> ?. apply bi.sep_ne; [done|].
+    do 5 apply bi.exist_ne=> ?. f_equiv. f_contractive. (do 2 f_equiv)=> x.
+    (do 5 f_equiv)=> wl. rewrite /typed_body /typed_body_at. (do 3 f_equiv)=> aπl. do 2 f_equiv.
+    have EqBox: ∀𝔄 (T: type ℭ → type 𝔄), TypeNonExpansive T → ∀vπ d tid vl,
+      (own.box (T ty)).(ty_own) vπ d tid vl ≡{n}≡ (own.box (T ty')).(ty_own) vπ d tid vl.
+    { move=> ?? Ne. apply box_type_contractive=> *.
+      - by apply Ne.
+      - by iApply type_lft_morphism_lft_equiv_proper.
+      - apply type_lft_morphism_elctx_interp_proper=>//. apply _.
+      - apply dist_dist_later. by apply Ne.
+      - apply dist_S. by apply Ne. }
+    move: (NeIT x)=> [?[->NeITl]]. do 5 f_equiv; [|do 3 f_equiv; [|f_equiv]].
+    - apply equiv_dist. rewrite /fp_E /= !elctx_interp_app.
+      do 2 f_equiv; [|f_equiv; [|f_equiv]].
+      + elim: NeITl; [done|]=> ????? _ ?. rewrite /tyl_E /= !elctx_interp_app.
+        f_equiv; [|done]. apply type_lft_morphism_elctx_interp_proper=>//. apply _.
+      + elim: NeITl; [done|]=> ????? _ ?. rewrite /tyl_outlives_E /= !elctx_interp_app.
+        f_equiv; [|done]. rewrite !elctx_interp_ty_outlives_E.
+        apply lft_incl_equiv_proper_r. by iApply type_lft_morphism_lft_equiv_proper.
+      + apply type_lft_morphism_elctx_interp_proper=>//. apply _.
+      + rewrite !elctx_interp_ty_outlives_E. apply lft_incl_equiv_proper_r.
+        by iApply type_lft_morphism_lft_equiv_proper.
+    - rewrite !cctx_interp_singleton /cctx_elt_interp. do 3 f_equiv. case=>/= ??.
+      do 4 f_equiv. rewrite /tctx_elt_interp. do 6 f_equiv. by apply EqBox.
+    - clear -NeITl EqBox. induction NeITl, wl, aπl; [done|]=>/=.
+      f_equiv; [|done]. rewrite /tctx_elt_interp. do 6 f_equiv. by apply EqBox.
+  Qed. *)
 
   Global Instance fn_sync {A 𝔄l 𝔅 ℭ} j (fp: A → fn_params 𝔄l 𝔅) (spec: fn_spec 𝔄l 𝔅 ℭ) : Sync (fn j fp spec).
   Proof. move=> *. by split. Qed.
@@ -512,11 +554,7 @@ Section typing.
   Qed.
   
   (** [fn_map] is gone: [typing/] does not have it. *)
-  Next Obligation. done. Qed.
-  Next Obligation. done. Qed.
-  
   (** [plist_boxl_map] is gone: [typing/] does not have it. *)
-
   (*
   (** [fn_subtype] is gone: [typing/] does not have it. *)
   *)
@@ -547,7 +585,7 @@ Section typing.
     iIntros ([p pl'][??]vl) "/= [p pl'] ToWp".
     have ->: App f (of_val r :: map of_val vl ++ p :: pl') =
       fill_item (AppRCtx f (r :: vl) pl') p by done.
-    iApply twp_bind. iApply (twp_hasty with "p"). iIntros (w ? _) "p".
+    iApply tgl_wp_bind. iApply (twp_hasty with "p"). iIntros (w ? _) "p".
     have ->: fill_item (AppRCtx f (r :: vl) pl') w =
       App f (of_val r :: map of_val (vl ++ [w]) ++ pl') by rewrite map_app -assoc.
     iApply (IH with "pl'"). iIntros (?) "pl'". rewrite -assoc.
@@ -590,7 +628,7 @@ Section typing.
     a [Skip] is a plain update over the world satisfaction. *)
   Lemma type_call_iris' {A 𝔄l 𝔅 ℭ} L κl x j (fp: A → fn_params 𝔄l 𝔅)
       (spec: fn_spec 𝔄l 𝔅 ℭ) p ql ql' (k: expr) E xl efun tid
-        (post: ~~ (at_locₛ 𝔅) → (Mask → (proph_asn → Prop)))
+        (post: ~~ (at_locₛ 𝔅) → Mask → Prop)
         (mask: Mask) Il ϝ' iκs γ q :
     (j ≤ fn_lv_top)%nat →
     AsVal k → IntoPlistc ql ql' →
@@ -705,16 +743,19 @@ Section typing.
   Lemma type_main_body {𝔅} (main : val) c :
     typed_val main main_type c →
     ⊢ typed_body [] [] (InvCtx [] static AtomicClosed) ([] : cctx 𝔅) +[]
-        (main [exit_cont]%E) (λ _ _ _ _, True%type).
+        (main [exit_cont]%E) (λ _ _ _, True%type).
   Proof.
     move=> Hmain. rewrite /typed_body /typed_body_at.
     iIntros (tid xl mask post iκs) "#LFT #UNIQ #E L ii C T Obs".
-    twp_bind (of_val main).
+    (* [reshape_expr] offers no context for the function position when it
+       is already a value, so [twp_bind (of_val main)] cannot find it; the
+       context is given explicitly instead. *)
+    iApply (tgl_wp_bind (fill [AppLCtx [of_val exit_cont]])).
     iApply (tgl_wp_wand with "[L ii T]").
     { iApply (Hmain [] [] (InvCtx [] static AtomicClosed) tid
-        (λ _ _ _, True%type) mask iκs with
+        (λ _ _, True%type) mask iκs with
         "LFT UNIQ E L ii T []").
-      by iApply proph_obs_true. }
+      by iPureIntro. }
     iIntros (v) "(%xl' & L & ii & T & _)".
     destruct xl' as [x []].
     iDestruct "T" as "[mainty _]".
@@ -733,21 +774,19 @@ Section typing.
       with "[] [] ii") as (iκs') "[ii' iiback]".
     { iApply lft_incl_static. }
     { simpl. iApply lft_incl_static. }
-    iApply ("body" $! () ϝ exit_cont -[] tid -[] mask (λ _ _ _, True%type) iκs'
-      with "LFT UNIQ [] [ϝtok] ii' [] [] []").
-    - by rewrite /elctx_interp /=.
-    - iSplitL; [|done]. iExists _. iSplit; [by rewrite/= left_id|].
-      by iFrame "ϝtok".
-    - rewrite cctx_interp_singleton /cctx_elt_interp.
-      iIntros (vl xl' mask') "_ _ _ _". inv_vec vl=> ret.
-      rewrite /exit_cont /=. twp_lam. by rewrite /cont_postcondition.
-    - done.
-    - by iApply proph_obs_true.
-    Unshelve. exact -[].
+    iApply ("body" $! () ϝ exit_cont -[] tid -[] mask (λ _ _, True%type) iκs'
+      with "LFT UNIQ [] [ϝtok] ii' [] [] []");
+      [by rewrite /elctx_interp /=
+      |iSplitL; [|done]; iExists _; (iSplit; [by rewrite/= left_id|]);
+         by iFrame "ϝtok"
+      |rewrite cctx_interp_singleton /cctx_elt_interp;
+         iIntros (vl xl' mask') "_ _ _ _"; inv_vec vl=> ret;
+         rewrite /exit_cont /=; twp_lam; by rewrite /cont_postcondition
+      |done
+      |by iPureIntro].
   Qed.
 
   (** [type_call_iris] is gone: [typing/] does not have it. *)
-
   Lemma type_call {A 𝔄l 𝔅 ℭl 𝔇l 𝔈l 𝔉 ℭ} x j (fp: A → fn_params 𝔄l 𝔅) (spec: fn_spec 𝔄l 𝔅 ℭ) p ql ql' k trx
       trk tri E L (C: cctx 𝔉) Il ϝ' (T: tctx ℭl) (T': tctx 𝔇l) (Tk: vec val 1 → tctx 𝔈l) :
     (j ≤ fn_lv_top)%nat →
@@ -778,7 +817,7 @@ Section typing.
       iApply (guard_trans with "[] []").
       - iApply (Ltok_guard_frac_at Hs with "key").
       - iApply ("AlvAll" $! sem with "[//]"). }
-    { iApply proph_obs_eq; [|done]=>/= ?. by rewrite papp_sepl papp_sepr. }
+    { iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs; by rewrite papp_sepl papp_sepr. }
     iIntros (ret mask' ?) "tok I ret Obs".
     iApply fupdw_tgl_wpw_cont. iIntros "W".
     iMod (proj2 (InTk _) _ _ _ (_-::_) with
@@ -1101,4 +1140,3 @@ End fn_flat.
 Ltac simpl_fp_E := rewrite /fp_E /ty_outlives_E /=.
 
 Global Hint Resolve elctx_sat_fp_E : lrust_typing.
-Global Hint Resolve (* *) : lrust_typing.

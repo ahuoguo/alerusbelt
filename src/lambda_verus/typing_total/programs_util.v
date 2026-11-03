@@ -101,7 +101,7 @@ Section programs_util.
     iDestruct "T1" as (v1 d1) "(p1 & own1)".
     iDestruct "T2" as (v2 d2) "(p2 & own2)".
     iApply tgl_wpw_fupdw_nonval; [done|]. do 3 twp_seq. iIntros "W".
-    iMod (Hvs x1 x2 v1 v2 (d1 `max` d2) tid post
+    iMod (Hvs x1 x2 v1 v2 (Nat.max d1 d2) tid post
       with "CTX UNIQ E L p1 [own1] p2 [own2] Obs W") as "[$ J]".
     { iDestruct "own1" as "[gho phys]". iFrame.
       iDestruct (ty_gho_depth_mono with "gho") as "gho";
@@ -133,7 +133,7 @@ Section programs_util.
     iDestruct "T1" as (v1 d1) "(p1 & own1)".
     iDestruct "T2" as (v2 d2) "(p2 & own2)".
     iApply tgl_wpw_fupdw_nonval; [done|]. do 3 twp_seq. iIntros "W".
-    iMod (Hvs x1 x2 v1 v2 (d1 `max` d2) tid post
+    iMod (Hvs x1 x2 v1 v2 (Nat.max d1 d2) tid post
       with "CTX UNIQ E L I p1 [own1] p2 [own2] Obs W") as "[$ J]".
     { iDestruct "own1" as "[gho phys]". iFrame.
       iDestruct (ty_gho_depth_mono with "gho") as "gho";

@@ -138,6 +138,8 @@ src/lambda_verus/typing_total/borrow.v
 src/lambda_verus/typing_total/local_inv.v
 src/lambda_verus/typing_total/ra.v
 src/lambda_verus/typing_total/pcell.v
+src/lambda_verus/typing_total/product_split.v
+src/lambda_verus/typing_total/function.v
 
 # Type-specs
 

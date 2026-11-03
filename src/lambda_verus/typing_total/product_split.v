@@ -205,7 +205,7 @@ Section product_split.
       +[p +ₗ #0 ◁ own_ptr n ty; p +ₗ #ty.(ty_size) ◁ own_ptr n ty']
       (λ post '-[(l, (a, b))], post -[(l, a); (l +ₗ ty.(ty_size), b)]).
   Proof.
-    split. { move=> ?? Eq [[?[??]][]] ??. by rewrite Eq. }
+    split. { move=> ?? Eq [[?[??]][]] ?. by rewrite Eq. }
     move=> γ q tid [[l [x y]][]] mask post.
     iIntros "#LFT #UNIQ #E tok [T _] #Obs W".
     iDestruct "T" as (v d) "[%path [gho %phys]]".
@@ -217,7 +217,7 @@ Section product_split.
     iDestruct "pt" as "[pt pt']". iDestruct "free" as "[free free']".
     inversion phys. subst v. iModIntro. iFrame "W tok".
     iExists -[(l, x); (l +ₗ ty.(ty_size), y)]. iSplit; last first.
-    { iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs. done. }
+    { iDestruct "Obs" as %Hobs; iPureIntro; exact Hobs. }
     iSplitL "pt free gho1".
     { iExists #l, (S d'). iSplit.
       { iPureIntro. by rewrite /= path shift_loc_0. }
@@ -236,7 +236,7 @@ Section product_split.
     eapply tctx_incl_ext;
       [eapply tctx_incl_trans; [apply tctx_of_shift_loc_0|]
       |by move=> *; apply (iff_refl _)].
-    split. { move=> ?? Eq [[??][[??][]]] ??. by setoid_rewrite Eq. }
+    split. { move=> ?? Eq [[??][[??][]]] ?. by setoid_rewrite Eq. }
     move=> γ q tid [[lx x][[ly y][]]] mask post.
     iIntros "#LFT #UNIQ #E tok [T1 [T2 _]] #Obs W".
     iDestruct "T1" as (v1 d1) "[%path1 [gho1 %phys1]]".
@@ -252,11 +252,11 @@ Section product_split.
     iModIntro. iFrame "W tok". iExists -[(lx, (x, y))]. iSplit; last first.
     { iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=> Ha. by apply Ha. }
     iSplit; [|done].
-    iExists #lx, (S d1' `max` S d2'). iSplit; [done|].
-    iDestruct (ty_gho_depth_mono ty d1' (S d1') (d1' `max` d2')
-      (S d1' `max` S d2') x tid with "gho1") as "gho1"; [lia|lia|].
-    iDestruct (ty_gho_depth_mono ty' d2' (S d2') (d1' `max` d2')
-      (S d1' `max` S d2') y tid with "gho2") as "gho2"; [lia|lia|].
+    iExists #lx, (Nat.max (S d1') (S d2')). iSplit; [done|].
+    iDestruct (ty_gho_depth_mono ty d1' (S d1') (Nat.max d1' d2')
+      (Nat.max (S d1') (S d2')) x tid with "gho1") as "gho1"; [lia|lia|].
+    iDestruct (ty_gho_depth_mono ty' d2' (S d2') (Nat.max d1' d2')
+      (Nat.max (S d1') (S d2')) y tid with "gho2") as "gho2"; [lia|lia|].
     rewrite /ty_own own_ptr_gho /= prod_ty_gho /=.
     iFrame "gho1 gho2".
     rewrite heap_mapsto_fancy_vec_app -freeable_sz_split ty_size_eq.
@@ -288,7 +288,7 @@ Section product_split.
       (λ post '-[(l, (a, b))],
         post -[(cloc_take l ty.(ty_size), a); (cloc_skip l ty.(ty_size), b)]).
   Proof.
-    split. { move=> ?? Eq [[?[??]][]] ??. by setoid_rewrite Eq. }
+    split. { move=> ?? Eq [[?[??]][]] ?. by setoid_rewrite Eq. }
     move=> γ q tid [[l [x y]][]] mask post.
     iIntros "#LFT #UNIQ #E tok [T _] #Obs W".
     iDestruct "T" as (v d) "[%path [gho %phys]]".
@@ -321,7 +321,7 @@ Section product_split.
     inversion phys. subst v. iModIntro. iFrame "W tok".
     iExists -[(cloc_take l ty.(ty_size), x); (cloc_skip l ty.(ty_size), y)].
     iSplit; last first.
-    { iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs. done. }
+    { iDestruct "Obs" as %Hobs; iPureIntro; exact Hobs. }
     iSplit.
     { iExists #l.1, (S (dd + gg)). iSplit.
       { iPureIntro. by rewrite /= path shift_loc_0. }
@@ -406,31 +406,27 @@ Section product_split.
     set ξ := PrVar ((𝔄 * 𝔅)%ST ↾ prval_to_inh (@vπ (𝔄 * 𝔅)%ST (x0, y0))) ξi.
     set ζ := PrVar (𝔄 ↾ prval_to_inh (vπ x0)) ζi.
     set ζ' := PrVar (𝔅 ↾ prval_to_inh (vπ y0)) ζ'i.
-    iDestruct (uniq_proph_tok with "ζVo ζPc") as "(ζVo & ζ & ToζPc)".
-    iDestruct (uniq_proph_tok with "ζ'Vo ζ'Pc") as "(ζ'Vo & ζ' & Toζ'Pc)".
-    iMod (uniq_preresolve ξ [ζ; ζ'] (λ π, (π ζ, π ζ'))
-      with "UNIQ ξVo ξPc [$ζ $ζ']")
-      as "(#Obs' & (ζ & ζ' & _) & ToξPc)";
-      [set_solver|apply (proph_dep_prod [_] [_]); apply proph_dep_one|done|].
-    iDestruct ("ToζPc" with "ζ") as "ζPc".
-    iDestruct ("Toζ'Pc" with "ζ'") as "ζ'Pc".
+    (* Nola preresolves [ξ] to [(π ζ, π ζ')] and hands back the
+       observation.  As in [uniq_body_transform], [ξ] instead keeps both
+       agreement halves and [uniq_update] retargets it when the borrow
+       closes; see [typing/product_split.v], which does the same. *)
     iDestruct ("ToBor" $!
       (uniq_body_fml ty x0 ζi tid (cloc_take l ty.(ty_size)) ∗
        uniq_body_fml ty' y0 ζ'i tid (cloc_skip l ty.(ty_size)))%FML
-      with "[ToξPc] [Gho1 Pt1 ζPc ζ'Pc]") as "B".
+      with "[ξVo ξPc] [Gho1 Pt1 ζPc ζ'Pc]") as "B".
     { iIntros "Big". rewrite bor_sep_sem !uniq_body_fml_sem.
       iDestruct "Big" as "[(%x1 & %d1 & %g1 & ζPc & Gho1 & Pt1)
                            (%x2 & %d2 & %g2 & ζ'Pc & Gho2 & Pt2)]".
-      iModIntro. iExists (x1, x2), (d1 `max` d2), (g1 `max` g2).
-      iSplitL "ToξPc ζPc ζ'Pc".
-      { iApply "ToξPc". iApply (proph_eqz_constr2 with "[ζPc] [ζ'Pc]");
-          [iApply (proph_ctrl_eqz with "ζPc")
-          |iApply (proph_ctrl_eqz with "ζ'Pc")]. }
+      iMod (uniq_update ξ ((x1, x2) : ~~ (𝔄 * 𝔅)%ST)
+        (@vπ (𝔄 * 𝔅)%ST (x1, x2)) (Nat.max d1 d2, Nat.max g1 g2)
+        with "UNIQ ξVo ξPc") as "[_ξVo ξPc]"; [solve_ndisj|].
+      iModIntro. iExists (x1, x2), (Nat.max d1 d2), (Nat.max g1 g2).
+      iFrame "ξPc".
       rewrite prod_ty_gho /= heap_cloc_mapsto_fancy_vec_app ty_size_eq.
       iFrame "Pt1 Pt2".
-      iDestruct (ty_gho_depth_mono ty d1 g1 (d1 `max` d2) (g1 `max` g2) x1 tid
+      iDestruct (ty_gho_depth_mono ty d1 g1 (Nat.max d1 d2) (Nat.max g1 g2) x1 tid
         with "Gho1") as "$"; [lia|lia|].
-      iDestruct (ty_gho_depth_mono ty' d2 g2 (d1 `max` d2) (g1 `max` g2) x2 tid
+      iDestruct (ty_gho_depth_mono ty' d2 g2 (Nat.max d1 d2) (Nat.max g1 g2) x2 tid
         with "Gho2") as "$"; [lia|lia]. }
     { rewrite bor_sep_sem !uniq_body_fml_sem.
       iEval (rewrite prod_ty_gho /=) in "Gho1".
@@ -480,10 +476,7 @@ Section product_split.
     iExists -[(cloc_take l ty.(ty_size), x0, ζi, d', g', ζidx);
               (cloc_skip l ty.(ty_size), y0, ζ'i, d', g', ζ'idx)].
     iSplit; last first.
-    { iCombine "Obs Obs'" as "#Obs2".
-      iDestruct "Obs2" as %Hobs; iPureIntro; move: Hobs=> [Ha Hb].
-      apply Ha; [done|done|done| |done|];
-        rewrite /uniq_bor_future /= Hb //. }
+    { iDestruct "Obs" as %Ha; iPureIntro. by apply Ha. }
     iSplitL "ζVo ζTok".
     { iExists #l.1, d. iSplit; [by rewrite /= path shift_loc_0|].
       rewrite /ty_own uniq_bor_gho. iSplit; [|done].

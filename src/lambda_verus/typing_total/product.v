@@ -273,7 +273,7 @@ Section typing.
           as "(W & %x'1 & %off1 & gho1 & %s1 & lfts & tok)".
         iMod (Hgho2 with "LFT UNIQ lfts gs tok gho2 W")
           as "($ & %x'2 & %off2 & gho2 & %s2 & lfts & tok)".
-        iModIntro. iExists (x'1, x'2), (off1 `max` off2)%nat.
+        iModIntro. iExists (x'1, x'2), (Nat.max off1 off2)%nat.
         iFrame "lfts tok".
         iDestruct (ty_gho_depth_mono with "gho1") as "$". { lia. } { lia. }
         iDestruct (ty_gho_depth_mono with "gho2") as "$". { lia. } { lia. }
