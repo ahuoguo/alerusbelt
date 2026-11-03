@@ -73,11 +73,6 @@ Section sown.
     by apply (tyd_pers_mono_at (T := sown_tyd n (ty_d ty)) sem Hs).
   Qed.
   Next Obligation.
-    move=> 𝔄 n ty κ x d g tid R.
-    exact (sown_tyd_TyProphAt n ty.(ty_lfts) (ty_d ty) d
-      (λ d' _, ty_d_TyProphAt ty d') κ x g tid R).
-  Qed.
-  Next Obligation.
     move=> 𝔄 n ty sem Hs *.
     exact: (tyd_pers_pers_at (T := sown_tyd n (ty_d ty)) sem Hs).
   Qed.
@@ -126,11 +121,11 @@ Section sown.
   Lemma sown_ptr_d {𝔄} n (ty: type 𝔄) :
     ty_d (sown_ptr n ty) = sown_tyd n (ty_d ty).
   Proof. done. Qed.
-  Lemma ty_d_type_of_tyd {𝔄} lfts E (T: tydata 𝔄) HT HP :
-    ty_d (type_of_tyd lfts E T HT HP) = T.
-  Proof. by move: T HT HP=> [?[?[??]]]. Qed.
-  Corollary sown_ptr_of_tyd {𝔄} n lfts E (T: tydata 𝔄) HT HP :
-    ty_d (sown_ptr n (type_of_tyd lfts E T HT HP)) = sown_tyd n T.
+  Lemma ty_d_type_of_tyd {𝔄} lfts E (T: tydata 𝔄) HT :
+    ty_d (type_of_tyd lfts E T HT) = T.
+  Proof. by move: T HT=> [?[?[??]]]. Qed.
+  Corollary sown_ptr_of_tyd {𝔄} n lfts E (T: tydata 𝔄) HT :
+    ty_d (sown_ptr n (type_of_tyd lfts E T HT)) = sown_tyd n T.
   Proof. by rewrite sown_ptr_d ty_d_type_of_tyd. Qed.
 
   (** [verus_halt_WGuard] is a conjunct of [verus_halt_wsat], so the two moves

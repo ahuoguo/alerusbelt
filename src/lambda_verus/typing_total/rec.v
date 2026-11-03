@@ -13,10 +13,13 @@
 
   [profix] takes a fixed point of a map on a [prost], so the carrier must be
   plain data.  [tyd 𝔄] below is a type's data; [Ty] is the laws that a
-  *guarded* former satisfies without appealing to its argument's, and
-  [TyProphAt] is the one law that does appeal - the prophecy law, which
-  upstream likewise keeps out of [Ty] (it is [TyOp] there) so that
-  [ty_shrref]'s instance can be unconditional.
+  *guarded* former satisfies without appealing to its argument's.  Nola
+  has a second predicate, [TyProphAt], for the one law that does appeal -
+  the prophecy law, which upstream likewise keeps out of [Ty] (it is
+  [TyOp] there) so that [ty_shrref]'s instance can be unconditional.  It
+  is gone throughout this file, along with [typing_total/type.v]'s
+  [ty_guard_proph] field: it concludes a guard on a prophecy token, and
+  this port has no prophecy tokens.
 
   *** The lifetimes cannot be part of it
 
@@ -107,16 +110,8 @@ Section tyd.
 
   (** The law that *does* appeal to the argument, indexed by the depth -
     which is how it survives the fixpoint, by induction. *)
-  Definition TyProphAt {𝔄} (lfts : list lft) (T : tydata 𝔄) (d : nat)
-    : Prop := ∀ κ x g tid R,
-      ⊢ llft_ctx -∗ κ ⊑ lft_intersect_list lfts -∗
-        bor_sem (tyd_persx T x d g tid) -∗
-        (R &&{Wguard}&&> @[κ]) -∗
-        (R &&{Wguard}&&> bor_sem (tyd_ghox T x d g tid)) -∗
-        |->[Wguard] (∀ ξ, ⌜ξ ∈ ξl x⌝ -∗ (R &&{Wguard}&&> 1:[ξ])).
-  Definition TyProphLt {𝔄} lfts (T : tydata 𝔄) (d : nat) : Prop :=
-    ∀ d', (d' < d)%nat → TyProphAt lfts T d'.
-
+  (** [TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
+  (** [TyProphLt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
   (** Both transport along a pointwise equivalence of the data, because the
     only thing they do to it is take a non-expansive semantics. *)
   Lemma Ty_mono {𝔄} (T T' : tydata 𝔄) :
@@ -139,11 +134,7 @@ Section tyd.
     - move=> *. rewrite -Hg -Hp. apply Himpl.
   Qed.
 
-  Lemma TyProphAt_mono {𝔄} lfts (T T' : tydata 𝔄) d :
-    (∀ x d g tid, tyd_ghox T x d g tid ≡ tyd_ghox T' x d g tid) →
-    (∀ x d g tid, tyd_persx T x d g tid ≡ tyd_persx T' x d g tid) →
-    TyProphAt lfts T d → TyProphAt lfts T' d.
-  Proof. move=> Hg Hp HT κ x g tid R. rewrite -Hg -Hp. apply HT. Qed.
+  (** [TyProphAt_mono] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** ** A type's data, and back *)
   Definition ty_d {𝔄} (ty : type 𝔄) : tydata 𝔄 :=
@@ -161,17 +152,12 @@ Section tyd.
     - move=> *. exact: ty_gho_pers_impl.
   Qed.
 
-  Lemma ty_d_TyProphAt {𝔄} (ty : type 𝔄) d :
-    TyProphAt ty.(ty_lfts) (ty_d ty) d.
-  Proof.
-    move=> κ x g tid R. iIntros "LFT Incl Pers Rk Rg".
-    by iApply (ty_guard_proph _ ty κ x d g tid R with "LFT Incl Pers Rk Rg").
-  Qed.
+  (** [ty_d_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** The lifetime list and the external context are supplied from outside -
     see the note at the top of the file. *)
   Program Definition type_of_tyd {𝔄} (lfts : list lft) (E : elctx)
-    (T : tydata 𝔄) (HT : Ty T) (HP : ∀ d, TyProphAt lfts T d) : type 𝔄 := {|
+    (T : tydata 𝔄) (HT : Ty T) : type 𝔄 := {|
     ty_size := tyd_size T; ty_lev := 0; ty_lfts := lfts; ty_E := E;
     ty_ghox := tyd_ghox T; ty_gho_persx := tyd_persx T; ty_phys := tyd_phys T;
   |}.
@@ -179,14 +165,13 @@ Section tyd.
   Next Obligation. move=> *. exact: tyd_size_eq2. Qed.
   Next Obligation. move=> *. exact: tyd_phys_eq2. Qed.
   Next Obligation.
-    move=> ?????? sem Hs *. by apply (tyd_gho_mono_at sem Hs).
+    move=> ????? sem Hs *. by apply (tyd_gho_mono_at sem Hs).
   Qed.
   Next Obligation.
-    move=> ?????? sem Hs *. by apply (tyd_pers_mono_at sem Hs).
+    move=> ????? sem Hs *. by apply (tyd_pers_mono_at sem Hs).
   Qed.
-  Next Obligation. move=> ????? HP *. by apply HP. Qed.
   Next Obligation.
-    move=> ?????? sem Hs *. exact: (tyd_pers_pers_at sem Hs).
+    move=> ????? sem Hs *. exact: (tyd_pers_pers_at sem Hs).
   Qed.
   Next Obligation. move=> *. exact: tyd_pers_impl. Qed.
 
@@ -237,23 +222,7 @@ Section tyd.
 
   (** Its prophecy law needs the borrowed data's at every *lower* depth,
     which is what makes the fixpoint's depth induction go through. *)
-  Lemma shr_tyd_TyProphAt {𝔄} κ lfts (T : tydata 𝔄) d :
-    TyProphLt lfts T d → TyProphAt (κ :: lfts) (shr_tyd κ T) d.
-  Proof.
-    move=> HT κ0 x g tid R. rewrite /shr_tyd/shr_ghod/= by_ltx_sem /by_lt.
-    iIntros "#LFT #Incl A". iDestruct "A" as (d0 Hd0) "A".
-    rewrite by_lex_sem /by_le. iDestruct "A" as (gg Hgg) "A".
-    rewrite pers_fml_sem !bor_sep_sem.
-    iDestruct "A" as "#(_ & Gho & St)". iIntros "#Rk _ W".
-    iDestruct (store_fml_acc with "St") as "#Acc".
-    iDestruct ("Acc" with "W") as "[W Pers]".
-    iApply (HT d0 Hd0 κ0 (snd x) gg tid R with "LFT [] Pers Rk [] W").
-    { iApply (llftl_incl_trans with "Incl []"). iApply llftl_intersect_incl_r. }
-    iDestruct (dguard_alive_sem with "Gho") as "#Gho0".
-    iDestruct (fguard_here with "Incl") as "#Inclh".
-    iApply (guard_trans with "Rk"). iApply (guard_trans with "Inclh").
-    iApply (guard_trans with "[] Gho0"). iApply llftl_intersect_incl_l_at.
-  Qed.
+  (** [shr_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
   (** ** A structural former, at the level of data
 
     [prod_ty]'s body with the records replaced by their data.  Unlike
@@ -296,23 +265,7 @@ Section tyd.
       iSplitL "A"; by iApply tyd_pers_impl.
   Qed.
 
-  Lemma prod_tyd_TyProphAt {𝔄 𝔅} lfts lfts' (T : tydata 𝔄) (U : tydata 𝔅) d :
-    TyProphAt lfts T d → TyProphAt lfts' U d →
-    TyProphAt (lfts ++ lfts') (prod_tyd T U) d.
-  Proof.
-    move=> HT HU κ x g tid R. rewrite /prod_tyd/=. fml_simpl.
-    iIntros "#LFT #Incl [Gho1 Gho2] #Rk #Rgho".
-    iMod (HT κ (fst x) g tid R with "LFT [] Gho1 Rk []") as "H1".
-    { rewrite lft_intersect_list_app. iApply (fguard_trans with "Incl []").
-      iApply llftl_intersect_incl_l. }
-    { iApply guard_rhs_sep_l. iFrame "Rgho". }
-    iMod (HU κ (snd x) g tid R with "LFT [] Gho2 Rk []") as "H2".
-    { rewrite lft_intersect_list_app. iApply (fguard_trans with "Incl []").
-      iApply llftl_intersect_incl_r. }
-    { iApply guard_rhs_sep_r. iFrame "Rgho". }
-    iModIntro. iIntros (ξ Hin). rewrite elem_of_app in Hin.
-    destruct Hin as [Hin|Hin]; [iApply "H1"|iApply "H2"]; by iPureIntro.
-  Qed.
+  (** [prod_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** The owning pointer, likewise.  It matches on the depth with
     [by_succ]'s exact match, as [typing/own.v] does - only the *guarded*
@@ -350,18 +303,7 @@ Section tyd.
       by iApply tyd_pers_impl.
   Qed.
 
-  Lemma own_tyd_TyProphAt {𝔄} n lfts (T : tydata 𝔄) d :
-    (∀ d', TyProphAt lfts T d') → TyProphAt lfts (own_tyd n T) d.
-  Proof.
-    move=> HT κ x g tid R. iIntros "#LFT #Incl Pers".
-    destruct d as [|d'].
-    { iIntros "_ _". by iDestruct (false_fml_sem_1 with "Pers") as "[]". }
-    fml_simpl'. iIntros "#Rk #Rg".
-    iApply (HT d' κ (snd x) g tid R with "LFT Incl Pers Rk").
-    iApply (guard_trans with "Rg"). iApply (guard_trans with "[]").
-    { iApply (guard_sep_r (P:=((fst x) ↦!∗ tyd_phys T (snd x) tid)%I)). }
-    iApply guard_sep_r.
-  Qed.
+  (** [own_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** ** The owning pointer, made *productive* - and extractable
 
@@ -391,8 +333,8 @@ Section tyd.
     [nola/verus_halt/two_state.v].
 
     **The token's name is in the refinement type.**  This is the one that
-    took the longest to see.  [TyProphAt] below is *handed* a guard on the
-    ghost component at a universally quantified [R], and [@[κ]] is
+    took the longest to see.  Nola's [TyProphAt] is *handed* a guard on
+    the ghost component at a universally quantified [R], and [@[κ]] is
     reachable only from that same [R], so the law can only ever compose -
     it can never open anything.  Composing it down to the pointee needs
     [R &&{W}&&> ts_full γ], and if [γ] were existentially quantified inside
@@ -477,14 +419,15 @@ Section tyd.
     [R &&{W}&&> ts_full γ], which is a [guard_sep] projection *because*
     the token sits outside both bounded existentials and its name is read
     off [x]; take the depth and the capability **in hand** from the
-    persistent component, as [shr_tyd_TyProphAt] takes its stored guard;
+    persistent component, as Nola's [shr_tyd_TyProphAt] takes its stored
+    guard;
     turn the capability into [ts_full γ &&{W}&&> ⟦ghox T …⟧] with
     [eown_guard]; and compose. *)
   (** The token is a plain conjunct of the ghost component, sitting
     *outside* both bounded existentials, so reaching it is [guard_sep] and
     nothing more.  That is the whole reason its name is in the refinement
     type: with an [∃ γ] in the way no composition could get here, and
-    composition is all [TyProphAt] is allowed. *)
+    composition is all Nola's [TyProphAt] is allowed. *)
   Lemma sown_tyd_guard_tok {𝔄} n (T : tydata 𝔄) (Mx : FML $oi Σ)
       x d g tid R :
     (R &&{Wguard}&&> bor_sem
@@ -510,21 +453,7 @@ Section tyd.
     iApply guard_sep_l.
   Qed.
 
-  Lemma sown_tyd_TyProphAt {𝔄} n lfts (T : tydata 𝔄) d :
-    TyProphLt lfts T d → TyProphAt lfts (sown_tyd n T) d.
-  Proof.
-    move=> HT κ x g tid R. iIntros "#LFT #Incl A #Rk #Rg".
-    iDestruct (sown_tyd_guard_tok n T _ x d g tid R with "Rg") as "#Rt".
-    iClear "Rg". iRevert "A".
-    rewrite /sown_tyd/sown_capd/= by_ltx_sem /by_lt.
-    iIntros "A". iDestruct "A" as (d0 Hd0) "A".
-    rewrite by_lex_sem /by_le. iDestruct "A" as (gg Hgg) "A".
-    rewrite !bor_sep_sem. iDestruct "A" as "#[E St]". iIntros "W".
-    iDestruct (store_fml_acc with "St") as "#Acc".
-    iDestruct ("Acc" with "W") as "[W Pers]".
-    iApply (HT d0 Hd0 κ (snd (snd x)) gg tid R with "LFT Incl Pers Rk [] W").
-    iApply (guard_trans with "Rt"). iApply eown_guard. iApply "E".
-  Qed.
+  (** [sown_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** *** What the capability buys that a stored guard did not
 
@@ -592,19 +521,8 @@ Section tyd.
     - move=> *. exact: tyd_pers_impl.
   Qed.
 
-  Lemma mod_tyd_TyProphAt {𝔄 𝔅} (f : 𝔄 →ₛ 𝔅) (fⁱ : 𝔅 →ₛ 𝔄) `{!Isoₛ f fⁱ}
-    lfts (T : tydata 𝔄) d :
-    TyProphAt lfts T d → TyProphAt lfts (mod_tyd f fⁱ T) d.
-  Proof.
-    move=> HT κ x g tid R. iIntros "LFT Incl Pers Rk Rg".
-    iMod (HT κ (fⁱ ~~$ₛ x) g tid R with "LFT Incl Pers Rk Rg") as "H".
-    iModIntro. iIntros (ξ Hin). iApply "H". iPureIntro.
-    by rewrite -syn_type_morphism_ξl.
-  Qed.
+  (** [mod_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
-  (** [TyProphAt] is antitone in the lifetime list: a longer list is a
-    stronger premise.  Composing formers needs it, because the hole's law
-    comes with the guarded former's lifetime prepended. *)
   (** [typing/sum.v] proves this too, inside its own section; [rec.v] does
     not import it. *)
   Local Lemma pad_len l n : length (pad l n) = n.
@@ -633,11 +551,7 @@ Section tyd.
     - move=> *. by iIntros "$".
   Qed.
 
-  Lemma unit_tyd_TyProphAt lfts d : TyProphAt lfts unit_tyd d.
-  Proof.
-    move=> κ[]g tid R. iIntros "_ _ _ _ _ !>" (ξ Hξ). exfalso.
-    move: Hξ=>/=. by rewrite elem_of_nil.
-  Qed.
+  (** [unit_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** The binary tagged sum.  [typing/sum.v]'s [xsum_ty] is the general one,
     over a heterogeneous list; two branches is all a list needs, and taking
@@ -690,21 +604,9 @@ Section tyd.
         [by apply tyd_pers_impl|by apply tyd_pers_impl|by apply absurd].
   Qed.
 
-  Lemma xsum2_tyd_TyProphAt {𝔄 𝔅} lfts (T : tydata 𝔄) (U : tydata 𝔅) d :
-    TyProphAt lfts T d → TyProphAt lfts U d →
-    TyProphAt lfts (xsum2_tyd T U) d.
-  Proof.
-    move=> HT HU κ [[a|[b|e]]?] g tid R/=; [exact: HT|exact: HU|by apply absurd].
-  Qed.
+  (** [xsum2_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
-  Lemma TyProphAt_lfts {𝔄} lfts lfts' (T : tydata 𝔄) d :
-    (⊢ lft_intersect_list lfts' ⊑ lft_intersect_list lfts) →
-    TyProphAt lfts T d → TyProphAt lfts' T d.
-  Proof.
-    move=> Hin HT κ x g tid R. iIntros "LFT #Incl".
-    iApply (HT κ x g tid R with "LFT []").
-    iApply (llftl_incl_trans with "Incl"). iApply Hin.
-  Qed.
+  (** [TyProphAt_lfts] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
   (** ** Inclusion of a type's data, depth by depth
 
     [typing/type.v]'s [type_incl] has two ghost components, both quantified
@@ -719,7 +621,7 @@ Section tyd.
     The port's guarded formers *do* carry an index - [&shr{κ}]'s body is
     [[Ltx(d') := d] …], i.e. [∃ d' < d] - so the same rule is an ordinary
     well-founded induction on the depth here, which is also how [rust_halt]
-    proves [ty_rec_ty_op] and how [ty_rec_TyProphAt] above is proved.  What
+    proves [ty_rec_ty_op] and how [ty_rec_incl] below is proved.  What
     the induction needs is a statement indexed by [d], and [type_incl] is
     not one; [tyd_incl_at] is. *)
   Definition tyd_incl_at {𝔄 𝔅} (T : tydata 𝔄) (U : tydata 𝔅)
@@ -740,8 +642,8 @@ Section tyd.
       (f : 𝔄 →ₛ 𝔅) (d : nat) : iProp Σ :=
     □ ∀ d', ⌜(d' < d)%nat⌝ → tyd_incl_at T U f d'.
 
-  (** It transports along a pointwise equivalence of the data, as [Ty] and
-    [TyProphAt] do, because the only thing it does to the data is take a
+  (** It transports along a pointwise equivalence of the data, as [Ty]
+    does, because the only thing it does to the data is take a
     non-expansive semantics of it.  [ty_rec_unfold] is why. *)
   Lemma tyd_incl_at_mono {𝔄 𝔅} (T T' : tydata 𝔄) (U U' : tydata 𝔅) f d :
     (∀ x dd g tid, tyd_ghox T x dd g tid ≡ tyd_ghox T' x dd g tid) →
@@ -1010,41 +912,40 @@ Section tyd.
     interesting: it is the one that takes its argument's resolution at a
     *lower* depth, and so the one that lets the induction turn. *)
   Lemma unit_tyd_resolve E L d :
-    tyd_resolve_at E L unit_tyd (const (const True)) d.
+    tyd_resolve_at E L unit_tyd (const True) d.
   Proof.
-    move=> γ q F x g tid HF. iIntros "_ _ _ _ tok _ $ !>". iFrame "tok".
+    move=> γ q F x g tid HF. iIntros "_ _ _ tok _ $ !>". iFrame "tok".
     by iPureIntro.
   Qed.
 
   Lemma tyd_resolve_at_impl {𝔄} E L (T : tydata 𝔄) Φ Φ' d :
-    tyd_resolve_at E L T Φ d → (∀ a π, Φ a π → Φ' a π) →
+    tyd_resolve_at E L T Φ d → (∀ a, Φ a → Φ' a) →
     tyd_resolve_at E L T Φ' d.
   Proof.
     move=> Rslv Imp γ q F x g tid HF.
     iIntros "LFT UNIQ E tok T W".
-    iMod (Rslv with "LFT UNIQ E tok T W") as "($ & Obs & $)"; [done|].
-    iModIntro. iApply proph_obs_impl; [|done]=>/= ?. apply Imp.
+    iMod (Rslv with "LFT UNIQ E tok T W") as "($ & %HΦ & $)"; [done|].
+    iModIntro. iPureIntro. by apply Imp.
   Qed.
 
   Lemma prod_tyd_resolve {𝔄 𝔅} E L (T : tydata 𝔄) (U : tydata 𝔅) Φ Ψ d :
     tyd_resolve_at E L T Φ d → tyd_resolve_at E L U Ψ d →
-    tyd_resolve_at E L (prod_tyd T U) (λ x π, Φ x.1 π ∧ Ψ x.2 π) d.
+    tyd_resolve_at E L (prod_tyd T U) (λ x, Φ x.1 ∧ Ψ x.2) d.
   Proof.
     move=> RT RU γ q F x g tid HF.
     iIntros "#LFT #UNIQ #E tok A W". rewrite /= bor_sep_sem.
     iDestruct "A" as "[A B]".
-    iMod (RT with "LFT UNIQ E tok A W") as "(W & ObsA & tok)"; [done|].
-    iMod (RU with "LFT UNIQ E tok B W") as "($ & ObsB & $)"; [done|].
-    iModIntro. iCombine "ObsA ObsB" as "Obs".
-    iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=>/=. tauto.
+    iMod (RT with "LFT UNIQ E tok A W") as "(W & %HA & tok)"; [done|].
+    iMod (RU with "LFT UNIQ E tok B W") as "($ & %HB & $)"; [done|].
+    iModIntro. by iPureIntro.
   Qed.
 
   Lemma xsum2_tyd_resolve {𝔄 𝔅} E L (T : tydata 𝔄) (U : tydata 𝔅) Φ Ψ d :
     tyd_resolve_at E L T Φ d → tyd_resolve_at E L U Ψ d →
     tyd_resolve_at E L (xsum2_tyd T U)
-      (λ x π, match x.1 with
-              | inl a => Φ a π | inr (inl b) => Ψ b π
-              | inr (inr e) => absurd e end) d.
+      (λ x, match x.1 with
+             | inl a => Φ a | inr (inl b) => Ψ b
+             | inr (inr e) => absurd e end) d.
   Proof.
     move=> RT RU γ q F x g tid HF.
     iIntros "#LFT #UNIQ #E tok A W". rewrite /=.
@@ -1058,7 +959,7 @@ Section tyd.
   Lemma mod_tyd_resolve {𝔄 𝔅} E L (f : 𝔄 →ₛ 𝔅) (fⁱ : 𝔅 →ₛ 𝔄) `{!Isoₛ f fⁱ}
       (T : tydata 𝔄) Φ d :
     tyd_resolve_at E L T Φ d →
-    tyd_resolve_at E L (mod_tyd f fⁱ T) (λ x π, Φ (fⁱ ~~$ₛ x) π) d.
+    tyd_resolve_at E L (mod_tyd f fⁱ T) (λ x, Φ (fⁱ ~~$ₛ x)) d.
   Proof. move=> Rslv γ q F x g tid HF. exact (Rslv γ q F _ g tid HF). Qed.
 
   (** The owning pointer, and the only step that moves the depth.  The
@@ -1067,7 +968,7 @@ Section tyd.
     is exactly what [tyd_resolve_lt] covers. *)
   Lemma sown_tyd_resolve {𝔄} E L n (T : tydata 𝔄) Φ d :
     tyd_resolve_lt E L T Φ d →
-    tyd_resolve_at E L (sown_tyd n T) (λ x π, Φ (snd (snd x)) π) d.
+    tyd_resolve_at E L (sown_tyd n T) (λ x, Φ (snd (snd x))) d.
   Proof.
     move=> Rslv γ q F x g tid HF.
     iIntros "#LFT #UNIQ #E tok A W".
@@ -1287,21 +1188,11 @@ Section rec.
   (** The prophecy law survives it by induction on the depth, because a
     guarded former uses its argument strictly below the depth it is asked
     about.  [ty_rec_ty_op] is proved the same way upstream. *)
-  Lemma ty_rec_TyProphAt {𝔄} lfts (F : tyd 𝔄 → tyd 𝔄) `{!Productive F} :
-    (∀ T d, TyProphLt lfts (tod T) d → TyProphAt lfts (tod (F T)) d) →
-    ∀ d, TyProphAt lfts (tod (ty_rec F)) d.
-  Proof.
-    move=> HF d. induction (lt_wf d) as [d _ IH].
-    have [/=_ [/=Hg [/=Hp _]]] := ty_rec_unfold F.
-    apply (TyProphAt_mono lfts (tod (F (ty_rec F))) (tod (ty_rec F))).
-    - move=> x dd g tid. by rewrite (Hg x dd g tid).
-    - move=> x dd g tid. by rewrite (Hp x dd g tid).
-    - apply HF=> d' Hlt. by apply IH.
-  Qed.
+  (** [ty_rec_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
-  (** The inclusion survives the fixpoint by induction on the depth, for
-    the same reason [ty_rec_TyProphAt] does: a guarded former uses its
-    argument strictly below the depth it is asked about.
+  (** The inclusion survives the fixpoint by induction on the depth: a
+    guarded former uses its argument strictly below the depth it is asked
+    about.
 
     This is the thesis's § 5.1 fn. 1 - [≤-ref] used *coinductively*, so
     that [listᵢ T ≤ listⱼ U] follows from [T ≤ U], [U ≤ T] and [i ≤ j].
@@ -1342,7 +1233,7 @@ Section rec.
     and closes the circle rather than opening it, but a guarded former uses
     its argument strictly below the depth it is asked about, so the loop
     turns by well-founded induction on the depth, exactly as
-    [ty_rec_TyProphAt] and [ty_rec_incl] do. *)
+    [ty_rec_incl] does. *)
   Lemma ty_rec_resolve {𝔄} (F : tyd 𝔄 → tyd 𝔄) `{!Productive F} E L Φ :
     (∀ T d, tyd_resolve_lt E L (tod T) Φ d →
             tyd_resolve_at E L (tod (F T)) Φ d) →
@@ -1389,37 +1280,29 @@ Section rec.
 
     (** Conditional, and discharged by the depth induction.
 
-      The lifetime list has to contain [κ]: the guarded former's law comes
-      out at [κ :: lfts], and the structural [G] takes it at [lfts], so the
-      two are reconciled by [TyProphAt_lfts] - which needs
-      [⋀lfts ⊑ κ ⊓ ⋀lfts], i.e. [⋀lfts ⊑ κ]. *)
-    Lemma ty_rec_shr_TyProphAt lfts :
-      (⊢ lft_intersect_list lfts ⊑ κ) →
-      (∀ U d, TyProphAt lfts (tod U) d → TyProphAt lfts (tod (G U)) d) →
-      ∀ d, TyProphAt lfts (tod ty_rec_shr) d.
-    Proof.
-      move=> Hκ HG' d. apply ty_rec_TyProphAt=> T d' Hlt.
-      apply HG', (TyProphAt_lfts (κ :: lfts) lfts).
-      { iApply llftl_incl_glb; [iApply Hκ|iApply llftl_incl_sub; set_solver]. }
-      by apply shr_tyd_TyProphAt.
-    Qed.
+      The lifetime list has to contain [κ]: in Nola the guarded former's
+      prophecy law comes out at [κ :: lfts] and the structural [G] takes
+      it at [lfts], so the two are reconciled by [TyProphAt_lfts], which
+      needs [⋀lfts ⊑ κ ⊓ ⋀lfts], i.e. [⋀lfts ⊑ κ].  Without that law
+      [Hκ] constrains nothing, and it is kept only to record the
+      requirement. *)
+    (** [ty_rec_shr_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
     (** And the end of the road: an actual [type].
 
       The lifetime list and the external context are *supplied*, not
       derived.  `typing/fixpoint.v` derives them with [TypeLftMorphism]
       because its carrier is the whole record; here they were never in the
-      carrier, so the only thing that constrains them is the prophecy law,
-      and [HP] is exactly that obligation. *)
+      carrier, so the only thing that constrains them was the prophecy
+      law - which this port does not have, so [Hκ] is kept only to record
+      what the shared former's lifetime list has to satisfy. *)
     Definition type_of_rec_shr lfts E
       (Hκ : ⊢ lft_intersect_list lfts ⊑ κ)
       (HTy : ∀ U, Ty (tod U) → Ty (tod (G U)))
-      (HP : ∀ U d, TyProphAt lfts (tod U) d → TyProphAt lfts (tod (G U)) d)
       : type 𝔄 :=
-      type_of_tyd lfts E (tod ty_rec_shr) (ty_rec_shr_Ty HTy)
-        (ty_rec_shr_TyProphAt lfts Hκ HP).
+      type_of_tyd lfts E (tod ty_rec_shr) (ty_rec_shr_Ty HTy).
 
-    Lemma type_of_rec_shr_ghox lfts E Hκ HTy HP x d g tid :
-      (type_of_rec_shr lfts E Hκ HTy HP).(ty_ghox) x d g tid =
+    Lemma type_of_rec_shr_ghox lfts E Hκ HTy x d g tid :
+      (type_of_rec_shr lfts E Hκ HTy).(ty_ghox) x d g tid =
         tyd_ghox (tod ty_rec_shr) x d g tid.
     Proof. done. Qed.
   End shr_rec.
@@ -1447,15 +1330,9 @@ Section rec.
       (∀ U, Ty (tod U) → Ty (tod (G U))) → Ty (tod ty_rec_own).
     Proof. move=> HTy. apply ty_rec_Ty=> T. apply HTy, sown_tyd_Ty. Qed.
 
-    (** No lifetime to reconcile, unlike [ty_rec_shr_TyProphAt]: an owning
+    (** No lifetime to reconcile, unlike the shared former: an owning
       pointer adds none. *)
-    Lemma ty_rec_own_TyProphAt lfts :
-      (∀ U d, TyProphAt lfts (tod U) d → TyProphAt lfts (tod (G U)) d) →
-      ∀ d, TyProphAt lfts (tod ty_rec_own) d.
-    Proof.
-      move=> HG' d. apply ty_rec_TyProphAt=> T d' Hlt.
-      by apply HG', sown_tyd_TyProphAt.
-    Qed.
+    (** [ty_rec_own_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
     (** Unfolding it once.  [rust_halt]'s [ty_list_unfold] is this, and it
       is what makes a recursive type *destructurable*: the body is a
@@ -1474,15 +1351,12 @@ Section rec.
 
     Definition type_of_rec_own lfts E
       (HTy : ∀ U, Ty (tod U) → Ty (tod (G U)))
-      (HP : ∀ U d, TyProphAt lfts (tod U) d → TyProphAt lfts (tod (G U)) d)
       : type 𝔄 :=
-      type_of_tyd lfts E (tod ty_rec_own) (ty_rec_own_Ty HTy)
-        (ty_rec_own_TyProphAt lfts HP).
+      type_of_tyd lfts E (tod ty_rec_own) (ty_rec_own_Ty HTy).
   End own_rec.
 
 (** The whole chain rests on [Eq_rect_eq] and nothing else. *)
 Print Assumptions ty_rec_Ty.
-Print Assumptions ty_rec_TyProphAt.
 
   (** ** A list behind shared references
 
@@ -1540,17 +1414,7 @@ Print Assumptions ty_rec_TyProphAt.
       by apply mod_tyd_Ty.
     Qed.
 
-    Lemma shr_list_gen_TyProphAt lfts
-      (HT : ∀ d, TyProphAt lfts (tod T) d) U d :
-      TyProphAt lfts (tod U) d → TyProphAt lfts (tod (shr_list_gen U)) d.
-    Proof.
-      move=> HU. rewrite /shr_list_gen. apply mod_tyd_TyProphAt.
-      apply xsum2_tyd_TyProphAt; [apply unit_tyd_TyProphAt|].
-      apply (TyProphAt_lfts (lfts ++ lfts) lfts).
-      { rewrite lft_intersect_list_app. apply llftl_incl_sub.
-        unfold meet, llft_intersect. set_solver. }
-      by apply prod_tyd_TyProphAt.
-    Qed.
+    (** [shr_list_gen_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
     (** The data, as a fixed point *)
     Definition shr_list_tyd : tyd (shr_listₛ 𝔄) :=
@@ -1562,23 +1426,15 @@ Print Assumptions ty_rec_TyProphAt.
       by apply shr_list_gen_Ty.
     Qed.
 
-    Lemma shr_list_tyd_TyProphAt lfts
-      (Hκ : ⊢ lft_intersect_list lfts ⊑ κ)
-      (HT : ∀ d, TyProphAt lfts (tod T) d) d :
-      TyProphAt lfts (tod shr_list_tyd) d.
-    Proof.
-      rewrite /shr_list_tyd. apply ty_rec_shr_TyProphAt; [done|].
-      move=> U d' HU. by apply shr_list_gen_TyProphAt.
-    Qed.
+    (** [shr_list_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
     (** ...and as a [type] *)
     Definition ty_shr_list lfts E
       (Hκ : ⊢ lft_intersect_list lfts ⊑ κ)
-      (HT : Ty (tod T)) (HP : ∀ d, TyProphAt lfts (tod T) d)
+      (HT : Ty (tod T))
       : type (shr_listₛ 𝔄) :=
       type_of_rec_shr κ shr_list_gen shr_list_gen_preserv lfts E Hκ
-        (λ U HU, shr_list_gen_Ty HT U HU)
-        (λ U d HU, shr_list_gen_TyProphAt lfts HP U d HU).
+        (λ U HU, shr_list_gen_Ty HT U HU).
   End shr_list.
 
   (** ** A list of owning pointers
@@ -1633,17 +1489,7 @@ Print Assumptions ty_rec_TyProphAt.
       by apply mod_tyd_Ty.
     Qed.
 
-    Lemma own_list_gen_TyProphAt lfts
-      (HT : ∀ d, TyProphAt lfts (tod T) d) U d :
-      TyProphAt lfts (tod U) d → TyProphAt lfts (tod (own_list_gen U)) d.
-    Proof.
-      move=> HU. rewrite /own_list_gen. apply mod_tyd_TyProphAt.
-      apply xsum2_tyd_TyProphAt; [apply unit_tyd_TyProphAt|].
-      apply (TyProphAt_lfts (lfts ++ lfts) lfts).
-      { rewrite lft_intersect_list_app. apply llftl_incl_sub.
-        unfold meet, llft_intersect. set_solver. }
-      by apply prod_tyd_TyProphAt.
-    Qed.
+    (** [own_list_gen_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
     Definition own_list_tyd : tyd (own_listₛ 𝔄) :=
       ty_rec_own n own_list_gen own_list_gen_preserv.
@@ -1654,21 +1500,14 @@ Print Assumptions ty_rec_TyProphAt.
       by apply own_list_gen_Ty.
     Qed.
 
-    Lemma own_list_tyd_TyProphAt lfts
-      (HT : ∀ d, TyProphAt lfts (tod T) d) d :
-      TyProphAt lfts (tod own_list_tyd) d.
-    Proof.
-      rewrite /own_list_tyd. apply ty_rec_own_TyProphAt=> U d' HU.
-      by apply own_list_gen_TyProphAt.
-    Qed.
+    (** [own_list_tyd_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
     (** ...and as a [type] *)
     Definition ty_own_list lfts E
-      (HT : Ty (tod T)) (HP : ∀ d, TyProphAt lfts (tod T) d)
+      (HT : Ty (tod T))
       : type (own_listₛ 𝔄) :=
       type_of_rec_own n own_list_gen own_list_gen_preserv lfts E
-        (λ U HU, own_list_gen_Ty HT U HU)
-        (λ U d HU, own_list_gen_TyProphAt lfts HP U d HU).
+        (λ U HU, own_list_gen_Ty HT U HU).
 
     (** *** Taking the list apart
 
@@ -1753,14 +1592,14 @@ Print Assumptions ty_rec_TyProphAt.
     (** The same two at the level of [type], which is what a typing rule
       sees.  [type_of_tyd] copies the ghost component, so these are the
       data-level lemmas with no work. *)
-    Lemma ty_own_list_cons_take lfts E HT HP a lγ r p d g tid :
-      ty_gho (ty_own_list lfts E HT HP) (shrcons a lγ r p) d g tid
+    Lemma ty_own_list_cons_take lfts E HT a lγ r p d g tid :
+      ty_gho (ty_own_list lfts E HT) (shrcons a lγ r p) d g tid
         =[verus_halt_WGuard]=∗
-        ty_gho (type_of_tyd lfts E (tod T) HT HP) a d g tid ∗
+        ty_gho (type_of_tyd lfts E (tod T) HT) a d g tid ∗
         (lγ.1) ↦!∗ @syn_phys (own_listₛ 𝔄) r ∗
         freeable_sz n (size_of (own_listₛ 𝔄)) (lγ.1) ∗
         ∃ d' gg, ⌜(d' < d)%nat⌝ ∗ ⌜(gg ≤ g)%nat⌝ ∗
-          ty_gho (ty_own_list lfts E HT HP) r d' gg tid.
+          ty_gho (ty_own_list lfts E HT) r d' gg tid.
     Proof. exact (own_list_tyd_cons_take a lγ r p d g tid). Qed.
 
     (** *** Resolving the list's prophecies
@@ -1780,9 +1619,9 @@ Print Assumptions ty_rec_TyProphAt.
     Lemma own_list_gen_resolve E L Φ (U : tyd (at_loctokₛ (own_listₛ 𝔄))) d :
       tyd_resolve_at E L (tod T) Φ d →
       tyd_resolve_at E L (tod U)
-        (λ x π, ptrlist_forall (λ a, Φ a π) (snd (snd x))) d →
+        (λ x, ptrlist_forall Φ (snd (snd x))) d →
       tyd_resolve_at E L (tod (own_list_gen U))
-        (λ x π, ptrlist_forall (λ a, Φ a π) x) d.
+        (λ x, ptrlist_forall Φ x) d.
     Proof.
       move=> RT RU γ q F x g tid HF.
       iIntros "#LFT #UNIQ #E tok A W".
@@ -1794,18 +1633,17 @@ Print Assumptions ty_rec_TyProphAt.
       - iModIntro. iFrame "W tok". by iPureIntro.
       - rewrite own_list_gen_cons_ghox bor_sep_sem.
         iDestruct "A" as "[A B]".
-        iMod (RT with "LFT UNIQ E tok A W") as "(W & ObsA & tok)";
+        iMod (RT with "LFT UNIQ E tok A W") as "(W & %HA & tok)";
           [done|].
-        iMod (RU with "LFT UNIQ E tok B W") as "($ & ObsB & $)";
+        iMod (RU with "LFT UNIQ E tok B W") as "($ & %HB & $)";
           [done|].
-        iModIntro. iCombine "ObsA ObsB" as "Obs".
-        iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs. exact Datatypes.id.
+        iModIntro. by iPureIntro.
     Qed.
 
     Lemma own_list_tyd_resolve E L Φ :
       (∀ d, tyd_resolve_at E L (tod T) Φ d) →
       ∀ d, tyd_resolve_at E L (tod own_list_tyd)
-        (λ x π, ptrlist_forall (λ a, Φ a π) x) d.
+        (λ x, ptrlist_forall Φ x) d.
     Proof.
       move=> RT. rewrite /own_list_tyd. apply ty_rec_own_resolve=> U d Hlt.
       exact (own_list_gen_resolve E L Φ (sown_tyd n U) d (RT d)
@@ -1817,8 +1655,8 @@ Print Assumptions ty_rec_TyProphAt.
   (** [ty_own_list_resolve] removed along with [resolve]: it resolves a type's
     prophecies, and there are none. *)
 
-    Lemma ty_own_list_nil lfts E HT HP p d g tid :
-      ⊢ ty_gho (ty_own_list lfts E HT HP) (shrnil p) d g tid.
+    Lemma ty_own_list_nil lfts E HT p d g tid :
+      ⊢ ty_gho (ty_own_list lfts E HT) (shrnil p) d g tid.
     Proof. exact (own_list_tyd_nil p d g tid). Qed.
   End own_list.
 
@@ -1876,27 +1714,27 @@ Print Assumptions ty_rec_TyProphAt.
     Qed.
 
     (** ...and at the level of [type]s *)
-    Lemma ty_shr_list_type_incl lfts E Hκ HT HP lfts' E' Hκ' HU HP' :
+    Lemma ty_shr_list_type_incl lfts E Hκ HT lfts' E' Hκ' HU :
       dincl (lft_intersect_list lfts') (lft_intersect_list lfts) -∗
       shr_list_inclP -∗
-      type_incl (ty_shr_list κ T lfts E Hκ HT HP)
-                (ty_shr_list κ' U lfts' E' Hκ' HU HP') (shr_list_mapₛ f).
+      type_incl (ty_shr_list κ T lfts E Hκ HT)
+                (ty_shr_list κ' U lfts' E' Hκ' HU) (shr_list_mapₛ f).
     Proof.
       iIntros "#Lft #P".
-      iApply (type_incl_of_tyd_incl (ty_shr_list κ T lfts E Hκ HT HP)
-        (ty_shr_list κ' U lfts' E' Hκ' HU HP') (shr_list_mapₛ f)
+      iApply (type_incl_of_tyd_incl (ty_shr_list κ T lfts E Hκ HT)
+        (ty_shr_list κ' U lfts' E' Hκ' HU) (shr_list_mapₛ f)
         (shr_list_size_eq Hsz) (shr_list_phys_eq f Hsz Hph) with "Lft").
       iIntros (d). by iApply shr_list_tyd_incl.
     Qed.
 
-    Lemma ty_shr_list_subtype E0 L lfts E Hκ HT HP lfts' E' Hκ' HU HP' :
+    Lemma ty_shr_list_subtype E0 L lfts E Hκ HT lfts' E' Hκ' HU :
       lctx_lft_incl E0 L κ' κ →
       lctx_lft_incl E0 L (lft_intersect_list lfts')
         (lft_intersect_list lfts) →
       (llctx_interp L -∗ □ (elctx_interp E0 -∗
         ∀ d, tyd_incl_at (tod T) (tod U) f d)) →
-      subtype E0 L (ty_shr_list κ T lfts E Hκ HT HP)
-                   (ty_shr_list κ' U lfts' E' Hκ' HU HP') (shr_list_mapₛ f).
+      subtype E0 L (ty_shr_list κ T lfts E Hκ HT)
+                   (ty_shr_list κ' U lfts' E' Hκ' HU) (shr_list_mapₛ f).
     Proof.
       move=> Inκ Inl Sub. iIntros "L".
       iDestruct (Inκ with "L") as "#Inκ". iDestruct (Inl with "L") as "#Inl".
@@ -1974,26 +1812,26 @@ Print Assumptions ty_shr_list_subtype.
         (own_list_size_eq Hsz) (own_list_phys_eq f Hsz Hph) with "Lt").
     Qed.
 
-    Lemma ty_own_list_type_incl lfts E HT HP lfts' E' HU HP' :
+    Lemma ty_own_list_type_incl lfts E HT lfts' E' HU :
       dincl (lft_intersect_list lfts') (lft_intersect_list lfts) -∗
       own_list_inclP -∗
-      type_incl (ty_own_list n T lfts E HT HP)
-                (ty_own_list n U lfts' E' HU HP') (own_list_mapₛ f).
+      type_incl (ty_own_list n T lfts E HT)
+                (ty_own_list n U lfts' E' HU) (own_list_mapₛ f).
     Proof.
       iIntros "#Lft #P".
-      iApply (type_incl_of_tyd_incl (ty_own_list n T lfts E HT HP)
-        (ty_own_list n U lfts' E' HU HP') (own_list_mapₛ f)
+      iApply (type_incl_of_tyd_incl (ty_own_list n T lfts E HT)
+        (ty_own_list n U lfts' E' HU) (own_list_mapₛ f)
         (own_list_size_eq Hsz) (own_list_phys_eq f Hsz Hph) with "Lft").
       iIntros (d). by iApply own_list_tyd_incl.
     Qed.
 
-    Lemma ty_own_list_subtype E0 L lfts E HT HP lfts' E' HU HP' :
+    Lemma ty_own_list_subtype E0 L lfts E HT lfts' E' HU :
       lctx_lft_incl E0 L (lft_intersect_list lfts')
         (lft_intersect_list lfts) →
       (llctx_interp L -∗ □ (elctx_interp E0 -∗
         ∀ d, tyd_incl_at (tod T) (tod U) f d)) →
-      subtype E0 L (ty_own_list n T lfts E HT HP)
-                   (ty_own_list n U lfts' E' HU HP') (own_list_mapₛ f).
+      subtype E0 L (ty_own_list n T lfts E HT)
+                   (ty_own_list n U lfts' E' HU) (own_list_mapₛ f).
     Proof.
       move=> Inl Sub. iIntros "L". iDestruct (Inl with "L") as "#Inl".
       iDestruct (Sub with "L") as "#Sub". iIntros "!> #E".
@@ -2078,16 +1916,11 @@ Print Assumptions ty_own_list_subtype.
   Lemma chain_Ty κ : Ty (tod (chain κ)).
   Proof. rewrite /chain. apply ty_rec_shr_Ty=> U HU. by apply mod_tyd_Ty. Qed.
 
-  Lemma chain_TyProphAt κ d : TyProphAt [κ] (tod (chain κ)) d.
-  Proof.
-    rewrite /chain. apply ty_rec_shr_TyProphAt.
-    { iApply llftl_intersect_incl_l. }
-    move=> U d' HU. by apply mod_tyd_TyProphAt.
-  Qed.
+  (** [chain_TyProphAt] is gone with [ty_guard_proph]: see [typing_total/type.v]. *)
 
   (** ...and as a [type] *)
   Definition ty_chain (κ : lft) : type Eₛ :=
-    type_of_tyd [κ] [] (tod (chain κ)) (chain_Ty κ) (chain_TyProphAt κ).
+    type_of_tyd [κ] [] (tod (chain κ)) (chain_Ty κ).
 End rec.
 
 (** Both rest on [Eq_rect_eq] and [functional_extensionality], the latter
