@@ -226,12 +226,12 @@ Section local_invariants.
       as "(W & cna_lft & L & P)".
     rewrite local_inv_body_sem.
     iDestruct "P" as (x'' d' g') "[gho %Hpred]".
-    iModIntro. iFrame "W". iExists (d' `max` g'), x''. iFrame "L".
+    iModIntro. iFrame "W". iExists (Nat.max d' g'), x''. iFrame "L".
     iSplitL "cna_lft Irest".
     { iExists na_mask, at_mask. by iFrame "cna_lft ϝincl Irest". }
     rewrite tracked_ty_gho. iSplitL "gho".
     { iDestruct (ty_gho_depth_mono with "gho") as "$"; lia. }
-    iPureIntro; move: HobsK=> Ha. by apply Ha.
+    iDestruct "Obs" as %Ha; iPureIntro. by apply Ha.
   Qed.
 
   Local Lemma mask_lemma (na_mask at_mask X : coPset) :
@@ -255,7 +255,7 @@ Section local_invariants.
       (const +[p ◁ own_ptr 0 (tracked_ty ty * local_closer_ty κ ty pred)])
       (λ post '-[(_, (_, (N, γ, c)))], λ mask,
         ↑N ⊆ mask ∧ ∀ l v γ', pred (syn_abstract v) c →
-          post -[(l, (v, (N, γ', c)))] (mask ∖ ↑N) π).
+          post -[(l, (v, (N, γ', c)))] (mask ∖ ↑N)).
   Proof.
     move=> Halive HaliveI.
     apply typed_inv_instr_of_skip_own_own_t; [done|done|].
@@ -288,7 +288,7 @@ Section local_invariants.
     rewrite local_inv_body_sem.
     iDestruct "P" as (x'' d' g') "[gho %Hpred]".
     iModIntro. iFrame "W".
-    iExists (d' `max` g'), (x'', (ns, (γ, γt, d0), c)), (mask ∖ ↑ns).
+    iExists (Nat.max d' g'), (x'', (ns, (γ, γt, d0), c)), (mask ∖ ↑ns).
     iFrame "L".
     iSplitL "Iown Ilifetimes Iat".
     { iExists (na_mask ∖ ↑ns), at_mask. iFrame "Iown Iat ϝIncl".
@@ -311,12 +311,13 @@ Section local_invariants.
         p2 ◁ own_ptr 0 (tracked_ty (local_closer_ty κ ty pred))]
       (Seq Skip Skip) (InvCtx Il ϝ 𝛼) (const +[])
       (λ post '-[(_, v); (_, (N, γ, c))], λ mask,
-        pred (syn_abstract v) c ∧ post -[] (mask ∪ ↑N) π).
+        pred (syn_abstract v) c ∧ post -[] (mask ∪ ↑N)).
   Proof.
     apply typed_inv_instr_of_skip_own2_emp.
     move=> l1 l2 v [[ns [[γ γt] d0]] c] d tid iκs post mask.
     iIntros "#LFT #UNIQ #E L I gho1 closer #Obs W".
-    iDestruct "Obs" as %[Hpred _].
+    iDestruct "Obs" as %HobsAll. pose proof HobsAll as HobsK.
+    move: HobsAll=> [Hpred _].
     rewrite !tracked_ty_gho local_closer_ty_gho.
     iDestruct "I" as (na_mask at_mask)
       "[%Hm [[Ilifetimes #ϝIncl] [Iown Iat]]]".

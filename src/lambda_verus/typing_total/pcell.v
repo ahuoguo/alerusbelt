@@ -241,7 +241,7 @@ Section typing.
     rewrite ty_size_eq in Hlen.
     iModIntro. iFrame "W L I". iExists -[(l, (γs, (γs, x)))].
     iSplit; last first.
-    { iApply (proph_obs_impl with "Obs")=> ? Ha. apply Ha. }
+    { iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=> Ha. apply Ha. }
     iSplit; [|done]. iExists #l, (S (S d)). iSplit; [done|].
     rewrite /ty_own own_ptr_gho /= prod_ty_gho /= pcell_ty_gho
       cell_points_to_gho /= Nat.add_0_r app_nil_r.
@@ -286,7 +286,8 @@ Section typing.
     iIntros (?->). twp_bind perm.
     iApply tgl_wp_wand; [by iApply twp_eval_path|]. iIntros (?->).
     twp_rec. iIntros "W".
-    iMod (proph_obs_sat with "Obs") as %[π0 [<- _]]; [solve_ndisj|].
+    iDestruct "Obs" as %HobsAll. pose proof HobsAll as HobsK.
+    move: HobsAll=> [<- _].
     rewrite (pad_length' (FCell <$> γs) (ty_size ty));
       [|by rewrite length_fmap Hlen].
     iDestruct (bi.equiv_entails_1_2 _ _
@@ -295,7 +296,7 @@ Section typing.
     iMod (heap_delete_cell with "H↦ H↦'") as "H↦".
     iModIntro. iFrame "W L I". iExists -[(l, x)].
     iSplit; last first.
-    { iApply (proph_obs_impl with "Obs")=> ? [_ Ha]. apply Ha. }
+    { iPureIntro; move: HobsK=> [_ Ha]. apply Ha. }
     iSplit; [|done]. iExists #l, (S (S d'')). iSplit; [done|].
     rewrite /ty_own own_ptr_gho /=.
     iDestruct (ty_gho_depth_mono ty d'' (S (S d'')) (S d'') (S (S d'')) x tid
@@ -344,7 +345,8 @@ Section typing.
     iIntros (?->). twp_bind perm_ref.
     iApply tgl_wp_wand; [by iApply twp_eval_path|]. iIntros (?->).
     twp_rec. iIntros "W".
-    iMod (proph_obs_sat with "Obs") as %[π0 [<- _]]; [solve_ndisj|].
+    iDestruct "Obs" as %HobsAll. pose proof HobsAll as HobsK.
+    move: HobsAll=> [<- _].
     (* Both shared borrows keep their persistent part behind a judgment, so
        they are opened here, where the world satisfaction is at hand. *)
     iDestruct (wsat_split (W:=verus_halt_wsat) (W':=Wguard) with "W") as "[Wg Wr]".
@@ -362,7 +364,7 @@ Section typing.
     iDestruct (dguard_rhs_sep_r with "Hghoshr") as "#Hgho".
     iModIntro. iFrame "W L I". iExists -[(cloc_flat_insert l γs, x)].
     iSplit; last first.
-    { iApply (proph_obs_impl with "Obs")=> ? [_ Ha]. apply Ha. }
+    { iPureIntro; move: HobsK=> [_ Ha]. apply Ha. }
     iSplit; [|done]. iExists #l.1, (S (d2 + gg1)). iSplit; [done|].
     rewrite /ty_own. iSplit; [|done].
     iApply (shr_bor_gho_intro_st κ ty (cloc_flat_insert l γs, x) _ _ d2 gg1);

@@ -135,6 +135,9 @@ src/lambda_verus/typing_total/uniq_util.v
 src/lambda_verus/typing_total/uniq_bor.v
 src/lambda_verus/typing_total/pptr.v
 src/lambda_verus/typing_total/borrow.v
+src/lambda_verus/typing_total/local_inv.v
+src/lambda_verus/typing_total/ra.v
+src/lambda_verus/typing_total/pcell.v
 
 # Type-specs
 

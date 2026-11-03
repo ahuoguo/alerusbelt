@@ -202,9 +202,7 @@ Section RA_type.
       rewrite ?own_ptr_gho /= ?ra_ty_gho.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ ].
-      apply H1.
+    - iPureIntro. by apply Hpost.
   Qed.
 
   Lemma typed_ra_split (self p1 p2 : path) (ty : type 𝔄) E L I :
@@ -263,8 +261,7 @@ Section RA_type.
       rewrite ?own_ptr_gho /= ?ra_ty_gho.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iApply (proph_obs_impl with "Obs").
-      by destruct vπl.
+    - iDestruct "Obs" as %Hobs; iPureIntro. by destruct vπl.
   Qed.
 
   Lemma typed_ra_update (self p : path) (ty : type 𝔄) E L I :
@@ -284,7 +281,7 @@ Section RA_type.
       [by iDestruct (false_fml_sem_1 with "Hown") as "[]"|].
     rewrite ?own_ptr_gho /= ?ra_ty_gho.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(%Hupd)".
+    iDestruct "Obs" as %[Hupd Hpost].
     iDestruct "Hown" as "(? & ? & Hown)".
     iMod (own_update with "Hown") as "Hown" => //.
     iModIntro. iFrame "W".
@@ -294,7 +291,7 @@ Section RA_type.
     rewrite /ra_ty/tctx_elt_interp/ty_own/=.
     iSplitL.
     - iSplitL; [|done]. iExists _, 1%nat; iSplitR => //=.
-      rewrite ?own_ptr_gho /= ?ra_ty_gho. iFrame. done.
+      rewrite ?own_ptr_gho /= ?ra_ty_gho. by iFrame.
     - (* [Hpost] is the second half of the observation, already named
          where it was destructed above. *)
       iPureIntro. by apply Hpost.
@@ -318,10 +315,10 @@ Section RA_type.
       [by iDestruct (false_fml_sem_1 with "Hown") as "[]"|].
     rewrite ?own_ptr_gho /= ?ra_ty_gho.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(%Hn & %Hupd)".
+    iDestruct "Obs" as "(%Hn & %Hupd & %Hpost0)".
     iDestruct "Hown" as "(? & ? & Hown)".
     destruct n; first lia.
-    inv_vec ys => y ys Hupd.
+    inv_vec ys => y ys Hupd Hpost0.
     iMod (own_update with "Hown") as "Hown".
     { apply Vector.Forall_cons_iff in Hupd as [Hupd ?].
       exact Hupd. }
@@ -335,10 +332,8 @@ Section RA_type.
       rewrite ?own_ptr_gho /= ?ra_ty_gho.
       repeat rewrite heap_mapsto_fancy_vec_nil.
       by iFrame.
-    - iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ [_ Hpost]].
-      specialize (Hpost l).
-      apply Vector.Forall_cons_iff in Hpost as [Hpost ?].
+    - iPureIntro. specialize (Hpost0 l).
+      apply Vector.Forall_cons_iff in Hpost0 as [Hpost ?].
       apply Hpost.
   Qed.
 
@@ -377,9 +372,7 @@ Section RA_type.
     iApply (twp_new 0); [lia|done|]. iIntros (l) "_".
     iExists -[]. iFrame "L".
     iSplit => //.
-    iDestruct "Obs" as %Hobs; iPureIntro.
-    move: Hobs=> ?.
-    by apply H0.
+    iDestruct "Obs" as %Hobs; iPureIntro. by apply Hobs.
   Qed.
 
   Notation "RA_JoinShared: p1 p2" := (new [ #0])%E (at level 102, p1, p2 at level 1): expr_scope.
@@ -406,7 +399,7 @@ Section RA_type.
     iDestruct (guard_rhs_iff (ra_ty_gho _ _ _ _ _) with "Hshr1'") as "#Hshr1".
     iDestruct (guard_rhs_iff (ra_ty_gho _ _ _ _ _) with "Hshr2'") as "#Hshr2".
     iDestruct (Alv with "L E") as "#Alv".
-    iDestruct "Obs" as "(<-)".
+    iDestruct "Obs" as %<-.
     destruct (decide (d1 ≤ d2)) as [Hle | Hgt].
     - iDestruct (guard_trans_right with "Alv Hshr1") as "G1".
       iDestruct (guard_trans_right with "Alv Hshr2") as "G2".
@@ -451,7 +444,7 @@ Section RA_type.
       "#(_ & Hshr2' & _)".
     iDestruct (Alv with "L E") as "#Alv".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(<- & %Hy)".
+    iDestruct "Obs" as "(<- & %Hy & %Hpost)".
     (* The original splits on [d1 ≤ d2] only to align the two guards' later
       indices with [lguards_weaken_later]; later-free there are no indices. *)
     iPoseProof (dguard_and_own (γ:=γ1) (c:=y) with "Hshr1' Hshr2'")
@@ -478,9 +471,7 @@ Section RA_type.
       { iApply dguard_cells_nil. }
       { iApply "Hshr3". }
       { iApply "StE". }
-    + iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ [? ?] ].
-      apply H2.
+    + iPureIntro. by apply Hpost.
   Qed.
 
   Notation "RA_Weaken: p1 p2" := (new [ #0])%E (at level 102, p1, p2 at level 1): expr_scope.
@@ -506,7 +497,7 @@ Section RA_type.
       "#(_ & Hshr0 & _)".
     iDestruct (Alv with "L E") as "#Alv".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(%Hincl)".
+    iDestruct "Obs" as "(%Hincl & %Hpost)".
     iPoseProof (dguard_and_own (γ:=γ) (c:=y) with "Hshr0 Hshr0") as "#Hshr'".
     { iIntros "H".
       iApply (and_own_discrete_ucmra_specific with "H").
@@ -532,9 +523,7 @@ Section RA_type.
       { iApply dguard_cells_nil. }
       { iApply "Hshr'". }
       { iApply "StE". }
-    + iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ ? ].
-      apply H0.
+    + iPureIntro. by apply Hpost.
   Qed.
 
   Notation "RA_UpdateWithShr: self other new_value" := (new [ #0])%E (at level 102, self,other,new_value at level 1): expr_scope.
@@ -567,7 +556,7 @@ Section RA_type.
     iDestruct (dguard_alive_sem' (ra_fml_sem _ _) with "Hy0") as "#Hy".
     iDestruct (guard_trans with "Alv Hy") as "#G1".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(<- & %Hupd)".
+    iDestruct "Obs" as "(<- & %Hupd & %Hpost)".
     iDestruct (wsat_split (W':=Wguard) with "W") as "[Wg Wr]".
     iDestruct (guard_acc with "G1 L Wg") as "[Hown →Wg]".
     iCombine "Hx Hown" as "Hxy".
@@ -579,14 +568,13 @@ Section RA_type.
     iApply (twp_new 0); [lia|done|]. iIntros (l) "(† & ↦)".
     rewrite /tctx_elt_interp/ty_own/=.
     iExists -[(l, (γ1, z))]. iFrame "L".
+    (* [//=] already discharges the pure half: with the prophecy premise
+       gone it is the hypothesis itself. *)
     iSplit => //=.
-    + iSplitL "Hx"; [|done]. iExists _, 1%nat.
-      rewrite own_ptr_gho /= ?ra_ty_gho /= heap_mapsto_fancy_vec_nil
-        freeable_sz_full.
-      iFrame "Hx". repeat iSplit; try done. by iRight.
-    + iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ [_ ]].
-      by apply H1.
+    iSplitL "Hx"; [|done]. iExists _, 1%nat.
+    rewrite own_ptr_gho /= ?ra_ty_gho /= heap_mapsto_fancy_vec_nil
+      freeable_sz_full.
+    iFrame "Hx". repeat iSplit; try done. by iRight.
   Qed.
 
   Notation "RA_UpdateWithShrNonDet: self other new_values" := (new [ #0])%E (at level 102, self,other,new_values at level 1): expr_scope.
@@ -620,9 +608,9 @@ Section RA_type.
     iDestruct (dguard_alive_sem' (ra_fml_sem _ _) with "Hy0") as "#Hy".
     iDestruct (guard_trans with "Alv Hy") as "#G1".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(<- & %Hn & %Hupd)".
+    iDestruct "Obs" as "(<- & %Hn & %Hupd & %Hpost0)".
     destruct n; first lia.
-    inv_vec zs => z zs Hupd.
+    inv_vec zs => z zs Hupd Hpost0.
     iDestruct (wsat_split (W':=Wguard) with "W") as "[Wg Wr]".
     iDestruct (guard_acc with "G1 L Wg") as "[Hown →Wg]".
     iCombine "Hx Hown" as "Hxy".
@@ -641,9 +629,7 @@ Section RA_type.
       rewrite own_ptr_gho /= ?ra_ty_gho /= heap_mapsto_fancy_vec_nil
         freeable_sz_full.
       iFrame "Hx". repeat iSplit; try done. by iRight.
-    + iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ [_ [? Hpost]]].
-      specialize (Hpost l).
+    + iPureIntro. specialize (Hpost0 l). move: Hpost0 => Hpost.
       apply Vector.Forall_cons_iff in Hpost as [Hpost ?].
       apply Hpost.
   Qed.
