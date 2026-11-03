@@ -335,7 +335,7 @@ Section typing.
 
   Lemma type_delete_instr {𝔄} (ty: type 𝔄) (n: Z) p E L I :
     let n' := ty.(ty_size) in n = Z.of_nat n' →
-    typed_instr E L I +[p ◁ own_ptr n' ty] (new_delete.delete [ #n; p])%E (λ _, +[])
+    typed_instr E L I +[p ◁ own_ptr n' ty] (new_delete_defs.delete [ #n; p])%E (λ _, +[])
       (λ post _, post -[]).
   Proof.
     iIntros (?->????[[l x][]]) "_ _ _ _ $ $ [p _] %Obs". wp_bind p.
@@ -357,7 +357,7 @@ Section typing.
     E L I (C: cctx 𝔇) (T: tctx 𝔅l) (T': tctx ℭl) trx tr :
     Closed [] e → tctx_extract_ctx E L +[p ◁ own_ptr n' ty] T T' trx →
     n' = ty.(ty_size) → n = n' → typed_body E L I C T' e tr -∗
-    typed_body E L I C T (new_delete.delete [ #n; p ];; e) (trx ∘ (λ post '(_ -:: al), tr post al)).
+    typed_body E L I C T (new_delete_defs.delete [ #n; p ];; e) (trx ∘ (λ post '(_ -:: al), tr post al)).
   Proof.
     iIntros (? Extr -> ?) "?". iApply type_seq; [by eapply type_delete_instr|done| |done].
     destruct Extr as [Htrx _]=>?? /=. apply Htrx. by case.
@@ -367,7 +367,7 @@ Section typing.
     let n' := ty.(ty_size) in n = Z.of_nat n' →
     typed_instr E L I
       +[p ◁ own_ptr n' ty]
-      (new_delete.delete [ #n; p])%E
+      (new_delete_defs.delete [ #n; p])%E
       (λ _, +[p ◁ own_tracked ty])
       (λ post π, post π).
   Proof.
