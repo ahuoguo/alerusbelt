@@ -92,9 +92,9 @@
 
   Worth saying plainly, because an earlier note in [typing/function.v]
   got it wrong: no choice of [fn_wsat_lv] can make a divergent program
-  typable.  [typing/soundness.v]'s [type_soundness] takes
-  [⊢ typed_body … e tr] to [sn erased_step] and is a Rocq theorem, so
-  every [FnFml] whose obligations are provable is sound by
+  typable.  [typing_total/soundness.v]'s [type_soundness] takes
+  [⊢ typed_body … e tr] to a full termination mass and is a Rocq
+  theorem, so every [FnFml] whose obligations are provable is sound by
   construction.  What a degenerate instance loses is content, not
   soundness.
 
@@ -125,17 +125,17 @@ Unset Suggest Proof Using.
 
 Section fn_inst.
   Context {Σ} `{!verus_haltGpreS (cifOF verus_haltCON) Σ,
-    !invGS_gen HasNoLc Σ}.
+    !invGS_gen HasLc Σ}.
   Context (hLlft : llft_logicGS Σ) (hGS : heapGS (cifOF verus_haltCON) Σ)
-    (hP : prophG Σ) (hU : uniqG Σ) (n : verus_haltNames (CON:=verus_haltCON) (Σ:=Σ)).
+    (hEc : ecGS Σ) (hU : uniqG Σ) (n : verus_haltNames (CON:=verus_haltCON) (Σ:=Σ)).
 
   #[local] Instance fn_inst_GS : verus_haltGS (cifOF verus_haltCON) Σ :=
-    verus_haltGS_of hLlft hGS hP hU n.
+    verus_haltGS_of hLlft hGS hEc hU n.
 
-  Notation Pc := (verus_halt_lvl_const hLlft hGS hP hU).
+  Notation Pc := (verus_halt_lvl_const hLlft hGS hEc hU).
 
   Definition fn_Wlv (j : nat) : iProp Σ :=
-    verus_halt_wsat_below hLlft hGS hP hU Pc [n] j ∗ send_wsat.
+    verus_halt_wsat_below hLlft hGS hEc hU Pc [n] j ∗ send_wsat.
 
   Lemma fn_Wlv_top : verus_halt_wsat ⊣⊢ fn_Wlv 1.
   Proof.
@@ -149,7 +149,7 @@ Section fn_inst.
   Proof.
     move=> Hle.
     rewrite /fn_Wlv
-      (verus_halt_wsat_below_le hLlft hGS hP hU (P:=Pc) (ns:=[n]) Hle).
+      (verus_halt_wsat_below_le hLlft hGS hEc hU (P:=Pc) (ns:=[n]) Hle).
     iIntros "!> [[B Br] S] !>". iFrame "B S". iIntros "[B S] !>". iFrame.
   Qed.
 
@@ -219,20 +219,20 @@ End fn_inst.
   model that does index its slots by level. *)
 Section fn_inst_lv.
   Context {Σ} `{!verus_haltGpreS (cifOF verus_haltCON) Σ,
-    !invGS_gen HasNoLc Σ}.
+    !invGS_gen HasLc Σ}.
   Context (hLlft : llft_logicGS Σ) (hGS : heapGS (cifOF verus_haltCON) Σ)
-    (hP : prophG Σ) (hU : uniqG Σ)
+    (hEc : ecGS Σ) (hU : uniqG Σ)
     (n0 : verus_haltNames (CON:=verus_haltCON) (Σ:=Σ))
     (ns' : list (verus_haltNames (CON:=verus_haltCON) (Σ:=Σ))).
 
-  Notation Pc := (verus_halt_lvl_const hLlft hGS hP hU).
+  Notation Pc := (verus_halt_lvl_const hLlft hGS hEc hU).
 
   (** The levels *above* the ambient one, which is level 0 *)
   Definition fnlv_Wx : iProp Σ :=
     [∗ list] k ↦ n ∈ ns', lvl_wsat_lvl (Pc (S k) n).
 
   #[local] Instance fn_inst_lv_GS : verus_haltGS (cifOF verus_haltCON) Σ :=
-    verus_haltGS_of_lv hLlft hGS hP hU n0 fnlv_Wx.
+    verus_haltGS_of_lv hLlft hGS hEc hU n0 fnlv_Wx.
 
   (** The family.  It is [verus_halt_wsat_below]'s shape - one shared
     half beside the level halves below [j] - written with **level 0 as
@@ -246,7 +246,7 @@ Section fn_inst_lv.
 
   Definition fnlv_lvls (j : nat) : iProp Σ :=
     match j with
-    | 0 => emp
+    | O => emp
     | S j' => verus_halt_wsat_lvl ∗ fnlv_tail j'
     end.
 
@@ -319,7 +319,11 @@ Section fn_inst_lv.
   Lemma fnlv_Wlv_0 :
     fnlv_Wlv 0 ⊣⊢ verus_halt_wsat_shared ∗ send_wsat.
   Proof.
-    rewrite /fnlv_Wlv. cbn [fnlv_lvls]. by rewrite bi.sep_emp.
+    (* [send_wsat] is [True], which *is* [emp] in [uPred], so a bare
+      [rewrite bi.sep_emp] would rewrite both sides. *)
+    rewrite /fnlv_Wlv. cbn [fnlv_lvls]. iSplit.
+    - by iIntros "[[$ _] $]".
+    - by iIntros "[$ $]".
   Qed.
 
   Lemma fnlv_Wlv_S_0 : fnlv_Wlv 1 ⊣⊢ fnlv_Wlv 0 ∗ verus_halt_wsat_lvl.
@@ -351,22 +355,22 @@ End fn_inst_lv.
   the world projects [verus_halt_Wx] - but they are not the same term,
   and the conversion between them is not cheap. *)
 Lemma fnlv_names_alloc {Σ}
-  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasNoLc Σ}
-  (hGS : heapGS (cifOF verus_haltCON) Σ) (hP : prophG Σ) (hU : uniqG Σ) L :
+  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasLc Σ}
+  (hGS : heapGS (cifOF verus_haltCON) Σ) (hEc : ecGS Σ) (hU : uniqG Σ) L :
   ⊢ |==> ∃ (hLlft : llft_logicGS Σ) (n0 : verus_haltNames)
     (ns' : list verus_haltNames), ⌜length ns' = L⌝ ∗
     @verus_halt_wsat_core (cifOF verus_haltCON) Σ
-      (fn_inst_lv_GS hLlft hGS hP hU n0 ns') _ ∗
-    fnlv_Wx hLlft hGS hP hU ns'.
+      (fn_inst_lv_GS hLlft hGS hEc hU n0 ns') _ ∗
+    fnlv_Wx hLlft hGS hEc hU ns'.
 Proof.
   iMod verus_halt_names_alloc_lv as (hLlft n0) "[#Wits W0]".
-  iMod (verus_halt_names_more_list_alloc hGS hP hU hLlft L with "Wits")
+  iMod (verus_halt_names_more_list_alloc hGS hEc hU hLlft L with "Wits")
     as (ns' Hlen) "Wns".
-  iAssert (fnlv_Wx hLlft hGS hP hU ns') with "[Wns]" as "Wx".
+  iAssert (fnlv_Wx hLlft hGS hEc hU ns') with "[Wns]" as "Wx".
   { rewrite /fnlv_Wx. iApply (big_sepL_mono with "Wns")=> k n _ /=.
     iIntros "W". iApply (names_wsat_lvl_of with "W"). }
   iModIntro. iExists hLlft, n0, ns'. iSplitR; [done|]. iFrame "Wx".
-  iApply ("W0" $! hGS hP hU (fnlv_Wx hLlft hGS hP hU ns')).
+  iApply ("W0" $! hGS hEc hU (fnlv_Wx hLlft hGS hEc hU ns')).
 Qed.
 
 (** Both models rest on nothing but what [typing/inst.v]'s own theorems

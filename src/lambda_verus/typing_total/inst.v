@@ -15,7 +15,7 @@ From lrust.typing_total Require Export soundness.
 From lrust.typing_total Require Import function programs product base_type
   type_context shr_bor.
 From nola.util Require Import productive cit.
-From lrust.lang Require Import races notation.
+From lrust.lang Require Import notation.
 From nola.util Require Import tagged.
 From nola.bi Require Import deriv.
 From iris.proofmode Require Import proofmode.
@@ -376,7 +376,7 @@ Definition verus_halt_sem {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ} :
   (verus_haltCsem, verus_haltJsem, typingCS_CON, typingJS_JUDG).
 
 (** Supplying the four semantics to a typing derivation: the non-vacuity of
-  [typing/soundness.v]'s two theorems, in the form a client needs it. *)
+  [typing_total/soundness.v]'s theorem, in the form a client needs it. *)
 Lemma verus_halt_sem_intro {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ}
     {𝔅} (e : expr) (tr : predl_trans' [] 𝔅) :
   (⊢ typed_body [] [] (InvCtx [] static AtomicClosed) ([] : cctx 𝔅) +[] e tr) →
@@ -390,15 +390,15 @@ Qed.
 
 (** ** Soundness with the constraints discharged
 
-  The same two statements for the concrete [CON] and [JUDG] above, with
-  their semantics supplied, so that neither is vacuous. *)
+  The statement of [typing_total/soundness.v] for the concrete [CON] and
+  [JUDG] above, with its semantics supplied, so that it is not vacuous. *)
 Theorem verus_halt_type_soundness {Σ} `{!verus_haltGpreS (cifOF verus_haltCON) Σ}
     {𝔅} (e : expr) (tr : predl_trans' [] 𝔅) :
   (∀ post xl mask, tr post xl mask) →
   (∀ H : verus_haltGS (cifOF verus_haltCON) Σ,
     ⊢ typed_body [] [] (InvCtx [] static AtomicClosed) ([] : cctx 𝔅)
         +[] e tr) →
-  sn erased_step ([e], (∅, false)).
+  (1 <= SeriesC (lim_exec (e, ∅)))%R.
 Proof.
   move=> Htr big.
   refine (type_soundness (CON := verus_haltCON) (JUDG := verus_haltJUDG Σ) e tr Htr _).
@@ -406,27 +406,12 @@ Proof.
   exact: big.
 Qed.
 
-Theorem verus_halt_type_safety {Σ} `{!verus_haltGpreS (cifOF verus_haltCON) Σ}
-    {𝔅} (e : expr) (tr : predl_trans' [] 𝔅) t σ :
-  (∀ post xl mask, tr post xl mask) →
-  (∀ H : verus_haltGS (cifOF verus_haltCON) Σ,
-    ⊢ typed_body [] [] (InvCtx [] static AtomicClosed) ([] : cctx 𝔅)
-        +[] e tr) →
-  rtc erased_step ([e], (∅, false)) (t, σ) →
-  nonracing_threadpool t σ ∧
-    (∀ e', e' ∈ t → is_Some (to_val e') ∨ reducible e' σ).
-Proof.
-  move=> Htr big.
-  refine (type_safety (CON := verus_haltCON) (JUDG := verus_haltJUDG Σ) e tr t σ
-    Htr _).
-  move=> H. exists verus_haltCsem, verus_haltJsem, typingCS_CON, typingJS_JUDG.
-  exact: big.
-Qed.
+(** [typing_total/soundness.v]'s [type_safety] is gone with the concurrency,
+  so there is no second statement to discharge the constraints of. *)
 
-(** Both rest on nothing but the axiom Iris itself uses, now at a concrete
-  constructor signature, judgment type and semantics. *)
+(** It rests on nothing but the axioms Iris and the reals bring, now at a
+  concrete constructor signature, judgment type and semantics. *)
 Print Assumptions verus_halt_type_soundness.
-Print Assumptions verus_halt_type_safety.
 
 (** ** [&shr{κ}] is productive
 
@@ -520,10 +505,10 @@ Print Assumptions shr_bor_ghox_productive.
   there is not [FnFml] any more but the borrow formers, which record a
   slot's level as its pointee's; see [typing/fn_inst.v]'s header. *)
 Definition verus_halt_lvl_const {Σ}
-  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasNoLc Σ}
+  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasLc Σ}
   (hLlft : llft_logicGS Σ) (hGS : heapGS (cifOF verus_haltCON) Σ)
-  (hP : prophG Σ) (hU : uniqG Σ) (k : nat) (n : verus_haltNames) :
-  LvlAt hLlft hGS hP hU n :=
+  (hEc : ecGS Σ) (hU : uniqG Σ) (k : nat) (n : verus_haltNames) :
+  LvlAt hLlft hGS hEc hU n :=
   {| lvl_Cs := verus_haltCsem; lvl_Js := verus_haltJsem;
      lvl_CS := typingCS_CON; lvl_JS := typingJS_JUDG |}.
 
@@ -535,13 +520,13 @@ Definition verus_halt_lvl_const {Σ}
   every level is a handful of fresh ghost names against the [inG]s one
   [verus_haltGpreS] already carries. *)
 Lemma verus_halt_levels_alloc {Σ}
-  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasNoLc Σ}
-  (hGS : heapGS (cifOF verus_haltCON) Σ) (hP : prophG Σ) (hU : uniqG Σ) L :
+  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasLc Σ}
+  (hGS : heapGS (cifOF verus_haltCON) Σ) (hEc : ecGS Σ) (hU : uniqG Σ) L :
   ⊢ |==> ∃ (hLlft : llft_logicGS Σ) (ns : list verus_haltNames),
     ⌜length ns = S L⌝ ∗
-    verus_halt_wsats hLlft hGS hP hU (verus_halt_lvl_const hLlft hGS hP hU) ns.
+    verus_halt_wsats hLlft hGS hEc hU (verus_halt_lvl_const hLlft hGS hEc hU) ns.
 Proof.
-  iMod (verus_halt_wsats_alloc hGS hP hU L) as (hLlft ns Hlen) "W".
+  iMod (verus_halt_wsats_alloc hGS hEc hU L) as (hLlft ns Hlen) "W".
   iModIntro. iExists hLlft, ns. iSplitR; [done|]. iApply "W".
 Qed.
 
@@ -550,15 +535,15 @@ Qed.
   the family supplied; without [verus_halt_lvl_const] above there was
   no family to supply. *)
 Lemma verus_halt_below_acc_const {Σ}
-  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasNoLc Σ}
-  {hLlft hGS hP hU} {ns : list verus_haltNames} {j k n} :
+  `{!verus_haltGpreS (cifOF verus_haltCON) Σ, !invGS_gen HasLc Σ}
+  {hLlft hGS hEc hU} {ns : list verus_haltNames} {j k n} :
   (k < j)%nat → ns !! k = Some n →
-  verus_halt_wsat_below hLlft hGS hP hU
-    (verus_halt_lvl_const hLlft hGS hP hU) ns j ⊢
-    lvl_wsat_lvl (verus_halt_lvl_const hLlft hGS hP hU k n) ∗
-      (lvl_wsat_lvl (verus_halt_lvl_const hLlft hGS hP hU k n) -∗
-       verus_halt_wsat_below hLlft hGS hP hU
-         (verus_halt_lvl_const hLlft hGS hP hU) ns j).
+  verus_halt_wsat_below hLlft hGS hEc hU
+    (verus_halt_lvl_const hLlft hGS hEc hU) ns j ⊢
+    lvl_wsat_lvl (verus_halt_lvl_const hLlft hGS hEc hU k n) ∗
+      (lvl_wsat_lvl (verus_halt_lvl_const hLlft hGS hEc hU k n) -∗
+       verus_halt_wsat_below hLlft hGS hEc hU
+         (verus_halt_lvl_const hLlft hGS hEc hU) ns j).
 Proof.
-  move=> Hkj Hn. exact (verus_halt_wsat_below_acc hLlft hGS hP hU Hkj Hn).
+  move=> Hkj Hn. exact (verus_halt_wsat_below_acc hLlft hGS hEc hU Hkj Hn).
 Qed.

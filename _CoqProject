@@ -148,6 +148,8 @@ src/lambda_verus/typing_total/model.v
 src/lambda_verus/typing_total/model_inst.v
 src/lambda_verus/typing_total/level_ctx.v
 src/lambda_verus/typing_total/soundness.v
+src/lambda_verus/typing_total/inst.v
+src/lambda_verus/typing_total/fn_inst.v
 
 # Type-specs
 
