@@ -56,6 +56,11 @@ From lrust.util Require Import basic.
 (** [ctx_wp], for the [lrustTotGS] instance: this file states weakest
   preconditions.  See the head of [typing_total/ctx_wp.v]. *)
 From lrust.typing_total Require Import ctx_wp.
+(** [lrust.lang.pure_exec] last: [clutch.common.language] also exports an
+  [AsVal], and with that one winning the name a [TCForall AsVal vl] binder
+  no longer matches [pure_rec]'s premise.  Same shape as the two
+  [util/basic.v]'s and their [SemiIso]. *)
+From lrust.lang Require Import pure_exec.
 Unset Default Proof Using.
 (** [iris.prelude.options] sets [Default Goal Selector "!"], which rejects a
   bare tactic while more than one goal is focused.  It reaches a ported file
@@ -84,8 +89,8 @@ Section recursion.
     typed_body_at W E L I C T e' tr -∗ typed_body_at W E L I C T e tr.
   Proof.
     move=> ??. rewrite /typed_body_at.
-    iIntros "body" (?????) "A B C D E F G H I".
-    iDestruct ("body" with "A B C D E F G H I") as "twp".
+    iIntros "body" (?????) "A B C D E F G H".
+    iDestruct ("body" with "A B C D E F G H") as "twp".
     by eapply (tac_twp_pure []).
   Qed.
   Lemma type_pure {𝔄l 𝔅} E L (I: invctx) (C: cctx 𝔅) (T: tctx 𝔄l) φ n e e' tr :
@@ -103,7 +108,11 @@ Section recursion.
       `{!AsRec e f xl erec, !TCForall AsVal vl,
         !Closed (f :b: xl +b+ []) erec, !DoSubstL (f :: xl) (e :: vl) erec erec'} :
     typed_body_at W E L I C T erec' tr -∗ typed_body_at W E L I C T (App e vl) tr.
-  Proof. by iApply type_pure_at. Qed.
+  Proof.
+    (* [pure_rec] resolves only once [e'] is known: left to [iApply] it is
+       still an evar when the [PureExec] premise is discharged. *)
+    by iApply (type_pure_at _ _ _ _ _ _ True 1 (App e vl) erec').
+  Qed.
   Lemma type_call_rec {𝔄l 𝔅} E L (I: invctx) (C: cctx 𝔅)
       (T: tctx 𝔄l) e f xl erec (vl: list expr) erec' tr
       `{!AsRec e f xl erec, !TCForall AsVal vl,
@@ -156,14 +165,15 @@ Section recursion.
         cctx_elt_interp tid iκs post
           (k ◁cont{L', I', T'} (cont_lt R μ trk a)).
     { apply (well_founded_induction Hwf)=> a IH.
-      iIntros "#LFT' #PROPH' #UNIQ' #E' C %vl %xl' %mask' L'i I'i T'i #Obs'".
+      iIntros "#LFT' #UNIQ' #E' C %vl %xl' %mask' L'i I'i T'i #Obs'".
       iApply fupdw_tgl_wpw_cont. iIntros "W".
-      iMod (proph_obs_sat ⊤ with "PROPH' Obs'") as %[π0 [Hlt _]]; [done|].
+      iDestruct "Obs'" as %HobsAll. pose proof HobsAll as HobsK.
+      move: HobsAll=> [Hlt _].
       iModIntro. iFrame "W". twp_rec.
-      iApply (Hec (μ xl') k vl with "LFT' PROPH' UNIQ' E' L'i I'i [C] T'i").
+      iApply (Hec (μ xl') k vl with "LFT' UNIQ' E' L'i I'i [C] T'i").
       - rewrite cctx_interp_cons. iSplit; [|iExact "C"].
-        iApply (IH (μ xl') Hlt with "LFT' PROPH' UNIQ' E' C").
-      - iApply (proph_obs_impl with "Obs'")=>/= ?[_ ?]. by split. }
+        iApply (IH (μ xl') Hlt with "LFT' UNIQ' E' C").
+      - iPureIntro; move: HobsK=> [_ ?]. by split. }
     twp_let. iApply ("He" $! k with "LFT UNIQ E L I [C] T Obs").
     rewrite cctx_interp_cons. iSplit; [|iExact "C"].
     iApply (Kont a0 with "LFT UNIQ E C").
