@@ -331,6 +331,6 @@ Section fnrec.
     iApply typed_body_impl; last first.
     { iApply typed_body_tctx_incl; [|iApply Body].
       apply tctx_incl_resolve_head. }
-    by move=>/= ?[??]??[_ ?].
+    by move=>/= ?[??]?[_ ?].
   Qed.
 End fnrec.

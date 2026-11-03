@@ -140,6 +140,9 @@ src/lambda_verus/typing_total/ra.v
 src/lambda_verus/typing_total/pcell.v
 src/lambda_verus/typing_total/product_split.v
 src/lambda_verus/typing_total/function.v
+src/lambda_verus/typing_total/recursion.v
+src/lambda_verus/typing_total/protocol.v
+src/lambda_verus/typing_total/type_sum.v
 
 # Type-specs
 

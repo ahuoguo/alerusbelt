@@ -422,7 +422,7 @@ Section StorageProtocol.
   Proof.
     rewrite /sp_cells_fml /big_sep_fml.
     induction (map_to_list (F s)) as [|[k c] l IH]; [done|]. simpl.
-    f_equiv; [|exact IH]. have [_ [Hg _]] := Hsync tid tid' c 0 0. exact Hg.
+    f_equiv; [|exact IH]. have [_ [Hg _]] := Hsync tid tid' c 0%nat 0%nat. exact Hg.
   Qed.
 
   Lemma sp_wsat_fml_tid (Hsync : Sync (ty_of_gt tyC)) γ tid tid' :
@@ -478,8 +478,7 @@ Section StorageProtocol.
     iIntros "LFT UNIQ E L $ TY #Obs" => /=.
     destruct vπl as [[pl a] [[pl' c] []]].
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & %b & %k & %Hb & %Hrel & _)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [b [k [Hb [Hrel _]]]].
     iDestruct "TY" as "(_ & TY' & _)".
     iDestruct "TY'" as "(%v' & %d' & % & Hgho' & %)".
     destruct d' as [|d'];
@@ -501,7 +500,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= storage_resource_ty_gho /=.
       rewrite heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own". by iRight.
-    - iApply (proph_obs_impl with "Obs"). move=> ? [?[?[?[? Ha]]]]. apply Ha.
+    - iPureIntro; move: HobsK=> [?[?[?[? Ha]]]]. apply Ha.
   Qed.
 
   Notation "SP_Join: a b" := (new [ #0])%E
@@ -519,7 +518,7 @@ Section StorageProtocol.
     iIntros "LFT UNIQ E L $ TY #Obs"=>/=.
     destruct vπl as [[pl1 [γ1 a1]] [[pl2 [γ2 a2]] []]].
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(<-)".
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [<- _].
     iDestruct "TY" as "(H1 & H2 & _)".
     iDestruct "H1" as "(%v1 & %d1 & % & Hown1 & %)".
     iDestruct "H2" as "(%v2 & %d2 & % & Hown2 & %)".
@@ -539,7 +538,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= storage_resource_ty_gho /=
         heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own". by iRight.
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [_ Ha].
+    - iPureIntro; by move: HobsK=> [_ Ha].
   Qed.
 
   Notation "SP_Split: p p1 p2" := (new [ #0])%E
@@ -559,7 +558,7 @@ Section StorageProtocol.
     destruct vπl as [[pl [γ x]] [[plx1 x1] [[plx2 x2] []]]].
     simpl in x1, x2.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(->)".
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [-> _].
     iDestruct "TY" as "(H & _ & _ & _)".
     iDestruct "H" as "(%v & %d & % & Hown & %)".
     destruct d as [|d];
@@ -573,7 +572,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= prod_ty_gho !storage_resource_ty_gho /=
         heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own1 own2". by iRight.
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [_ Ha].
+    - iPureIntro; by move: HobsK=> [_ Ha].
   Qed.
 
   Notation "SP_Update: p1 p2" := (new [ #0])%E
@@ -591,7 +590,7 @@ Section StorageProtocol.
     iIntros "LFT UNIQ E L $ TY #Obs"=>/=.
     destruct vπl as [[pl [γ p]] [[plnew_p new_p] []]]. simpl in γ,p,new_p.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(%upd)".
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [upd _].
     iDestruct "TY" as "(H & _ & _)".
     iDestruct "H" as "(%v & %d & % & Hown & %)".
     destruct d as [|d];
@@ -608,7 +607,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= storage_resource_ty_gho /=
         heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own". by iRight.
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [_ Ha].
+    - iPureIntro; by move: HobsK=> [_ Ha].
   Qed.
 
   Notation "SP_Exchange: p1 p2 p3 p4" := (new [ #0])%E
@@ -634,8 +633,7 @@ Section StorageProtocol.
       [[pl [γ p]] [[pls s] [[plnew_p new_p] [[plnew_s new_s] []]]]].
     simpl in γ,p,s,new_p,new_s.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & %b & %new_b & %k & %Hb & %Hnew_b & %exchng & _)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [b [new_b [k [Hb [Hnew_b [exchng _]]]]]].
     iDestruct "TY" as "(Hp & Hs & _ & _)".
     iDestruct "Hp" as "(%v & %d & % & Hown & %)".
     iDestruct "Hs" as "(%v0 & %d0 & % & Hown' & %)".
@@ -659,7 +657,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= prod_ty_gho storage_resource_ty_gho
         tracked_ty_gho /= heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own HghoC". by iRight.
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [?[?[?[?[?[? Ha]]]]]].
+    - iPureIntro; by move: HobsK=> [?[?[?[?[?[? Ha]]]]]].
   Qed.
 
   Notation "SP_Deposit: p1 p2 p3" := (new [ #0])%E
@@ -681,8 +679,7 @@ Section StorageProtocol.
     destruct vπl as [[pl [γ p]] [[pls s] [[plnew_p new_p] []]]].
     simpl in γ,p,s,new_p.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & %b & %k & %Hb & %dep & _)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [b [k [Hb [dep _]]]].
     iDestruct "TY" as "(Hp & Hs & _ & _)".
     iDestruct "Hp" as "(%v & %d & % & Hown & %)".
     iDestruct "Hs" as "(%v0 & %d0 & % & Hown' & %)".
@@ -705,7 +702,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= storage_resource_ty_gho /=
         heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own". by iRight.
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [?[?[?[? Ha]]]].
+    - iPureIntro; by move: HobsK=> [?[?[?[? Ha]]]].
   Qed.
 
   Notation "SP_Withdraw: p1 p2 p3" := (new [ #0])%E
@@ -727,8 +724,7 @@ Section StorageProtocol.
     destruct vπl as [[pl [γ p]] [[plnew_p new_p] [[plnew_s new_s] []]]].
     simpl in γ,p,new_p,new_s.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & %b & %k & %Hb & %wd & _)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [b [k [Hb [wd _]]]].
     iDestruct "TY" as "(Hp & _ & _ & _)".
     iDestruct "Hp" as "(%v & %d & % & Hown & %)".
     destruct d as [|d];
@@ -747,7 +743,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= prod_ty_gho storage_resource_ty_gho
         tracked_ty_gho /= heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own HghoC". by iRight.
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [?[?[?[? Ha]]]].
+    - iPureIntro; by move: HobsK=> [?[?[?[? Ha]]]].
   Qed.
 
   Notation "SP_ExchangeNonDet: p1 p2 p3" := (new [ #0])%E
@@ -776,8 +772,7 @@ Section StorageProtocol.
     destruct vπl as [[pl [γ p]] [[pls s] [[pl' new_pbs] []]]].
     simpl in γ,p,s,new_pbs.
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & %Hlt & %b & %k & %Hb & %exchng & %Hforall)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [Hlt [b [k [Hb [exchng Hforall]]]]].
     iDestruct "TY" as "(Hp & Hs & _ & _)".
     iDestruct "Hp" as "(%v & %d & % & Hown & %)".
     iDestruct "Hs" as "(%v0 & %d0 & % & Hown' & %)".
@@ -807,7 +802,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= prod_ty_gho storage_resource_ty_gho
         tracked_ty_gho /= heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own HghoC". by iRight.
-    - iApply (proph_obs_impl with "Obs"). move=> ? [_ [? [? [_ [_ Hpost]]]]].
+    - iPureIntro; move: HobsK=> [_ [? [? [_ [_ Hpost]]]]].
       specialize (Hpost l). rewrite Forall_forall in Hpost.
       apply Hpost in Hin as (new_s' & Hnew_b' & Hpostπ).
       rewrite Hnew_b' in Hnew_b. rewrite map_eq_iff in Hnew_b.
@@ -868,8 +863,7 @@ Section StorageProtocol.
     iDestruct (shr_bor_gho_elim with "Hshr") as (dd gg Hdd Hgg)
       "#(_ & shr & _)".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & %b & %k & %Hb & %gds & _)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [b [k [Hb [gds _]]]].
     iDestruct (sp_shr_dinv E L Alv (γ, p) dd gg tid with "E L shr W")
       as "(L & W & #i)".
     (** The stored guard on the contents, at *every* candidate.  This is
@@ -904,7 +898,7 @@ Section StorageProtocol.
       + iApply dguard_cells_nil.
       + iApply "gC".
       + iApply "St".
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [?[?[?[? Ha]]]].
+    - iPureIntro; by move: HobsK=> [?[?[?[? Ha]]]].
   Qed.
 
   Notation "SP_Weaken: p1 p2" := (new [ #0])%E
@@ -927,7 +921,7 @@ Section StorageProtocol.
     iDestruct (shr_bor_gho_elim with "Hshr") as (dd gg Hdd Hgg)
       "#(_ & shr & _)".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(%Hincl)".
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [Hincl _].
     iDestruct (sp_shr_dinv E L Alv (γ, x1) dd gg tid with "E L shr W")
       as "(L & W & #i)".
     iAssert (dguard (alive_fml κ)
@@ -963,7 +957,7 @@ Section StorageProtocol.
       + iApply dguard_cells_nil.
       + iApply "gw".
       + iApply "St".
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [_ Ha].
+    - iPureIntro; by move: HobsK=> [_ Ha].
   Qed.
 
   Notation "SP_JoinSharedDet: p1 p2 p3" := (new [ #0])%E
@@ -995,7 +989,7 @@ Section StorageProtocol.
     iDestruct (shr_bor_gho_elim with "Hshr2") as (dd2 gg2 ? ?)
       "#(_ & shr2 & _)".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(<- & %Hy)".
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [<- [Hy _]].
     iDestruct (sp_shr_dinv E L Alv (γ1, x1) dd1 gg1 tid with "E L shr1 W")
       as "(L & W & #i)".
     iAssert (dguard (alive_fml κ)
@@ -1035,7 +1029,7 @@ Section StorageProtocol.
       + iApply dguard_cells_nil.
       + iApply "gy".
       + iApply "St".
-    - iApply (proph_obs_impl with "Obs"). by move=> ? [_ [_ Ha]].
+    - iPureIntro; by move: HobsK=> [_ [_ Ha]].
   Qed.
 
   Notation "SP_Validate: p1" := (new [ #0])%E
@@ -1157,8 +1151,7 @@ Section StorageProtocol.
     iDestruct "Hown''" as "(_ & _ & HghoC)".
     iDestruct (shr_bor_gho_elim with "Hshr") as (dd gg ? ?) "#(_ & shr & _)".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & <- & %b & %new_b & %k & %Hb & %Hnew_b & %exchng & _)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [<- [b [new_b [k [Hb [Hnew_b [exchng _]]]]]]].
     iDestruct (sp_shr_guards E L Alv (γ, p') dd gg tid with "E L shr")
       as "[L #gq]".
     iDestruct (sp_dinv_guard (R0 := llctx_interp L) γ tid with "i") as "#gd".
@@ -1177,8 +1170,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= prod_ty_gho storage_resource_ty_gho
         tracked_ty_gho /= heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own HghoC". by iRight.
-    - iDestruct "Obs" as %Hobs; iPureIntro.
-      by move: Hobs=> [_ [?[?[?[?[?[? Ha]]]]]]].
+    - iPureIntro; by move: HobsK=> [_ [?[?[?[?[?[? Ha]]]]]]].
   Qed.
 
   Notation "SP_ExchangeWithShrNonDet: p1 p2 p3 p4" := (new [ #0])%E
@@ -1222,8 +1214,7 @@ Section StorageProtocol.
     iDestruct "Hown''" as "(_ & _ & HghoC)".
     iDestruct (shr_bor_gho_elim with "Hshr") as (dd gg ? ?) "#(_ & shr & _)".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iMod (proph_obs_sat with "Obs")
-      as "(%π & <- & %b & %k & %Hb & %exchng & %Hforall)"=>//.
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [<- [b [k [Hb [exchng Hforall]]]]].
     iDestruct (sp_shr_guards E L Alv (γ, p') dd gg tid with "E L shr")
       as "[L #gq]".
     iDestruct (sp_dinv_guard (R0 := llctx_interp L) γ tid with "i") as "#gd".
@@ -1247,8 +1238,7 @@ Section StorageProtocol.
       rewrite /ty_own own_ptr_gho /= prod_ty_gho storage_resource_ty_gho
         tracked_ty_gho /= heap_mapsto_fancy_vec_nil freeable_sz_full.
       iSplitL; [|done]. iFrame "↦ i own HghoC". by iRight.
-    - iDestruct "Obs" as %Hobs; iPureIntro.
-      move: Hobs=> [_ [? [? [_ [_ Hpost]]]]].
+    - iPureIntro; move: HobsK=> [_ [? [? [_ [_ Hpost]]]]].
       specialize (Hpost l). rewrite Forall_forall in Hpost.
       apply Hpost in Hin as (new_s' & Hnew_b' & Hpostπ).
       rewrite Hnew_b' in Hnew_b. rewrite map_eq_iff in Hnew_b.
@@ -1292,7 +1282,7 @@ Section StorageProtocol.
       as "(#Incl & %Hle & (ξVo & ξTok & #ξBor) & #PtBase & #Pers)".
     iDestruct (shr_bor_gho_elim with "Hshr") as (dd gg ? ?) "#(_ & shr & _)".
     iApply fupdw_tgl_wpw_nonval; [done|]. iIntros "W".
-    iDestruct "Obs" as "(<-)".
+    iDestruct "Obs" as %HobsK. move: (HobsK)=> [<- _].
     iDestruct (Alv with "L E") as "#Alv".
     iDestruct (dguard_alive_sem' (storage_resource_ty_gho _ _ _ _)
       with "shr") as "#g0".
@@ -1349,7 +1339,7 @@ Section StorageProtocol.
         rewrite /ty_own own_ptr_gho /= prod_ty_gho !ghost_ty_gho
           heap_mapsto_fancy_vec_nil freeable_sz_full.
         iSplitL; [|done]. iFrame "↦". iSplitL; [by iRight|done].
-      + iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=> [_ Hpost].
+      + iPureIntro; move: (HobsK)=> [_ Hpost].
         move: Hempty. by eapply Hpost.
     - apply map_choose in Hnempty as (k & sv & Hlookup).
       iExists -[(l, (qq, sv))]. iFrame "L". iSplitL.
@@ -1357,7 +1347,7 @@ Section StorageProtocol.
         rewrite /ty_own own_ptr_gho /= prod_ty_gho !ghost_ty_gho
           heap_mapsto_fancy_vec_nil freeable_sz_full.
         iSplitL; [|done]. iFrame "↦". iSplitL; [by iRight|done].
-      + iDestruct "Obs" as %Hobs; iPureIntro; move: Hobs=> [_ Hpost].
+      + iPureIntro; move: (HobsK)=> [_ Hpost].
         move: Hlookup. by eapply Hpost.
   Qed.
 End StorageProtocol.

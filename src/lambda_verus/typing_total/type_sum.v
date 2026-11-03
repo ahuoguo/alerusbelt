@@ -454,7 +454,7 @@ Section type_sum.
       via_tr_impl.
       { iApply typed_body_tctx_incl; [apply tctx_unwrap_shr_xsum|done]. }
       move=>/= ?[[?[??]]?]?. exact Datatypes.id. }
-    move=> ?[[l [s pad]] ?]/= ??. case (to_xsum s) as [i ?] eqn: Eq.
+    move=> ?[[l [s pad]] ?]/= ?. case (to_xsum s) as [i ?] eqn: Eq.
     rewrite pbyidx_plookup. move: (trl -!! i). case; [done|]=>/= ?.
     eexists _. split; [|done].
     move: Eq=> /(f_equal of_xsum)=>/= <-. by rewrite semi_iso'.
@@ -497,10 +497,10 @@ Section type_sum.
   Proof.
     move=> Alv. split.
     { move=> p1 p2 Eq [m bl] mask. split.
-      - move=> [a[Heq Ha]]. exists a. split; [exact Heq|]=> a' H1 m' H2 H3.
-        apply (proj1 (Eq _ mask)), (Ha a' H1 m' H2 H3).
-      - move=> [a[Heq Ha]]. exists a. split; [exact Heq|]=> a' H1 m' H2 H3.
-        apply (proj2 (Eq _ mask)), (Ha a' H1 m' H2 H3). }
+      - move=> [a[Heq Ha]]. exists a. split; [exact Heq|]=> m'.
+        apply (proj1 (Eq _ mask)), (Ha m').
+      - move=> [a[Heq Ha]]. exists a. split; [exact Heq|]=> m'.
+        apply (proj2 (Eq _ mask)), (Ha m'). }
     move=> γ q tid [[[[[[l [x0 pad]] ξi] d'] g'] idx] xl] mask post.
     iIntros "#LFT #UNIQ #E tok /=[p T] #Obs W".
     iDestruct (lctx_lft_alive_get_guards γ q E L κ Alv with "E tok W")
@@ -545,32 +545,24 @@ Section type_sum.
     set ξ := PrVar ((Σ! 𝔄l)%ST ↾
       prval_to_inh (@vπ (Σ! 𝔄l)%ST (pinj i x1, pad))) ξi.
     set ζ := PrVar ((𝔄l !!ₗ i) ↾ prval_to_inh (vπ x1)) ζi.
-    iDestruct (uniq_proph_tok with "ζVo ζPc") as "(ζVo & ζ & ToζPc)".
-    iMod (uniq_preresolve ξ [ζ] (λ π, (of_xsum (xinj i (π ζ)), pad))
-      with "UNIQ ξVo ξPc [$ζ]")
-      as "(#Obs' & (ζ & _) & ToξPc)"; [set_solver| |done|].
-    { move=> π π' Eqv. have Eqv2 := Eqv ζ. rewrite Eqv2; [done|].
-      apply list_elem_of_here. }
-    iDestruct ("ToζPc" with "ζ") as "ζPc".
+    (* [ξ] keeps both agreement halves instead of being preresolved to
+       [(of_xsum (xinj i (π ζ)), pad)]; [uniq_update] retargets it when
+       the borrow closes.  Same as [uniq_body_transform]. *)
     iEval (rewrite xsum_gho_pinj) in "Gho1".
     iEval (rewrite (split_pt_xsum_cells'' i)) in "Pt1".
     iDestruct "Pt1" as "(Pt1 & Pt2 & Pt3)".
     iDestruct ("ToBor" $! (uniq_body_fml (tyl +!! i) x1 ζi tid
       (cloc_take (cloc_skip l 1) (ty_size (tyl +!! i))))
-      with "[ToξPc Pt1 Pt3] [ζPc Gho1 Pt2]") as "B".
+      with "[ξVo ξPc Pt1 Pt3] [ζPc Gho1 Pt2]") as "B".
     { iIntros "Body". iEval (rewrite uniq_body_fml_sem) in "Body".
-      iDestruct "Body" as (y e h) "(ζPc & Gho & Pt)". iModIntro.
+      iDestruct "Body" as (y e h) "(ζPc & Gho & Pt)".
+      iMod (uniq_update ξ ((pinj i y, pad) : ~~ (Σ! 𝔄l)%ST)
+        (@vπ (Σ! 𝔄l)%ST (pinj i y, pad)) (e, h)
+        with "UNIQ ξVo ξPc") as "[_ξVo ξPc]"; [solve_ndisj|].
+      iModIntro.
       rewrite uniq_body_fml_sem. iExists (pinj i y, pad), e, h.
       rewrite xsum_gho_pinj (split_pt_xsum_cells'' i).
-      iFrame "Gho Pt1 Pt Pt3". iApply "ToξPc".
-      iApply (proph_eqz_modify (λ π, (pinj i (π ζ), pad))).
-      { iApply proph_obs_true=> ?. done. }
-      iDestruct (proph_ctrl_eqz with "ζPc") as "Eqz".
-      iDestruct (proph_eqz_constr (λ t : 𝔄l !!ₗ i, (pinj i t, pad))
-        (H:=ltac:(move=> u1 u2 ha; inversion ha as [hb];
-          by apply pinj_Inj in hb)) with "Eqz") as "Eqz2".
-      iApply (proph_eqz_eq with "Eqz2"); [done|].
-      fun_ext=> ?. simpl. by rewrite psum_map1_pinj. }
+      by iFrame "ξPc Gho Pt1 Pt Pt3". }
     { rewrite uniq_body_fml_sem. iExists x1, d', g'. iFrame "ζPc Gho1 Pt2". }
     iDestruct (fupdw_incl_mask (W:=verus_halt_wsat) (E':=⊤) with "B") as "B'";
       [set_solver|].
@@ -590,10 +582,10 @@ Section type_sum.
     iExists ((cloc_take (cloc_skip (l1, cells) 1) (ty_size (tyl +!! i)),
       x1, ζi, d', g', ζidx) -:: xl).
     iFrame "T". iSplit; last first.
-    { iCombine "Obs Obs'" as "#Obs2".
-      iDestruct "Obs2" as %Hobs; iDestruct "Obs" as %HobsK; iPureIntro; move: HobsK=>/= [[x2 [Heq2 Ha]] Hb].
-      apply pinj_Inj in Heq2. subst x2. apply (Ha (π ζ)); [|done|done].
-      rewrite /uniq_bor_future /= Hb //. }
+    (* Nola combines this with the preresolution's observation, which is
+       gone, and the [uniq_bor_future] premises with it. *)
+    { iPureIntro. move: XObs=> [x2 [Heq2 Ha]].
+      apply pinj_Inj in Heq2. subst x2. by apply Ha. }
     iExists _, d. iSplit; [by rewrite /= Ev|].
     rewrite /ty_own uniq_bor_gho. iSplit; [|done].
     iSplitR.
@@ -709,7 +701,7 @@ Section type_sum.
       let 'xinj i a := to_xsum (uniq_bor_current m).1 in
       match trl -!! i with
       | inl otr => otr post (m -:: cl) mask
-        ∀ m': ~~ (uniq_borₛ (𝔄l !!ₗ i)),
+      | inr itr => ∀ m': ~~ (uniq_borₛ (𝔄l !!ₗ i)),
           itr post (m' -:: cl) mask
       end))%type.
   Proof.
@@ -725,9 +717,11 @@ Section type_sum.
       via_tr_impl.
       { iApply typed_body_tctx_incl; [by apply tctx_unwrap_uniq_xsum|done]. }
       move=>/= ?[??]?. exact Datatypes.id. }
-    move=> ?[m ?]/= ??. case (to_xsum (uniq_bor_current m).1) as [i ?] eqn: Eq.
+    move=> ?[m ?]/= ?. case (to_xsum (uniq_bor_current m).1) as [i a0] eqn: Eq.
     rewrite pbyidx_plookup. move: (trl -!! i). case; [done|]=>/= ?.
-    eexists _. split; [|done].
+    (* The witness is no longer forced by the second conjunct: Nola's had
+       premises mentioning it, and they were prophecy-level. *)
+    exists a0. split; [|done].
     move: Eq=> /(f_equal of_xsum)=>/= <-. by rewrite semi_iso'.
   Qed.
 
