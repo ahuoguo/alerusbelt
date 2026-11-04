@@ -108,15 +108,56 @@ Section soundness.
   Context `{!typingC CON} {JUDG Σ}
     `{!verus_haltGpreS (cifOF CON) Σ, !typingJ CON JUDG Σ}.
 
-  (** A closed, semantically well-typed program terminates with probability
-    one.
+  (** A closed, semantically well-typed program whose derivation spends
+    [ε] terminates with probability at least [1 - ε].
 
     The original ([typing/soundness.v]) can only conclude safety: its
     weakest precondition is partial, because a guard there hands out a [▷]
     that only a later credit can pay for.  Here it is total, and over a
     probabilistic language it is [tgl_wp], whose adequacy statement is a
-    lower bound on the mass of [lim_exec].  The typing rules mint no error
-    credits, so the bound is at [ε = 0] and the mass is a full one. *)
+    lower bound on the mass of [lim_exec].
+
+    The credit is handed to the derivation as an ambient [iProp] rather
+    than through the typing context.  This tree's partial
+    [typing/rand_ubig.v] has an error-credit *type*, [↯_T ε]; here
+    [ty_ghox] is a [cif] formula rather than an [iProp], so carrying one
+    would need a new constructor in [typing_total/inst.v]'s signature.
+    Nothing in [typing_total/sampling.v] needs that. *)
+  Theorem type_soundness_credit {𝔅} (e : expr) (tr : predl_trans' [] 𝔅)
+      (ε : R) :
+    (0 <= ε)%R →
+    (∀ post xl mask, tr post xl mask) →
+    (∀ H : verus_haltGS (cifOF CON) Σ,
+      ∃ (_ : Csem CON JUDG Σ) (_ : Jsem JUDG (iProp Σ))
+        (_ : typingCS CON JUDG Σ) (_ : typingJS CON JUDG Σ),
+      ⊢ ↯ ε -∗ typed_body [] [] (InvCtx [] static AtomicClosed)
+          ([] : cctx 𝔅) +[] e tr) →
+    1 - ε <= SeriesC (lim_exec (e, ∅)).
+  Proof.
+    move=> Hε Htr big.
+    apply: (lrust_tot_mass_lim_exec e ε 0%nat); [done|].
+    move=> iG hGS hEc. iIntros "_ Hε".
+    iMod (verus_halt_wsat_alloc (invGS_gen0 := iG) hGS hEc)
+      as (H) "((%eq1 & %eq2 & %eq3) & #UNIQ & →W)".
+    subst. move: (big H)=> [Cs [Js [CS [JS ty]]]].
+    iMod (invctx_alloc ⊤) as (tid) "I". iModIntro.
+    iExists (existT verus_halt_NaSem heapSem_cif), verus_halt_wsat.
+    iDestruct ("→W" $! Cs Js CS JS) as "[%Heq $]".
+    cbn [projT1 projT2]. rewrite Heq.
+    iPoseProof ty as "ty". iSpecialize ("ty" with "Hε").
+    iApply (tgl_wp_wand with "[I ty]"); [|by iIntros (?) "_"].
+    iApply ("ty" $! tid -[] ⊤ (λ _ _, True) [] with
+      "[] UNIQ [] [] I [] [] []").
+    all: try by rewrite /llctx_interp.
+    all: try by iIntros (? ?%elem_of_nil).
+    all: try (iPureIntro; apply Htr).
+    all: done.
+  Qed.
+
+  (** The typing rules of [typing_total/] other than those in
+    [typing_total/sampling.v] mint and spend no error credits, so for a
+    derivation that does not mention them the bound is at [ε = 0] and the
+    termination mass is a full one. *)
   Theorem type_soundness {𝔅} (e : expr) (tr : predl_trans' [] 𝔅) :
     (∀ post xl mask, tr post xl mask) →
     (∀ H : verus_haltGS (cifOF CON) Σ,
@@ -128,22 +169,9 @@ Section soundness.
   Proof.
     move=> Htr big.
     cut (1 - 0 <= SeriesC (lim_exec (e, ∅))); [lra|].
-    apply: (lrust_tot_mass_lim_exec e 0 0%nat); [lra|].
-    move=> iG hGS hEc. iIntros "_ _".
-    iMod (verus_halt_wsat_alloc (invGS_gen0 := iG) hGS hEc)
-      as (H) "((%eq1 & %eq2 & %eq3) & #UNIQ & →W)".
-    subst. move: (big H)=> [Cs [Js [CS [JS ty]]]].
-    iMod (invctx_alloc ⊤) as (tid) "I". iModIntro.
-    iExists (existT verus_halt_NaSem heapSem_cif), verus_halt_wsat.
-    iDestruct ("→W" $! Cs Js CS JS) as "[%Heq $]".
-    cbn [projT1 projT2]. rewrite Heq.
-    iApply (tgl_wp_wand with "[I]"); [|by iIntros (?) "_"].
-    iApply (ty $! tid -[] ⊤ (λ _ _, True) [] with
-      "[] UNIQ [] [] I [] [] []").
-    all: try by rewrite /llctx_interp.
-    all: try by iIntros (? ?%elem_of_nil).
-    all: try (iPureIntro; apply Htr).
-    all: done.
+    apply (type_soundness_credit e tr 0); [lra|done|].
+    move=> H. move: (big H)=> [Cs [Js [CS [JS ty]]]].
+    exists Cs, Js, CS, JS. by iIntros "_".
   Qed.
 End soundness.
 

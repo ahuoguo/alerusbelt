@@ -406,6 +406,23 @@ Proof.
   exact: big.
 Qed.
 
+Theorem verus_halt_type_soundness_credit {Σ}
+    `{!verus_haltGpreS (cifOF verus_haltCON) Σ}
+    {𝔅} (e : expr) (tr : predl_trans' [] 𝔅) (ε : R) :
+  (0 <= ε)%R →
+  (∀ post xl mask, tr post xl mask) →
+  (∀ H : verus_haltGS (cifOF verus_haltCON) Σ,
+    ⊢ ↯ ε -∗ typed_body [] [] (InvCtx [] static AtomicClosed) ([] : cctx 𝔅)
+        +[] e tr) →
+  (1 - ε <= SeriesC (lim_exec (e, ∅)))%R.
+Proof.
+  move=> Hε Htr big.
+  refine (type_soundness_credit (CON := verus_haltCON) (JUDG := verus_haltJUDG Σ)
+    e tr ε Hε Htr _).
+  move=> H. exists verus_haltCsem, verus_haltJsem, typingCS_CON, typingJS_JUDG.
+  exact: big.
+Qed.
+
 (** [typing_total/soundness.v]'s [type_safety] is gone with the concurrency,
   so there is no second statement to discharge the constraints of. *)
 
