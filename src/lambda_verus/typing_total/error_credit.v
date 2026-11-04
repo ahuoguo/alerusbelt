@@ -1,30 +1,16 @@
 (** * Error credits as a type
 
-  The typing-layer counterpart of eris's [↯ ε], so that a credit can sit
-  in a typing context like any other resource.  This tree's partial
-  [typing/rand_ubig.v] does the same thing, and the shape here is its
-  shape:
+  The typing-layer counterpart of [↯ ε], so a credit can sit in a typing
+  context.  [typing/rand_ubig.v] has the same shape:
 
       ↯_T ε  =  own_ptr 0 (tracked_ty (error_credit_core ε))
 
-  with [tracked_ty] the ghost wrapper ([typing_total/tracked.v]) and the
-  owning pointer supplying the path witness that [tctx_elt_interp]
-  demands - a zero-sized type cannot live at a path on its own.
-
-  Two things are *more* grounded here than in the partial tree, and both
-  for structural reasons rather than taste.
-
-  The payload is a formula.  [ty_ghox] is a [cif], not an [iProp], so
-  the credit cannot simply be written in; it is [typing_total/model.v]'s
-  [cif_ec], a constructor whose selector is the amount and which has no
-  children.  That is what lets [↯_T ε] be stored in a borrow, an
-  invariant or the store, which an [iProp] payload never could.
-
-  The handle is the real owning pointer.  [typing/rand_ubig.v] had to
-  define a bespoke [own_ptr_0], because [typing/own.v]'s [own_ptr] wraps
-  the pointee's ghost component in [▷] and an error credit must not be
-  behind a later.  [typing_total/own.v]'s has no [▷] - only the depth
-  guard [[Sx(d') := d]] - so [own_ptr 0] is usable as it stands. *)
+  Two differences, both structural.  The payload is a formula, since
+  [ty_ghox] is a [cif] and not an [iProp] - which is also what lets a
+  credit be stored in a borrow or an invariant.  And the handle is the
+  real [own_ptr]: [typing/rand_ubig.v] needed a bespoke [own_ptr_0]
+  because [typing/own.v]'s puts the pointee's ghost component behind a
+  [▷], and [typing_total/own.v]'s does not. *)
 From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import proofmode.
 From clutch.base_logic Require Import error_credits.
@@ -77,10 +63,8 @@ Section error_credit.
   Definition error_credit_ty (ε : R) : type (at_locₛ (trackedₛ unitₛ)) :=
     own_ptr 0 (tracked_ty (error_credit_core ε)).
 
-  (** What the type holds, unfolded.  The owning pointer contributes a
-    points-to over the empty list and a [freeable_sz] at size zero, both
-    of which are trivial, so the content is the credit and the depth
-    guard. *)
+  (** The owning pointer's points-to and [freeable_sz] are both trivial
+    at size zero, so what is left is the credit and the depth guard. *)
   Lemma error_credit_ty_gho ε x d g tid :
     ty_gho (error_credit_ty ε) x d g tid ⊣⊢
       [S(d') := d] (x.1 ↦!∗ [] ∗ freeable_sz 0 0 x.1 ∗ ↯ ε).
@@ -103,13 +87,10 @@ Notation "'↯_T' ε" := (error_credit_ty ε)
 
 (** ** Sampling, with the credit in the typing context
 
-  This tree's [typing/rand_ubig.v]'s [type_rand_case], at [tgl_wpw]: the
-  [let] binding a [rand] splits into one goal per outcome, the credit
-  entry is replaced by the outcome's refund, and the sampled integer is
-  pushed onto the context.  The [Closed] premise is the one the partial
-  tree takes too - [lrust_prob_lang]'s [RecV] carries a [Closed] side
-  condition, so without it the [let]'s lambda is not a value to
-  [reshape_expr] and [twp_bind] cannot reach the [rand]. *)
+  [typing/rand_ubig.v]'s [type_rand_case] at [tgl_wpw].  The [Closed]
+  premise is the one the partial tree takes too: [RecV] carries a
+  [Closed] side condition, so without it [twp_bind] cannot see the
+  [let]'s lambda as a value and never reaches the [rand]. *)
 Section rand_case.
   Context {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ}.
 
@@ -152,3 +133,47 @@ Section rand_case.
     - done.
   Qed.
 End rand_case.
+
+(** [↯ 1] is false, so a branch holding one needs no typing at all.
+  This is what pays for a sampler's stuck outcome.  The shape is the one
+  [type_rand_case] leaves behind, as in [typing/rand_ubig.v]: the
+  sampled integer first, the refund second. *)
+Section contradict.
+  Context {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ}.
+
+  Lemma type_credit_contradict_after_rand {𝔄l 𝔅} (T' : tctx 𝔄l) E L
+      (I : invctx) (C : cctx 𝔅) (z : Z) (p : path) (ε : R) e tr :
+    1 <= ε →
+    ⊢ typed_body E L I C (#z ◁ int +:: p ◁ error_credit_ty ε +:: T') e tr.
+  Proof.
+    iIntros (Hε). rewrite /typed_body /typed_body_at.
+    iIntros (tid xl mask post iκs). destruct xl as [zv [[lc u] cl]].
+    iIntros "_ _ _ _ _ _ [_ [Hcred _]] _".
+    iDestruct "Hcred" as (v dv Hev) "[Hgho _]".
+    destruct dv as [|dv'].
+    { rewrite /ty_own error_credit_ty_gho /=. by iDestruct "Hgho" as "[]". }
+    rewrite error_credit_ty_gho_S.
+    iExFalso. iApply (ec_contradict with "Hgho"). lra.
+  Qed.
+End contradict.
+
+(** [typing_total/soundness.v] hands over an ambient [↯ ε]; a derivation
+  against [type_rand_case] wants it at a path.  The location is an
+  artifact of [tctx_elt_interp], which asks every entry for a value
+  witness, so any location does - nothing dereferences it. *)
+Section intro.
+  Context {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ}.
+
+  Lemma typed_body_ec_intro {𝔅} E L (I : invctx) (C : cctx 𝔅) e (ε : R)
+      (l : loc) :
+    (⊢ typed_body E L I C +[#l ◁ error_credit_ty ε] e (λ _ _ _, True%type)) →
+    ↯ ε -∗ typed_body E L I C (+[] : tctx []) e (λ _ _ _, True%type).
+  Proof.
+    move=> big. iIntros "Hε". rewrite /typed_body /typed_body_at.
+    iIntros (tid xl mask post iκs) "LFT UNIQ Eq Lq Iq Cq _ _".
+    iApply (big $! tid ((l, ()) -:: -[]) mask post iκs
+      with "LFT UNIQ Eq Lq Iq Cq [Hε]"); [|done].
+    iSplitL; [|done]. iExists #l, 1%nat. iSplit; [done|].
+    rewrite /ty_own error_credit_ty_gho_S. by iFrame.
+  Qed.
+End intro.

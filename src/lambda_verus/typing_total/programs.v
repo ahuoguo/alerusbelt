@@ -122,6 +122,19 @@ Section typing.
     iApply ("x" with "A B C D E F G"). iPureIntro. by apply Imp.
   Qed.
 
+  (** A value is typed at any transformer.  [cont_postcondition] is
+    [True], so the judgment constrains termination and safety but says
+    nothing about a value a program ends on - returning is a jump to a
+    continuation, not the production of a value. *)
+  Lemma type_value {𝔄l 𝔅} E L (I: invctx) (C: cctx 𝔅) (T: tctx 𝔄l)
+      (e: expr) (v: val) `{!IntoVal e v} tr :
+    ⊢ typed_body E L I C T e tr.
+  Proof.
+    rewrite /typed_body /typed_body_at.
+    iIntros "* _ _ _ _ _ _ _ _". iApply tgl_wp_value.
+    by rewrite /cont_postcondition.
+  Qed.
+
   Lemma typed_body_vacuous {𝔄l 𝔅} E L
       (I: invctx) (C: cctx 𝔅) (T: tctx 𝔄l) e :
     ⊢ typed_body E L I C T e (λ _ _ _, False%type).

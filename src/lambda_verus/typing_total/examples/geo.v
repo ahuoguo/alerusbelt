@@ -1,24 +1,16 @@
 (** * A geometric sampler, typed
 
   [lang/total_examples.v] verifies this program against the bare weakest
-  precondition.  This file does it in the *typing* layer: the derivation
-  is a [typed_body], and the termination bound comes out of
-  [typing_total/soundness.v] rather than out of the language's adequacy
-  theorem directly.
+  precondition; here the derivation is a [typed_body] and the bound comes
+  out of [typing_total/soundness.v].
 
-  The point is which rules it needs.  [geo] flips a fair coin until it
-  comes up [0], so it is not strongly normalizing - the all-ones path is
-  infinite - and no well-founded measure types it.
-  [typing_total/recursion.v]'s [type_cont_wf] and [type_fnrec_wf], which
-  are Nola's answer to the loss of Loeb induction, therefore do not
-  apply.  What does apply is [type_amp]: the loop re-enters itself having
-  doubled its error credit, and a credit cannot be doubled forever.
-
-  It is the first example in this development that neither parent could
-  state.
-  VerusBelt's weakest precondition is partial, so it concludes safety and
-  not termination; Nola's is total but not probabilistic, so its
-  conclusion is [sn erased_step], which is false for [geo]. *)
+  [geo] flips a fair coin until it comes up [0], so it is not strongly
+  normalizing and no well-founded measure types it: [type_cont_wf] and
+  [type_fnrec_wf], Nola's answer to the loss of Loeb induction, do not
+  apply.  [type_amp] does - the loop doubles its credit on re-entry, and
+  a credit cannot be doubled forever.  Neither parent can state this:
+  VerusBelt's weakest precondition is partial, and Nola's conclusion
+  [sn erased_step] is false for [geo]. *)
 From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import proofmode.
 From clutch.base_logic Require Import error_credits.
