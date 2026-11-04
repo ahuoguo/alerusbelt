@@ -57,7 +57,7 @@ Section proph_soundness.
 
       Resolution.  To resolve, the WORLD supplies a [(p, v)] head; the
       user's [vs] is then FORCED to be [v :: vs'].  The equation
-      [⌜vs = v :: vs'⌝] is what pins down the head — you cannot pick a
+      [⌜vs = v :: vs'⌝] is what pins down the head - you cannot pick a
       different [v] than what the world's [pvs] said.
 
       And the exclusivity lemma that the ghost-map underlying [proph]
@@ -81,7 +81,7 @@ Section proph_soundness.
       >>
 
       that publicises the head to the meta-logic. Iris has no such
-      rule — every operation that reveals the head consumes it. *)
+      rule - every operation that reveals the head consumes it. *)
 
   Section counterfactual.
     (** We POSTULATE a lethal peek: the ability to observe the head
@@ -114,9 +114,9 @@ Section proph_soundness.
 
     (** The subtler statement of the same point: if some hypothetical
         rule could hand us BOTH a [proph p (v_actual :: vs)] AND a
-        [proph p (v_wrong :: vs)] with [v_wrong ≠ v_actual] — the
+        [proph p (v_wrong :: vs)] with [v_wrong ≠ v_actual] - the
         latter modelling "I peeked and got v_wrong from the meta
-        logic, but the true resolution is v_actual" — the attack
+        logic, but the true resolution is v_actual" - the attack
         would land via [proph_exclusive] regardless of the [v]s. *)
 
     Lemma peek_that_hands_back_a_second_proph_is_lethal
@@ -138,7 +138,7 @@ Section proph_soundness.
 
       1. [proph_map_new_proph] hands you [proph p vs] where [vs] is
          determined by the world's [pvs], not by you.  You only learn
-         [vs] via subsequent operations — and those operations consume
+         [vs] via subsequent operations - and those operations consume
          it.
 
       2. [proph_map_resolve_proph] is the only rule that reveals the
@@ -151,7 +151,7 @@ Section proph_soundness.
          to keep one copy for "peeking" and use another for
          "resolving".  Ghost-map fragmentality gives this immediately.
 
-      Verus's [ProphecyGhost::value()] violates (2) — it reveals the
+      Verus's [ProphecyGhost::value()] violates (2) - it reveals the
       head without consuming.  That is the sole reason the Verus
       attack works and its iris analog does not. *)
 

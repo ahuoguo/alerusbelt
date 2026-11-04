@@ -6,7 +6,7 @@ Set Default Proof Using "Type".
 Section tracked.
   Context `{!typeG Σ}.
 
-  (** [Tracked<T>] is [T] with the physical contents cleared out — a
+  (** [Tracked<T>] is [T] with the physical contents cleared out - a
       ghost-only wrapper that preserves [ty_gho]/[ty_gho_pers] and
       forces [ty_size := 0] / [ty_phys := []]. *)
 

@@ -151,7 +151,7 @@ Definition is_atomic (e: expr) : bool :=
   | _ => false
   end.
 (** [is_atomic_correct] under clutch's [head_atomic] signature is a
-    follow-up — clutch's [Atomic] takes a probabilistic [prim_step] and
+    follow-up - clutch's [Atomic] takes a probabilistic [prim_step] and
     uses a different inversion shape than iris's. The lemma is unused
     by the heap WP rules in [lifting.v] (which call
     [wp_lift_atomic_head_step] directly), so we defer it. *)

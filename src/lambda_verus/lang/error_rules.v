@@ -1,7 +1,7 @@
 (** Error-credit rules for [lrust_prob_lang], ported from
     [clutch.eris.error_rules] (which is hard-coded to clutch's
     [prob_lang] via the [erisGS] section). The proof bodies are
-    language-generic — they use only [pgl_wp_unfold], [glm_*],
+    language-generic - they use only [pgl_wp_unfold], [glm_*],
     [ec_*], and [exec_stutter_*], all of which are polymorphic in [Λ]. *)
 From iris.proofmode Require Import proofmode.
 From clutch.base_logic Require Import error_credits.

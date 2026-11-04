@@ -17,3 +17,8 @@ builddep/
 Makefile.coq
 Makefile.coq.conf
 _opam
+
+.claude/
+.vscode/
+.DS_Store
+

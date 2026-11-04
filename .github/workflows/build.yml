@@ -21,6 +21,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -45,6 +47,9 @@ jobs:
               opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --ignore-constraints-on=rocq-stdpp
             endGroup
           script: |
+            startGroup "Build Nola (submodule at src/nola, pinned)"
+              make -C src/nola -j2
+            endGroup
             startGroup Build
               make -j2
             endGroup

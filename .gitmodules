@@ -1,0 +1,4 @@
+[submodule "src/nola"]
+	path = src/nola
+	url = https://github.com/ahuoguo/nola.git
+	branch = wip-bounded-depth

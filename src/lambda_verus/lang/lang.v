@@ -707,7 +707,7 @@ Local Open Scope R.
 
 (** * Computable, probabilistic head step *)
 
-(** Computable pointer/integer equality — the probabilistic variant of
+(** Computable pointer/integer equality - the probabilistic variant of
     [lit_eq] from [lang.v]. We drop the [LocUnallocL/R] non-deterministic
     cases: pointer equality is fully structural here. *)
 Definition lit_eq_dec (l1 l2 : base_lit) : option bool :=
@@ -789,9 +789,9 @@ Definition head_step_prob (e : expr) (σ : state) : distr (expr * state) :=
   | _ => dzero
   end.
 
-(** * Trivial [state_step] / [get_active] — no presampling tapes.
+(** * Trivial [state_step] / [get_active] - no presampling tapes.
 
-    [state_idx := Empty_set] — there are no tape identifiers. *)
+    [state_idx := Empty_set] - there are no tape identifiers. *)
 Definition state_step_prob (σ : state) (α : Empty_set) : distr state := dzero.
 Definition get_active (σ : state) : list Empty_set := [].
 

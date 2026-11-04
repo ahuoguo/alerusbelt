@@ -1,3 +1,15 @@
+# Nola: later-free ghost state (PLDI 2025).  A git submodule at src/nola,
+# pinned to github.com/ahuoguo/nola, branch wip-bounded-depth.  Its Coq root
+# is the nola/ subdirectory of that repo, hence the doubled path below.
+#
+# Only the load path is declared here; the files are not listed, so `make`
+# in this project does not rebuild them.  Build them once, in this switch:
+#
+#     git submodule update --init --recursive
+#     make -C src/nola -j4
+#
+-Q src/nola/nola nola
+
 # Leaf (guarding)
 
 -Q src/guarding guarding
@@ -60,6 +72,7 @@ src/lambda_verus/util/atomic_lock_counter.v
 
 src/lambda_verus/lang/heap.v
 src/lambda_verus/lang/lang.v
+src/lambda_verus/lang/pure_exec.v
 src/lambda_verus/lang/adequacy.v
 src/lambda_verus/lang/lifting.v
 src/lambda_verus/lang/error_rules.v
@@ -69,14 +82,92 @@ src/lambda_verus/lang/tactics.v
 src/lambda_verus/lang/time.v
 src/lambda_verus/lang/distribution_adequacy.v
 src/lambda_verus/lang/approx_distribution_adequacy.v
+
+# Total correctness: eris's [tgl_wp] over [lrust_prob_lang]
+src/lambda_verus/lang/total_wsat.v
+src/lambda_verus/lang/total_lifting.v
+src/lambda_verus/lang/total_error_rules.v
+src/lambda_verus/lang/total_proofmode.v
+src/lambda_verus/lang/total_adequacy.v
+src/lambda_verus/lang/total_distribution_adequacy.v
+src/lambda_verus/lang/total_guard.v
+src/lambda_verus/lang/total_examples.v
+src/lambda_verus/lang/total_sinv_example.v
+
+# Later-free stack: Nola's cell logic and heap, retargeted, over [tgl_wp]
+src/lambda_verus/util/total_cell_map.v
+src/lambda_verus/lang/total_heap.v
+src/lambda_verus/lang/total_lifting_heap.v
+src/lambda_verus/lang/total_heap_adequacy.v
+src/lambda_verus/lang/total_lifetime.v
+src/lambda_verus/lang/total_heap_example.v
+src/lambda_verus/lang/lib/memcpy_defs.v
+src/lambda_verus/lang/lib/new_delete_defs.v
 src/lambda_verus/lang/lib/new_delete.v
 src/lambda_verus/lang/lib/memcpy.v
+src/lambda_verus/lang/lib/total_new_delete.v
+src/lambda_verus/lang/lib/total_memcpy.v
+
+# Total typing layer (Stage 3): Nola's typing/, retargeted and de-prophecised
+src/lambda_verus/typing_total/base.v
+src/lambda_verus/typing_total/syn_type.v
+src/lambda_verus/typing_total/uniq_cmra.v
+src/lambda_verus/typing_total/ctx.v
+src/lambda_verus/typing_total/ctx_wp.v
+src/lambda_verus/typing_total/lifetime.v
+src/lambda_verus/typing_total/lft_contexts.v
+src/lambda_verus/typing_total/inv_context.v
+src/lambda_verus/typing_total/type.v
+src/lambda_verus/typing_total/type_context.v
+src/lambda_verus/typing_total/cont_context.v
+src/lambda_verus/typing_total/programs.v
+src/lambda_verus/typing_total/bool.v
+src/lambda_verus/typing_total/int.v
+src/lambda_verus/typing_total/cont.v
+src/lambda_verus/typing_total/freeable_util.v
+src/lambda_verus/typing_total/programs_util.v
+src/lambda_verus/typing_total/base_type.v
+src/lambda_verus/typing_total/levels.v
+src/lambda_verus/typing_total/mod_ty.v
+src/lambda_verus/typing_total/tracked.v
+src/lambda_verus/typing_total/shr_bor.v
+src/lambda_verus/typing_total/product.v
+src/lambda_verus/typing_total/uninit.v
+src/lambda_verus/typing_total/own.v
+src/lambda_verus/typing_total/ghost.v
+src/lambda_verus/typing_total/programs_util_own.v
+src/lambda_verus/typing_total/sum.v
+src/lambda_verus/typing_total/uniq_util.v
+src/lambda_verus/typing_total/uniq_bor.v
+src/lambda_verus/typing_total/pptr.v
+src/lambda_verus/typing_total/borrow.v
+src/lambda_verus/typing_total/local_inv.v
+src/lambda_verus/typing_total/ra.v
+src/lambda_verus/typing_total/pcell.v
+src/lambda_verus/typing_total/product_split.v
+src/lambda_verus/typing_total/function.v
+src/lambda_verus/typing_total/recursion.v
+src/lambda_verus/typing_total/protocol.v
+src/lambda_verus/typing_total/type_sum.v
+src/lambda_verus/typing_total/atomic_inv.v
+src/lambda_verus/typing_total/model.v
+src/lambda_verus/typing_total/model_inst.v
+src/lambda_verus/typing_total/rec.v
+src/lambda_verus/typing_total/own_rec.v
+src/lambda_verus/typing_total/level_ctx.v
+src/lambda_verus/typing_total/soundness.v
+src/lambda_verus/typing_total/inst.v
+src/lambda_verus/typing_total/fn_inst.v
+src/lambda_verus/typing_total/error_credit.v
+src/lambda_verus/typing_total/sampling.v
+src/lambda_verus/typing_total/examples/coin_flip.v
+src/lambda_verus/typing_total/examples/geo.v
 
 # Type-specs
 
 src/lambda_verus/typing/syn_type.v
-# src/lambda_verus/prophecy/syn_type.v
-# src/lambda_verus/prophecy/prophecy.v
+src/lambda_verus/prophecy/syn_type.v
+src/lambda_verus/prophecy/prophecy.v
 src/lambda_verus/typing/base.v
 src/lambda_verus/typing/uniq_cmra.v
 src/lambda_verus/typing/lifetime.v
