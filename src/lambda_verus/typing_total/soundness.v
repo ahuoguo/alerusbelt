@@ -117,12 +117,10 @@ Section soundness.
     probabilistic language it is [tgl_wp], whose adequacy statement is a
     lower bound on the mass of [lim_exec].
 
-    The credit is handed to the derivation as an ambient [iProp] rather
-    than through the typing context.  This tree's partial
-    [typing/rand_ubig.v] has an error-credit *type*, [↯_T ε]; here
-    [ty_ghox] is a [cif] formula rather than an [iProp], so carrying one
-    would need a new constructor in [typing_total/inst.v]'s signature.
-    Nothing in [typing_total/sampling.v] needs that. *)
+    The credit is handed to the derivation as an ambient [iProp].  A
+    derivation that would rather carry it in the typing context can
+    convert: [typing_total/error_credit.v] has the [↯_T ε] type and
+    [error_credit_ty_gho_S] bridges the two. *)
   Theorem type_soundness_credit {𝔅} (e : expr) (tr : predl_trans' [] 𝔅)
       (ε : R) :
     (0 <= ε)%R →

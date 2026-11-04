@@ -16,13 +16,17 @@
   decreasing measure and without a Loeb rule, which is exactly what a
   total weakest precondition cannot otherwise do.
 
-  Note what is deliberately absent: an error-credit *type*.  The partial
-  tree carries [↯_T ε], an [own_ptr_0] over a ghost core whose [ty_gho]
-  is [↯ ε], so the credit can sit in a typing context.  Here [ty_ghox] is
-  a [cif] *formula* rather than an [iProp], so a credit-carrying type
-  would need a new constructor in [typing_total/inst.v]'s signature.  The
-  credit is threaded as an ambient [iProp] instead, which is all these
-  two rules need. *)
+  Both rules take the credit as an ambient [iProp] rather than from the
+  typing context.  For [type_rand_exp] that is a convenience;
+  [typing_total/error_credit.v] has [type_rand_case], the faithful port
+  of [typing/rand_ubig.v]'s rule, which takes it from the context.
+
+  For [type_amp] it is forced.  [ec_ind_amp] quantifies the credit
+  *inside* its induction - the hypothesis it hands back is
+  [↯ (k * ε') -∗ P] for one fixed [P] - so the amount cannot also appear
+  in [P].  A context entry [c ◁ ↯_T ε'] puts the amount in the judgment,
+  so there is no fixed [P] to induct on.  That is a property of the
+  amplification principle, not of this port. *)
 From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import proofmode.
 From clutch.base_logic Require Import error_credits.

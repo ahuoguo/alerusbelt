@@ -39,13 +39,17 @@ Unset Suggest Proof Using.
 (** ** The constructor signature *)
 Variant verus_halt_consel :=
 | acs_verus_halt | acs_naInv | acs_guard | acs_idxbor | acs_incl | acs_exs
-| acs_pstore | acs_dinv | acs_eown.
+| acs_pstore | acs_dinv | acs_eown
+(** Eris's error credit; see [typing_total/model.v]'s [ecCT].  It has no
+  counterpart in Nola, whose weakest precondition is not probabilistic. *)
+| acs_ec.
 
 Definition verus_haltCONF (s : verus_halt_consel) : cifcon :=
   match s with
   | acs_verus_halt => verus_haltCT | acs_naInv => naInvCT | acs_guard => guardCT
   | acs_idxbor => idxborCT | acs_incl => inclCT | acs_exs => exsCT
   | acs_pstore => pstoreCT | acs_dinv => dinvCT | acs_eown => eownCT
+  | acs_ec => ecCT
   end.
 
 Definition verus_haltCON : cifcon := sigTCT verus_haltCONF.
@@ -68,6 +72,8 @@ Definition verus_haltCON : cifcon := sigTCT verus_haltCONF.
   sigTCT_inC (a := acs_dinv).
 #[export] Instance eownC_CON : eownC verus_haltCON :=
   sigTCT_inC (a := acs_eown).
+#[export] Instance ecC_CON : ecC verus_haltCON :=
+  sigTCT_inC (a := acs_ec).
 
 #[export] Instance typingC_CON : typingC verus_haltCON :=
   TYPING_C _ _ _ _ _ _ _ _ _ _.
@@ -281,7 +287,7 @@ Definition verus_haltCONF_ecsem {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ}
   | acs_guard => guardCT_ecsem | acs_idxbor => idxborCT_ecsem
   | acs_incl => inclCT_ecsem | acs_exs => exsCT_ecsem
   | acs_pstore => pstoreCT_ecsem | acs_dinv => dinvCT_ecsem
-  | acs_eown => eownCT_ecsem
+  | acs_eown => eownCT_ecsem | acs_ec => ecCT_ecsem
   end.
 
 #[export] Instance verus_haltCsem {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ} :
@@ -316,6 +322,9 @@ Definition verus_haltCONF_ecsem {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ}
 #[export] Instance eownCS_CON {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ} :
   eownCS verus_haltCON (verus_haltJUDG Σ) Σ :=
   sigTCT_inCS (semec := verus_haltCONF_ecsem) (a := acs_eown).
+#[export] Instance ecCS_CON {Σ} `{!verus_haltGS (cifOF verus_haltCON) Σ} :
+  ecCS verus_haltCON (verus_haltJUDG Σ) Σ :=
+  sigTCT_inCS (semec := verus_haltCONF_ecsem) (a := acs_ec).
 
 (** The judgments' semantics, by cases on the judgment type.  Each one
   *applies* the interpretation - [guardJT_sem] to the two sub-formulas,

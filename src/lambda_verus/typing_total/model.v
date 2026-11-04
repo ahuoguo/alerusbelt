@@ -20,6 +20,7 @@ From iris.algebra Require Import excl.
 From nola.util Require Import tagged.
 From nola.bi Require Import deriv.
 From nola.iris Require Export cif.
+From clutch.base_logic Require Import error_credits.
 From lrust.typing_total Require Export ctx.
 From nola.verus_halt Require Import na_inv_fork.
 (** Nola's [util], not ours: ours belongs to the partial
@@ -1027,6 +1028,38 @@ Definition idxborCT : cifcon :=
   Cifcon idxborCT_id (lft * Idx)%type (λ _, Empty_set) (λ _, unit)
     (λ _, unitO) _.
 Notation idxborC := (inC idxborCT).
+
+(** Eris's error credit, as a formula.
+
+  The typing layer needs a credit-carrying *type* ([typing_total/
+  error_credit.v]), and a type's ghost component is a [cif], not an
+  [iProp].  So the credit has to be a constructor.  It is the simplest
+  kind there is: the amount is the selector, there are no children
+  inductive or coinductive, and no data.  Having no children it is
+  trivially size-preserving, so a credit may sit under a guarded former
+  like anything else.
+
+  This tree's partial [typing/rand_ubig.v] has no counterpart, because
+  there [ty_gho] is an [iProp] and the credit can simply be written into
+  it.  That is the less grounded of the two: an [iProp] payload is not a
+  formula, so it can never be stored in a borrow or an invariant. *)
+Variant ecCT_id := .
+Definition ecCT : cifcon :=
+  Cifcon ecCT_id R (λ _, Empty_set) (λ _, Empty_set) (λ _, unitO) _.
+Notation ecC := (inC ecCT).
+
+Section ecC.
+  Context `{!ecC CON} {Σ}.
+  Definition cif_ec (ε : R) : cif CON Σ := cif_in ecCT ε nullary nullary ().
+End ecC.
+
+Section ecCS.
+  Context {CON} {JUDG : ofe} {Σ} `{!ecGS Σ}.
+  #[export] Program Instance ecCT_ecsem : Ecsem ecCT CON JUDG Σ :=
+    ECSEM (λ _ _ ε _ _ _, ↯ ε)%I _.
+  Next Obligation. solve_proper. Qed.
+End ecCS.
+Notation ecCS := (inCS ecCT).
 
 Section judgC.
   Context `{!guardC CON, !idxborC CON, !inclC CON, !pstoreC CON,
