@@ -1,8 +1,14 @@
-# Nola (vendored): later-free ghost state.  Upstream https://github.com/hopv/nola,
-# at the `verus_halt` branch used by PLAN-TOTAL-ERIS.md.  Only the load path is
-# declared here; the files are built by Nola's own Makefile (see README-NOLA.md),
-# so they are not listed and `make` in this project does not rebuild them.
--Q src/nola nola
+# Nola: later-free ghost state (PLDI 2025).  A git submodule at src/nola,
+# pinned to github.com/ahuoguo/nola, branch wip-bounded-depth.  Its Coq root
+# is the nola/ subdirectory of that repo, hence the doubled path below.
+#
+# Only the load path is declared here; the files are not listed, so `make`
+# in this project does not rebuild them.  Build them once, in this switch:
+#
+#     git submodule update --init --recursive
+#     make -C src/nola -j4
+#
+-Q src/nola/nola nola
 
 # Leaf (guarding)
 
