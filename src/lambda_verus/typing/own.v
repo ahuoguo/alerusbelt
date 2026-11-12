@@ -398,8 +398,7 @@ Section typing.
 
   (** [type_letalloc_1]: allocate a new size-1 box and immediately
       write [p]'s value into it.  Inlines alloc + write at WP level,
-      then repackages as [v ◁ box ty].  WIP — proof is admit'd while
-      the inner wp_bind on the assignment step is figured out. *)
+      then repackages as [v ◁ box ty]. *)
   Lemma type_letalloc_1 {𝔄 𝔅l ℭl 𝔇} (ty: type 𝔄) (x: string) p e
     (T: tctx 𝔅l) (T': tctx ℭl)
     (tr: predl_trans' (at_locₛ 𝔄 :: ℭl) 𝔇)
