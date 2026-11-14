@@ -40,7 +40,8 @@ jobs:
               apt-get update -y
               apt-get install -y --no-install-recommends rsync
               opam pin add -n -y -k git rocq-iris.dev git+https://gitlab.mpi-sws.org/iris/iris.git#93c7df745a0485cebcb97ca77e7d263e5c920d4f
-              opam pin add -n -y -k git rocq-clutch.dev git+https://github.com/logsem/clutch.git#eris-lc-step
+              opam pin add -n -y -k git rocq-clutch.dev git+https://github.com/logsem/clutch.git#42fed67650c9a3dffb523c383fbeda9da582a97f
+              opam pin add -n -y -k git coq-autosubst.dev git+https://github.com/coq-community/autosubst#50dfe574c0bd415925eea47c1f5b1a533aa85269
               opam pin add -n -y -k path $PACKAGE $WORKDIR
               opam install --confirm-level=unsafe-yes -j 2 $PACKAGE --deps-only --ignore-constraints-on=rocq-stdpp
             endGroup
