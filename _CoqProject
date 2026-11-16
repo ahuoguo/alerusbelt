@@ -63,6 +63,7 @@ src/lambda_verus/prophecy/prophecy.v
 # Language definition (opsem and program logic)
 
 src/lambda_verus/lang/adequacy.v
+src/lambda_verus/lang/error_rules.v
 src/lambda_verus/lang/heap.v
 src/lambda_verus/prob/erasure.v
 src/lambda_verus/prob/weakestpre.v
