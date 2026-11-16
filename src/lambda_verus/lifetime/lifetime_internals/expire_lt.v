@@ -13,8 +13,6 @@ From iris.prelude Require Import options.
 From iris.base_logic.lib Require Export own iprop.
 From iris.proofmode Require Import base proofmode.
 From iris.proofmode Require Import proofmode.
-From iris.proofmode Require Import proofmode.
-From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Export invariants.
 
 Section FullBorrows.
@@ -145,7 +143,7 @@ Section FullBorrows.
       + replace (delete i (map_imap f m)) with (map_imap f m).
         * rewrite big_sepM_insert; trivial. rewrite Hfix. rewrite IH. unfold from_option.
           iSplit. { iIntros "A". iFrame. } { iIntros "[A B]". iFrame. }
-        * rewrite <- map_imap_delete. f_equal. rewrite delete_notin; trivial.
+        * rewrite <- map_imap_delete. f_equal. rewrite delete_id; trivial.
   Qed.
   
   (*Lemma big_sepM_mono2 `{Countable K} {A B} (Φ : K → A → iProp Σ) (Ψ : K → B → iProp Σ) (m : gmap K A) (m2: gmap K B) :

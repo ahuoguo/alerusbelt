@@ -98,9 +98,9 @@ Lemma proph_idx_bor_contractive κ ξ idx (P Q: (pv_val ξ) → iProp Σ) n :
   proph_idx_bor κ ξ idx P ≡{n}≡ proph_idx_bor κ ξ idx Q.
 Proof.
   intros HPQ. rewrite /proph_idx_bor. apply idx_bor_contractive.
-  destruct n as [|n]. { split. lia. }
+  destruct n as [|n]. { apply dist_later_0. }
   apply dist_later_S. apply pbor_body_ne => x'.
-  have := HPQ x'. rewrite dist_later_S. done.
+  have := HPQ x'. rewrite -dist_later_S. done.
 Qed.
 
 Lemma proph_ibor_proper κ ξ x idx (P Q: (pv_val ξ) → iProp Σ) :

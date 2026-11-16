@@ -17,7 +17,7 @@ From iris.prelude Require Import options.
 From iris.base_logic.lib Require Export own iprop.
 From iris.proofmode Require Import base.
 From iris.proofmode Require Import ltac_tactics.
-From iris.proofmode Require Import tactics.
+From iris.proofmode Require Import proofmode.
 From iris.proofmode Require Import coq_tactics.
 
 From stdpp Require Export namespaces.
@@ -235,7 +235,7 @@ Section StorageLogic.
       (● car p ⋅ (◯ car vsp_unit ⋅ ◯ car p))
       (↑ N)
       with "w") as "w".
-    { rewrite coPset_infinite_finite. apply nclose_infinite. }
+    { apply nclose_infinite. }
     { rewrite -auth_frag_op. apply auth_both_valid_discrete. split; last done.
       exists (car vsp_unit). by rewrite !vra_car_op_eq /= vsp_unit_op vsp_op_unit. }
     iDestruct "w" as (γ) "[%in_ns [w [oinv [auth [u frag]]]]]".
@@ -287,7 +287,7 @@ Section StorageLogic.
         rewrite -Hz in Hrel.
         have Hsub := Hguards z state.2 π Hrel.
         iEval (rewrite -(map_difference_union b state.2) //) in "t".
-        rewrite big_sepM_union; last by apply map_disjoint_difference_r.
+        rewrite big_sepM_union; last by apply map_disjoint_difference_r1.
         iDestruct "t" as "[fb fbz]".
         iFrame "fb".
         iIntros "fb".
@@ -296,7 +296,7 @@ Section StorageLogic.
         iSplitL; last by iPureIntro; exists z.
         iSplit; first by iPureIntro; exists π; rewrite -Hz.
         iEval (rewrite -(map_difference_union b state.2) //).
-        rewrite big_sepM_union; last by apply map_disjoint_difference_r.
+        rewrite big_sepM_union; last by apply map_disjoint_difference_r1.
         iFrame. }
       { iIntros "[a b]".
         iDestruct ("b" with "a") as "b".

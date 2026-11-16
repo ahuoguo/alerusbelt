@@ -191,7 +191,7 @@ Local Lemma res_app_cons L1 e L2 :
   res (L1 ++ e :: L2) = res L1 ++ e.1.(pli_pv) :: res L2.
 Proof. by rewrite /res fmap_app. Qed.
 Local Lemma res_elem e L : e ∈ L → e.1.(pli_pv) ∈ res L.
-Proof. apply (elem_of_list_fmap_1 (λ e, e.1.(pli_pv))). Qed.
+Proof. apply (list_elem_of_fmap_2 (λ e, e.1.(pli_pv))). Qed.
 
 Local Lemma pli_inj ξ vπ wπ : .{ξ := vπ} = .{ξ := wπ} → vπ = wπ.
 Proof.
@@ -346,7 +346,7 @@ Proof.
 Qed.
 
 Local Lemma add_line_lookup ξ it S : add_line ξ it S ξ.(pv_ty) !! ξ.(pv_id) = Some it.
-Proof. by rewrite /add_line discrete_fun_lookup_insert lookup_insert. Qed.
+Proof. by rewrite /add_line discrete_fun_lookup_insert lookup_insert_eq. Qed.
 Local Lemma add_line_lookup_ne ξ ζ it S : ξ ≠ ζ →
   add_line ξ it S ζ.(pv_ty) !! ζ.(pv_id) = S ζ.(pv_ty) !! ζ.(pv_id).
 Proof.
@@ -588,7 +588,7 @@ Local Lemma proph_tok_out S L ξ q :
 Proof.
   move=> [SimA SimR]. iIntros "●S ξ".
   iDestruct (own_valid_2 with "●S ξ") as %ValBoth. iPureIntro.
-  rewrite /res. move=> /elem_of_list_fmap [[[[𝔄i i] vπ] r] [/= ? In]]. subst ξ.
+  rewrite /res. move=> /list_elem_of_fmap [[[[𝔄i i] vπ] r] [/= ? In]]. subst ξ.
   move: ValBoth=> /auth_both_valid_discrete [Inc _].
   move/(discrete_fun_included_spec_1 _ _ 𝔄i) in Inc.
   rewrite /line discrete_fun_lookup_singleton /= in Inc.
@@ -713,7 +713,7 @@ Proof.
   iIntros (?) "? ξ". iInv prophN as (S) ">[(%L & %Ok & %Sim) ●S]".
   iDestruct (proph_reserved_lookup with "●S ξ") as %Eqv.
   have [vπ In] := proj1 (proj2 Sim ξ ζl) Eqv.
-  destruct (elem_of_list_split _ _ In) as [L1 [L2 Eq]].
+  destruct (list_elem_of_split _ _ In) as [L1 [L2 Eq]].
   subst L. set S' := add_line ξ (fitem 1) S.
   iMod (own_update_2 _ _ _ (● S' ⋅ ◯ line ξ (fitem 1)) with "●S ξ")
     as "[●S' ξ]".
@@ -733,7 +733,7 @@ Proof.
   iIntros (?) "? ξ ζl'". iInv prophN as (S) ">[(%L & %Ok & %Sim) ●S]".
   iDestruct (proph_reserved_lookup with "●S ξ") as %Eqv.
   have [vπ In] := proj1 (proj2 Sim ξ ζl) Eqv.
-  destruct (elem_of_list_split _ _ In) as [L1 [L2 Eq]].
+  destruct (list_elem_of_split _ _ In) as [L1 [L2 Eq]].
   subst L. iDestruct (proph_toks_out _ _ _ ζl' with "[] ●S ζl'") as %Outζl'; [done| |].
   { iIntros (??) "ζl'". iExists _. by iApply (big_sepL_elem_of with "ζl'"). }
   set S' := add_line ξ (ritem (ζl ++ ζl')) S.
@@ -760,7 +760,7 @@ Proof.
   iIntros (? Dep) "P→ ? ξ P". iInv prophN as (S) ">[(%L & %Ok & %Sim) ●S]".
   iDestruct (proph_reserved_lookup with "●S ξ") as %Eqv.
   have [wπ In] := proj1 (proj2 Sim ξ ζl) Eqv.
-  destruct (elem_of_list_split _ _ In) as [L1 [L2 Eq]].
+  destruct (list_elem_of_split _ _ In) as [L1 [L2 Eq]].
   subst L. iDestruct (proph_toks_out with "P→ ●S P") as %Outηl; [done|].
   set S' := add_line ξ (aitem vπ) S.
   iMod (own_update_2 _ _ _ (● S' ⋅ ◯ line ξ (aitem vπ)) with "●S ξ")
@@ -826,7 +826,7 @@ Proof.
   { iApply big_sepL_elem_of; by [apply In|]. }
   iDestruct (own_valid_2 with "●S ξvπ") as %ValBoth. iPureIntro.
   move: ValBoth=> /auth_both_valid_discrete [Inc Val]. apply (Sat .{ξ := vπ}).
-  apply (elem_of_list_fmap_1 fst L (.{ξ := vπ}, None)), (proj1 Sim ξ vπ).
+  apply (list_elem_of_fmap_2 fst L (.{ξ := vπ}, None)), (proj1 Sim ξ vπ).
   move/(discrete_fun_included_spec_1 _ _ 𝔄i) in Inc.
   rewrite /line discrete_fun_lookup_singleton in Inc.
   move: Inc=> /singleton_included_l [it [Eqv Inc]]. rewrite Eqv. f_equiv.
@@ -915,15 +915,15 @@ Proof.
          + intros xid. destruct (decide (xid = pv_id ξ)) as [->|Hno2].
            * do 2 (rewrite discrete_fun_lookup_op). rewrite lookup_op.
              rewrite lookup_op. rewrite discrete_fun_lookup_insert.
-             rewrite lookup_delete.
+             rewrite lookup_delete_eq.
              rewrite (Hincl1 (pv_ty ξ)).
              rewrite lookup_op. unfold line. rewrite discrete_fun_lookup_singleton.
-             rewrite lookup_singleton.
+             rewrite lookup_singleton_eq.
              assert (✓(Some (fitem 1) ⋅ b1 (pv_ty ξ) !! pv_id ξ)). {
                 setoid_rewrite Hincl1 in Hvalz.
                 have H1 := Hvalz (pv_ty ξ) (pv_id ξ). rewrite lookup_op in H1.
                 unfold line in H1. rewrite discrete_fun_lookup_singleton in H1.
-                rewrite lookup_singleton in H1. apply H1.
+                rewrite lookup_singleton_eq in H1. apply H1.
              }
              rewrite val_lemma; trivial.
              apply eq_none_lemma. generalize Hnotin.

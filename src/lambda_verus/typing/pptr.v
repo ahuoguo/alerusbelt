@@ -220,7 +220,6 @@ Section typing.
       iExists _, (S (S d)).
       do 2 iSplit => //=.
       iSplitL => //.
-      iFrame.
       rewrite -heap_mapsto_vec_singleton.
       rewrite -!(heap_mapsto_fancy_fmap_eq l').
       iFrame.

@@ -17,7 +17,7 @@ Local Definition uniq_smryUR := discrete_funUR uniq_gmapUR.
 Definition uniqUR: ucmra := authUR uniq_smryUR.
 
 Local Definition item {𝔄i} q b x : uniq_itemR 𝔄i :=
-  @to_frac_agree (leibnizO _) q (b, x).
+  @to_frac_agree _ (leibnizO _) q (b, x).
 Local Definition line ξ q b x : uniq_smryUR :=
   .{[ξ.(pv_ty) := {[ξ.(pv_id) := item q b x]}]}.
 Local Definition add_line ξ q b x (S: uniq_smryUR) : uniq_smryUR :=
@@ -119,7 +119,7 @@ Local Lemma line_included fr ξ q b x :
 Proof.
   move=> /(discrete_fun_included_spec_1 _ _ ξ.(pv_ty)).
   setoid_rewrite discrete_fun_lookup_singleton. rewrite lookup_included=> inc.
-  move: {inc}(inc (pv_id ξ)). by rewrite lookup_singleton.
+  move: {inc}(inc (pv_id ξ)). by rewrite lookup_singleton_eq.
 Qed.
 
 Local Lemma and_line_agree ξ q q' b x b' x' :

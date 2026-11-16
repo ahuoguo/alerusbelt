@@ -131,8 +131,8 @@ Section uniq_util.
     uniq_body ty x ξi d g idx κ tid l ≡{n}≡ uniq_body ty' x ξi d g idx κ tid l.
   Proof.
     intros Hg Hp. rewrite /uniq_body. f_equiv. apply proph_ibor_contractive=> c.
-    destruct n as [|n]; [split; lia|]. apply dist_later_S.
-    apply uniq_payload_ne; [|done]=> x1 d1 g1. have := Hg x1 d1 g1. by rewrite dist_later_S.
+    destruct n as [|n]; [apply dist_later_0|]. apply dist_later_S.
+    apply uniq_payload_ne; [|done]=> x1 d1 g1. have := Hg x1 d1 g1. by rewrite -dist_later_S.
   Qed.
 
   Lemma uniq_body_proper {𝔄} (ty ty': type 𝔄) x ξi d g idx κ tid tid' l :
@@ -160,8 +160,8 @@ Section uniq_util.
       uniq_body_pers_component ty' x ξi d g idx κ tid l.
   Proof.
     intros Hg Hp. apply proph_idx_bor_contractive=> c.
-    destruct n as [|n]; [split; lia|]. apply dist_later_S.
-    apply uniq_payload_ne; [|done]=> x1 d1 g1. have := Hg x1 d1 g1. by rewrite dist_later_S.
+    destruct n as [|n]; [apply dist_later_0|]. apply dist_later_S.
+    apply uniq_payload_ne; [|done]=> x1 d1 g1. have := Hg x1 d1 g1. by rewrite -dist_later_S.
   Qed.
 
   Lemma uniq_pers_component_proper {𝔄} (ty ty': type 𝔄) x ξi d g idx κ tid tid' l :

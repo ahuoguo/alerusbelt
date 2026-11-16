@@ -4,6 +4,7 @@ From iris.algebra Require Import gmap auth agree gset coPset.
 From iris.proofmode Require Import proofmode.
 From iris.base_logic.lib Require Import wsat.
 From iris.program_logic Require Export weakestpre adequacy.
+From iris.program_logic Require Import language.
 From iris.prelude Require Import options.
 Import uPred.
 
@@ -178,8 +179,9 @@ Local Lemma wp_progress_gen (hlc : has_lc) Σ Λ `{!invGpreS Σ} es σ1 n κs t2
 Proof.
   intros Hwp ??. 
   eapply pure_soundness.
-  eapply (step_fupdN_soundness_gen _ hlc (steps_sum num_laters_per_step 1 n)
+  eapply (step_fupdN_soundness hlc (steps_sum num_laters_per_step 1 n)
     (steps_sum num_laters_per_step 1 n + k)).
+  all: try tc_solve.
   iIntros (Hinv) "[Hcred Hk]".
   iDestruct (Hwp with "Hk") as "Hwp".
   iMod "Hwp" as (stateI Φ fork_post state_interp_mono) "(Hσ & Hwp)".
@@ -238,8 +240,9 @@ Lemma wp_strong_adequacy_gen (hlc : has_lc) Σ Λ `{!invGpreS Σ} s es σ1 n κs
 Proof.
   intros Hwp ?.
   eapply pure_soundness.
-  eapply (step_fupdN_soundness_gen _ hlc (steps_sum num_laters_per_step 1 n)
+  eapply (step_fupdN_soundness hlc (steps_sum num_laters_per_step 1 n)
     (steps_sum num_laters_per_step 1 n + k + k)).
+  all: try tc_solve.
   iIntros (Hinv) "[[Hcred Hk1] Hk2]".
   iDestruct (Hwp with "Hk1") as "Hwp".
   iMod "Hwp" as (stateI Φ fork_post state_interp_mono) "(Hσ & Hwp & Hφ)".

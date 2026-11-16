@@ -404,7 +404,7 @@ Section RA_type.
       rewrite -vra_car_op_eq auth_frag_op. iDestruct "Hown" as "[Hown1 Hown2]".
       iFrame "∗#".
       repeat rewrite heap_mapsto_fancy_vec_nil.
-      rewrite /ty_own/=!heap_mapsto_vec_nil !freeable_util.freeable_sz_full.
+      rewrite /ty_own/= ?heap_mapsto_vec_nil ?freeable_util.freeable_sz_full.
       done.
     - iApply (proph_obs_impl with "Obs").
       intros π' [_ ].
