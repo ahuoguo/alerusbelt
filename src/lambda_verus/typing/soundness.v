@@ -8,7 +8,7 @@ From lrust.lang Require Import adequacy proofmode notation.
 From lrust.lifetime Require Import lifetime_full.
 From guarding.lib Require Import fractional cancellable.
 From guarding Require Import guard.
-From lrust.typing Require Import type function product programs.
+From lrust.typing Require Import type function product programs rand_ubig.
 Set Default Proof Using "Type".
 
 Class typePreG Σ := PreTypeG {
@@ -107,3 +107,49 @@ Theorem type_soundness_closed `{Countable sch_int_state}
 Proof.
   intros. eapply @type_soundness; try done. apply _.
 Qed.
+
+(** * Soundness with error credits (AlerusBelt).
+
+    A body typed with an error credit [#l ◁ ↯_T ε] in its context (and
+    whose predicate transformer holds trivially of the final state) gets
+    stuck with probability at most [ε]: under every scheduler of mass 1,
+    after any number of steps the non-stuck mass is at least [1 - ε].
+
+    The credit rules ([rand_ubig.v]) fix their error budgets as
+    meta-level parameters, independent of the prophecy assignment π —
+    the non-prophetic restriction of Verus's [Ghost], by construction. *)
+Theorem type_soundness_credit `{!typePreG Σ} `{Countable sch_int_state}
+    (ζ : sch_int_state) (sch : scheduler (con_lang_mdp lrust_lang) sch_int_state)
+    {𝔅 : syn_type} (tr : predl_trans' [at_locₛ (trackedₛ unitₛ)] 𝔅)
+    (post : pred' (~~𝔅)) (ε : R) (e : expr) n :
+  sch_mass_1 sch →
+  (0 <= ε)%R →
+  (∀ (l : loc) π, tr post -[(l, ())] ⊤ π) →
+  (∀ `{!typeG Σ} (l : loc),
+      ⊢ typed_body (𝔄l := [at_locₛ (trackedₛ unitₛ)]) (𝔅 := 𝔅) [] []
+          (InvCtx [] static AtomicClosed) [] +[#l ◁ error_credit_ty ε] e tr) →
+  (SeriesC (sch_pexec sch n (ζ, ([e], (∅, false)))) >= 1 - ε)%R.
+Proof.
+  intros Hmass Hε Htr Hbody.
+  apply (lrust_wp_safety ζ sch e n ε 1%nat (λ _, True)); [done|done|].
+  intros ?. iIntros "£ #TIME Hcr".
+  iMod (llft_alloc with "£") as (?) "#LFT".
+  iMod proph_init as (?) "#PROPH"; first done.
+  iMod uniq_init as (Huniq) "#UNIQ"; first done. set (Htype := TypeG Σ _ _ _ _ _ _ _).
+  iMod (@invctx_alloc Σ _ _ _ (@type_cnaInv_logicΣ Σ (uniq_inG (uniqG := Huniq))) ⊤)
+    as (tid) "Hinvctx".
+  iMod persistent_time_receipt_0 as "#⧖0".
+  set (l := ((1%positive, 0%Z) : loc)).
+  iApply (pgl_wp_wand with "[-]"); last by iIntros.
+  iApply (Hbody Htype l $! tid -[(l, ())] ⊤ post []
+            with "LFT TIME PROPH UNIQ [] [] [Hinvctx] [] [Hcr] []").
+  - by rewrite /elctx_interp.
+  - by rewrite /llctx_interp big_sepL_nil.
+  - iApply "Hinvctx".
+  - iIntros (? Hc). exfalso. set_solver.
+  - iSplit; [|done]. rewrite /tctx_elt_interp /=.
+    iExists (LitV (LitLoc l)), 0%nat. iSplit; first done. iFrame "⧖0".
+    rewrite /ty_own /=. by iFrame.
+  - by iApply proph_obs_true.
+Qed.
+

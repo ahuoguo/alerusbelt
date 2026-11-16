@@ -78,6 +78,17 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   `Unset Asymmetric Patterns` exported from lang.v (clutch sets it);
   type_nd_int / type_nd_bool removed (as on main).
 
+- Stage 6: `lang/error_rules.v` (wp_err_incr, wp_err_pos = thin_air,
+  wp_rand_exp_nat = rand_ubig, on state_step_coupl/prog_coupl);
+  `typing/rand_ubig.v` (main's credit rules on the prophetic type
+  record: transformers lifted in π, ε/ε2 stay meta-level);
+  `typing/soundness.v: type_soundness_credit` (↯ ε in context ⇒ stuck
+  mass ≤ ε for every mass-1 scheduler); `examples/coin_flip.v:
+  coin_flip_safe` end to end (standard axioms only).
+  Dropped from main's coin_flip: the fn-typed wrapper, the assert_fn
+  letcall demo and the Abort-ed no-credit demo; `examples/assert_prob.v`
+  keeps main's plain assert + wp_assert.
+
 ## Deferred
 
 - `lang/races.v` (data-race freedom from safety) and its use in
@@ -86,8 +97,6 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
 
 ## Next
 
-6. Stage 6: error-credit typing rules from main (rand_ubig.v, coin_flip.v)
-   on the prophetic `type` record.
 7. Stage 7: proph_credits.v + reservation API.
 8. Stage 8: soundness with ↯ ε; headline example (prophetic borrow +
    fork + error credit); probabilistic data-race freedom (races.v).
