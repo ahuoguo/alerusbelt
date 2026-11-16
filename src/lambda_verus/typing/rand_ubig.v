@@ -388,6 +388,61 @@ Section typing_rules.
     - by iApply proph_obs_true.
   Qed.
 
+  (** [type_rand_case_tr]: [type_rand_case] that keeps the prophetic
+      knowledge.  Each branch [n] has its own transformer [tr n]; the
+      conclusion's transformer asks for all of them.  The error amounts
+      [ε1], [ε2] stay meta-level (independent of π), as Verus requires
+      for [Ghost]; only the transformers are lifted in π. *)
+  Lemma type_rand_case_tr {𝔄l 𝔅} (z : Z) (ε1 : R) (ε2 : nat → R) (c : path) x e
+      (T' : tctx 𝔄l) E L (I: invctx) (C: cctx 𝔅)
+      (tr : nat → predl_trans' (Zₛ :: at_locₛ (trackedₛ unitₛ) :: 𝔄l) 𝔅) :
+    (0 < z)%Z →
+    (∀ n, (0 <= ε2 n <= 1)%R) →
+    (SeriesC (λ n : nat,
+        if bool_decide (n < Z.to_nat z)%nat
+        then (1 / Z.to_nat z) * ε2 n
+        else 0)%R <= ε1)%R →
+    Closed (x :b: []) e →
+    (∀ (n : nat),
+      (n < Z.to_nat z)%nat →
+      ⊢ typed_body E L I C
+          (#(Z.of_nat n) ◁ int +:: c ◁ ↯_T (ε2 n) +:: T')
+          (subst' x #(Z.of_nat n) e)
+          (tr n)) →
+    ⊢ typed_body E L I C (c ◁ ↯_T ε1 +:: T') (let: x := rand #z in e)
+        (λ post '(cl -:: xl) mask π,
+          ∀ n : nat, (n < Z.to_nat z)%nat →
+            tr n post (Z.of_nat n -:: cl -:: xl) mask π)%type.
+  Proof.
+    iIntros (Hz Hb Hε Hcle Hbody).
+    iIntros (tid xl mask post iκs).
+    destruct xl as [[lc []] cl].
+    iIntros "#LFT #TIME #PROPH #UNIQ #E L Hinv Hcctx [Hcred Hrest] Obs".
+    rewrite /tctx_elt_interp /=.
+    iDestruct "Hcred" as (v dv Hev) "[#⧖v [Hcr %Hphys]]".
+    inversion Hphys; subst v.
+    wp_bind (Rand _).
+    iApply (wp_rand_exp_nat with "Hcr"); [done|done|done|].
+    iNext. iIntros (m) "[%Hm Hcr2]".
+    iMod persistent_time_receipt_0 as "#⧖0".
+    wp_let.
+    iApply ((Hbody m Hm) $! tid (Z.of_nat m -:: (lc, ()) -:: cl) mask post iκs
+            with "LFT TIME PROPH UNIQ E L Hinv Hcctx [Hcr2 Hrest] [Obs]").
+    - simpl.
+      iSplitR "Hcr2 Hrest".
+      { rewrite /tctx_elt_interp /=.
+        iExists (LitV (LitInt (Z.of_nat m))), 0%nat.
+        iSplit; first done. iFrame "⧖0".
+        rewrite /ty_own /=. by iSplit. }
+      iSplitL "Hcr2".
+      { rewrite /tctx_elt_interp /=.
+        iExists (LitV (LitLoc lc)), dv.
+        iSplit; first done. iFrame "⧖v".
+        rewrite /ty_own /=. by iFrame. }
+      iFrame "Hrest".
+    - iApply (proph_obs_impl with "Obs"). intros π Hπ. by apply Hπ.
+  Qed.
+
   (** [type_credit_contradict_after_rand]: variant matching the tctx
       shape after [type_rand_case] — [int] head, then [↯_T 1], then rest. *)
   Lemma type_credit_contradict_after_rand {𝔄l 𝔅} (T': tctx 𝔄l) E L

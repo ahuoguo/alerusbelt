@@ -114,10 +114,36 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   `pcell_example_executes_without_getting_stuck` restored.
 - Clean build: 117/117, 0 Admitted.
 
+- Headline example (2026-11-16): `typing/examples/headline.v`.  Typed
+  program: `&mut` (prophetic uniq borrow) of a box, `rand 2` with
+  `↯_T (1/2)` (credit kills n = 0), write through the borrow, `Endlft`
+  (prophecy resolved, `*v` unblocked), `b := *v == 1`,
+  `thread::spawn(assert(b))`, then loop.  `headline_safe`: stuck mass
+  ≤ 1/2 under every mass-1 scheduler; standard axioms only.
+  Library additions: `type_rand_case_tr` (rand_ubig.v: per-branch
+  transformers, so prophetic knowledge survives the sample; ε stays
+  meta-level), `type_endlft_unblock` (programs.v: `type_endlft` where the
+  unblocked context's type list may change — upstream's `type_endlft`
+  cannot use `unblock_tctx_cons_unblock`).
+- Clean build: 118/118, 0 Admitted.
+
+## Known gaps (not on the plan's critical path)
+
+- Credit soundness only counts stuck mass until `main` returns (the
+  Coneris MDP stops there); `headline` ends in a loop for this reason.
+  The ε = 0 safety theorem (`race_adequacy.v`) does cover forked threads
+  after `main` returns, via the `e ;; loop` wrapper; an ε > 0 version
+  would need the path-scheduler argument made quantitative.
+- No presampling tapes (Coneris state steps): λRust has no tapes, so the
+  tape-based Coneris rules (e.g. for hash / presampled coupling proofs)
+  are not available.
+- Distribution adequacy takes almost-sure termination as a premise (as on
+  `main`); no total-correctness / termination logic.
+- No typed `join` (upstream has it commented out in typing/spawn.v).
+- `coneris-lc` clutch branch (Stage 2 items 1-5) is unused by this tree.
+
 ## Deferred
 
 ## Next
 
-8. Remaining Stage 8 extra: headline typed example (prophetic borrow +
-   spawn + error credit; spawn_type is a typed fn value, so this needs a
-   typed call with a closure type).
+8. Stage 8 done.  See "Known gaps".

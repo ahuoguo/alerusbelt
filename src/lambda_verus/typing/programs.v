@@ -336,6 +336,48 @@ Section typing.
     iApply (proph_obs_impl with "Obs"). intros π [Ha Hf]. apply Ha. apply Hf.
   Qed.
 
+  (* AlerusBelt: [type_endlft] where the unblocked context [T''] may have a
+     different type list from [T'], so that [unblock_tctx_cons_unblock]
+     (blocked ⇒ owned) can be used when a borrow's lifetime ends. *)
+  Lemma type_endlft_unblock {𝔄l 𝔅l 𝔅l' ℭ} (T: tctx 𝔄l) (T': tctx 𝔅l) (T'': tctx 𝔅l')
+      (f: proph_asn → plist indep_interp_of_syn_type 𝔅l → plist indep_interp_of_syn_type 𝔅l' → Prop)
+      κ κl tru tr e E L I (C: cctx ℭ) :
+    Closed [] e →
+    resolve_unblock_tctx E (κ ⊑ₗ κl :: L) κ T T' tru → unblock_tctx E L κ T' T'' f →
+    typed_body E L I C T'' e tr -∗
+    typed_body E (κ ⊑ₗ κl :: L) I C T (Endlft;; e)
+      (tru ∘ (λ post xl mask π, ∀ xl', f π xl xl' → tr post xl' mask π)%type).
+  Proof.
+    iIntros (? RslvU Un) "e %tid %xl %mask %post %iκs #LFT #TIME #PROPH #UNIQ #E L' I C T Obs".
+    wp_bind Skip.
+    iMod (llctx_interp_make_guarded with "L'") as (γ) "[H1 [H2 [#Ghalf #Halfback]]]". { solve_ndisj. }
+    iMod (RslvU with "LFT PROPH UNIQ TIME E Ghalf H1 T Obs") as (??) "[⧖ ToT']".
+    iApply (wp_step_fupdN_persistent_time_receipt' _ _ ∅ with "TIME ⧖ [ToT']")=>//.
+    { iApply step_fupdN_with_emp. 
+      iDestruct (step_fupdN_nmono with "ToT'") as "ToT'";
+      last by rewrite difference_empty_L. nia. }
+    wp_seq. (*iIntros "([(%&%& κ' & To†) L] & T' & Obs) !>".*)
+    iIntros "(H1 & T' & Obs) !>".
+    iDestruct ("Halfback" with "H1 H2") as "L'". iMod (fupd_mask_mono with "L'") as "L'". { solve_ndisj. }
+    iDestruct "L'" as "[(%&%& κ' & %ToDead) L]".
+    iDestruct (llftl_end' with "LFT κ'") as "To†". { apply ToDead. }
+    wp_seq. wp_bind Skip.
+    iApply wp_mask_mono; [|iApply (wp_step_fupd with "To†")]; [set_solver..|].
+    wp_seq. iIntros "† !>". wp_seq. wp_bind Skip.
+    iMod (llctx_interp_make_guarded with "L") as (γ1) "[H1 [H2 [#Ghalf1 #Halfback1]]]". { solve_ndisj. }
+    iMod (Un with "LFT TIME E Ghalf1 H1 [†] T'") as (??) "[⧖ ToT']".
+    { simpl in *. subst. rewrite llftl_end_inter. by iRight. }
+    iApply (wp_step_fupdN_persistent_time_receipt' _ _ ∅ with "TIME ⧖ [ToT']")=>//.
+    { iApply step_fupdN_with_emp.
+        iDestruct (step_fupdN_nmono _ (((S d0 * S d0))) with "ToT'") as "ToT'". { nia. }
+        rewrite <- step_fupdN_addS. 
+        by rewrite difference_empty_L. }
+    wp_seq. iIntros "(H1 & T'' & Obs') !>". wp_seq. iCombine "Obs Obs'" as "Obs".
+    iDestruct ("Halfback1" with "H1 H2") as "L". iMod (fupd_mask_mono with "L") as "L". { solve_ndisj. }
+    iApply ("e" with "LFT TIME PROPH UNIQ E L I C T'' [Obs]").
+    iApply (proph_obs_impl with "Obs"). intros π [Ha Hf]. apply Ha. apply Hf.
+  Qed.
+
   (** Explicit resolution of a path *)
   Lemma type_resolve_instr {𝔄} p (ty: type 𝔄) Φ E L I :
     resolve E L ty Φ →
