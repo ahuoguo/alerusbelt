@@ -1,8 +1,8 @@
 From lrust.util Require Import non_atomic_cell_map.
 From iris.proofmode Require Import proofmode reduction environments coq_tactics.
 From iris.proofmode Require Export proofmode.
-From iris.program_logic Require Export weakestpre.
-From iris.program_logic Require Import lifting.
+From lrust.prob Require Export weakestpre.
+From lrust.prob Require Import lifting.
 From lrust.lang Require Export tactics lifting.
 Set Default Proof Using "Type".
 Import uPred.
@@ -21,10 +21,11 @@ Lemma tac_wp_pure `{!lrustGS Σ} K Δ Δ' E e1 e2 φ n Φ :
   envs_entails Δ' (WP fill K e2 @ E {{ Φ }}) →
   envs_entails Δ (WP fill K e1 @ E {{ Φ }}).
 Proof.
-  rewrite envs_entails_unseal=> ??? HΔ'. rewrite into_laterN_env_sound /=.
-  rewrite -wp_bind HΔ' -wp_pure_step_later //. rewrite -wp_bind_inv. f_equiv.
-  by iIntros.
-Qed. 
+  rewrite envs_entails_unseal=> HPE Hφ ? HΔ'. rewrite into_laterN_env_sound HΔ'.
+  iIntros "H". iApply (wp_pure_step_later E (fill K e1) (fill K e2) φ n); [|exact Hφ|].
+  { by apply (pure_exec_ctx (fill K)). }
+  iNext n. iIntros "_". done.
+Qed.
 
 Tactic Notation "wp_pure" open_constr(efoc) :=
   iStartProof;
@@ -99,15 +100,7 @@ Implicit Types P Q : iProp Σ.
 Implicit Types Φ : val → iProp Σ.
 Implicit Types Δ : envs (uPredI (iResUR Σ)).
 
-Lemma tac_wp_nd_int `{!lrustGS Σ} K Δ Δ' E Φ :
-  MaybeIntoLaterNEnvs 1 Δ Δ' →
-  (∀z, envs_entails Δ' (WP fill K (Lit (LitInt z)) @ E {{ Φ }})) →
-  envs_entails Δ (WP fill K NdInt @ E {{ Φ }}).
-Proof.
-  rewrite envs_entails_unseal=> ? HΔ'. rewrite into_laterN_env_sound /=.
-  rewrite -wp_bind /=. iIntros "Δ'". iApply (wp_nd_int with "[//]")=>/=. iNext.
-  iIntros. by iApply HΔ'.
-Qed.
+
 
 Lemma tac_wp_alloc K Δ Δ' E j1 j2 n Φ :
   0 < n →
@@ -195,17 +188,7 @@ Tactic Notation "wp_apply" open_constr(lem) :=
     | _ => fail "wp_apply: not a 'wp'"
     end).
 
-Tactic Notation "wp_nd_int" ident(z) :=
-  iStartProof;
-  lazymatch goal with
-  | |- envs_entails _ (wp ?s ?E ?e ?Q) => reshape_expr e ltac:(fun K e' =>
-    unify e' NdInt;
-    eapply (tac_wp_nd_int K);
-    [tc_solve                                   (* IntoLaters *)
-    |iIntros (z); simpl_subst; try wp_value_head (* new goal *)])
-   || fail "wp_nd_int: cannot find NdInt in" e
-  | _ => fail "wp_nd_int: not a 'wp'"
-  end.
+
 
 Tactic Notation "wp_alloc" ident(l) "as" constr(H) constr(Hf) :=
   iStartProof;

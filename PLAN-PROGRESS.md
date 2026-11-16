@@ -52,8 +52,25 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   `wp_lift_atomic_base_step_no_fork`, `wp_step_fupdN`, …) but quantify
   over the support `head_step e σ (e', σ', efs) > 0`.
 
+- Stage 3 (lambdaRust on the new WP): `lang.v` (conEctxiLanguage,
+  head_step_prob + support/reducible/det/atomic lemmas), `tactics.v`
+  (strong atomicity proved), `time.v`, `heap.v`, `lifting.v` (all
+  primitive rules incl. CAS/fork/global lock; time-receipt rules via one
+  `wp_cumulative_time_receipt_gen`), `proofmode.v` (full heap tactics),
+  `lib/{memcpy,new_delete,spawn}.v`, `adequacy.v` (`lrust_wp_pgl`,
+  `lrust_wp_safety`, every scheduler).
+  Semantic choices vs. VerusBelt: Rand added; NdInt stuck (wp_nd_int,
+  type_nd_int gone, as on main); structural pointer equality; a racing
+  successful CAS is stuck (instead of stepping to stuck_term) so CAS is
+  strongly atomic; Free checks exact block bounds.
+  `lang.v` exports `Default Goal Selector "1"` (clutch turns on "!").
+
+## Deferred
+
+- `lang/races.v` (data-race freedom from safety) and its use in
+  `typing/soundness.v` / `examples/pcell_example.v`: needs a probabilistic
+  formulation; not on the critical path.
+
 ## Next
 
-3. Stage 3: lrust lang as conEctxiLanguage (refork lang.v + main's Rand /
-   countable / distr head_step), heap, lifting, time, races, spawn.
-4. Stage 4-8 per PLAN.md.
+4. Stage 4-8 per PLAN.md (typing layer next).

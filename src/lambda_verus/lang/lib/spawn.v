@@ -1,4 +1,4 @@
-From iris.program_logic Require Import weakestpre.
+From lrust.prob Require Import weakestpre.
 From iris.base_logic.lib Require Import invariants.
 From iris.proofmode Require Import proofmode.
 From iris.algebra Require Import excl.

@@ -1277,3 +1277,7 @@ Proof.
   destruct (pmf_pos (head_step_prob e1 σ) (e', σ', efs)) as [Hp|Hz]; [|done].
   exfalso. apply Rlt_gt, head_step_prob_support, Hdet in Hp as (->&->&->). by apply Heq.
 Qed.
+
+(** Upstream λRust/VerusBelt proofs assume the default goal selector;
+    clutch's exports turn on Iris's strict ["!"] one. *)
+#[export] Set Default Goal Selector "1".
