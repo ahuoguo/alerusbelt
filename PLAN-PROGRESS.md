@@ -65,6 +65,19 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   strongly atomic; Free checks exact block bounds.
   `lang.v` exports `Default Goal Selector "1"` (clutch turns on "!").
 
+- Stages 4-5: lifetime/, guarding/ unchanged; prophecy/ and all of
+  typing/ build on the new WP.  Clean build 106/106, 0 Admitted.
+  `typing/soundness.v` restated: for a closed well-typed `main` and every
+  mass-1 scheduler, `SeriesC (sch_pexec sch n …) = 1` (no stuck mass), via
+  `lrust_wp_safety` with ε = 0.  `pcell_example` instantiates it;
+  `Print Assumptions`: only classical reals, extensionality, classic,
+  constructive_indefinite_description.
+  Fixes needed: `lang.pure.val` qualified names; `Datatypes.id` (Reals'
+  `id` shadowed it — prob/weakestpre no longer re-exports Reals); uninit
+  notation `↯` -> `↯ᵤ` (as on main; `↯` is error credits);
+  `Unset Asymmetric Patterns` exported from lang.v (clutch sets it);
+  type_nd_int / type_nd_bool removed (as on main).
+
 ## Deferred
 
 - `lang/races.v` (data-race freedom from safety) and its use in
@@ -73,4 +86,8 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
 
 ## Next
 
-4. Stage 4-8 per PLAN.md (typing layer next).
+6. Stage 6: error-credit typing rules from main (rand_ubig.v, coin_flip.v)
+   on the prophetic `type` record.
+7. Stage 7: proph_credits.v + reservation API.
+8. Stage 8: soundness with ↯ ε; headline example (prophetic borrow +
+   fork + error credit); probabilistic data-race freedom (races.v).

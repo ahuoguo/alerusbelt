@@ -1,6 +1,7 @@
 (** Base-step lifting lemmas for ectx-based languages, with Iris's names
     and shapes ([program_logic/ectx_lifting.v]); "base step" here is
     clutch's [head_step] (support of the head-step distribution). *)
+From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import proofmode.
 From clutch.common Require Export con_ectx_language.
 From lrust.prob Require Export weakestpre lifting.

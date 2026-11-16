@@ -149,23 +149,8 @@ Section int.
     destruct Extr as [Htrx _]=>?? /=. apply Htrx. by case=> [?[??]].
   Qed.
 
-  Lemma type_nd_int_instr E L I :
-    typed_instr_ty E L I +[] NdInt int (λ post '-[], λ mask π, ∀z, post z mask π).
-  Proof.
-    iIntros (?????) "_ _ _ _ _ $$ _ #Obs". iMod persistent_time_receipt_0 as "⧖".
-    wp_nd_int z. iExists -[_]. rewrite right_id tctx_hasty_val'; [|done].
-    iSplit. { iExists _. iFrame "⧖". done. }
-    iApply (proph_obs_impl with "Obs"). intros π Ha. destruct xl. apply Ha.
-  Qed.
-
-  Lemma type_nd_int {𝔄l 𝔅} x e tr E L I (C: cctx 𝔅) (T: tctx 𝔄l) :
-    Closed (x :b: []) e →
-    (∀v: val, typed_body E L I C (v ◁ int +:: T) (subst' x v e) tr) -∗
-    typed_body E L I C T (let: x := NdInt in e)
-      (λ post bl mask π, ∀z, tr post (z -:: bl) mask π)%type.
-  Proof.
-    iIntros. by iApply type_let; [apply type_nd_int_instr|solve_typing| |done].
-  Qed.
+  (** [type_nd_int_instr] / [type_nd_int] removed: [NdInt] (unbounded
+      choice) has no probabilistic semantics and is stuck; use [Rand]. *)
   
   Lemma type_int_eq_instr E L I p1 p2 :
     typed_instr_ty E L I +[p1 ◁ int; p2 ◁ int] (p1 = p2) bool_ty

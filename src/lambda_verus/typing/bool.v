@@ -56,24 +56,9 @@ Section bool.
     iIntros. iApply type_let; [apply type_bool_instr|solve_typing|done..].
   Qed.
 
-  Lemma type_nd_bool_instr E L I :
-    typed_instr_ty E L I +[] NdBool bool_ty (λ post '-[], λ mask π, ∀b, post b mask π).
-  Proof.
-    iIntros (?????) "_ _ _ _ _ $$ _ #?". iMod persistent_time_receipt_0 as "⧖".
-    wp_nd_int z. wp_op. iExists -[_]. rewrite right_id tctx_hasty_val'; [|done].
-    iSplit. { iExists _. iFrame "⧖". iSplit; done. }
-    iApply proph_obs_impl; [|done]=>/= ? Hyp.
-    destruct xl; apply Hyp.
-  Qed.
-
-  Lemma type_nd_bool {𝔄l 𝔅} (T: tctx 𝔄l) x e tr E L (I: invctx) (C: cctx 𝔅) :
-    Closed (x :b: []) e →
-    (∀v: val, typed_body E L I C (v ◁ bool_ty +:: T) (subst' x v e) tr) -∗
-    typed_body E L I C T (let: x := NdBool in e)
-      (λ post al mask π, ∀b, tr post (b -:: al) mask π)%type.
-  Proof.
-    iIntros. by iApply type_let; [apply type_nd_bool_instr|solve_typing| |done].
-  Qed.
+  (** [type_nd_bool_instr] / [type_nd_bool] removed: [NdBool] desugars
+      to [#0 ≤ NdInt], and [NdInt] has no probabilistic semantics (it is
+      stuck); use [Rand]. *)
 
   Lemma type_if {𝔄l 𝔅l ℭ} p (T: tctx 𝔄l) (T': tctx 𝔅l) e1 e2 tr1 tr2 trx E L I (C: cctx ℭ) :
     tctx_extract_ctx E L +[p ◁ bool_ty] T T' trx →

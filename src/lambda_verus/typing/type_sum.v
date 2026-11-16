@@ -153,7 +153,7 @@ Section type_sum.
     let tyi := tyl +!! i in
     tctx_incl E L (p ◁ own_ptr n (Σ! tyl) +:: T)
       (p +ₗ #0 ◁ own_ptr n int +:: p +ₗ #1 ◁ own_ptr n tyi +::
-        p +ₗ #(S tyi.(ty_size)) ◁ own_ptr n (↯ (sum_pad_size tyl tyi)) +:: T)
+        p +ₗ #(S tyi.(ty_size)) ◁ own_ptr n (↯ᵤ (sum_pad_size tyl tyi)) +:: T)
       (λ post '((l, (s, pad)) -:: bl), λ mask π, ∃a: ~~(𝔄l !!ₗ i),
         s = pinj i a ∧ ∀ pad', post (
           (l, Z.of_nat i) -::
@@ -235,7 +235,7 @@ Section type_sum.
       | inl otr => typed_body E L I C (p ◁ own_ptr n (Σ! tyl) +:: T') e otr
       | inr itr => typed_body E L I C
           (p +ₗ #0 ◁ own_ptr n int +:: p +ₗ #1 ◁ own_ptr n ty +::
-            p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ (sum_pad_size tyl ty)) +:: T') e itr
+            p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ᵤ (sum_pad_size tyl ty)) +:: T') e itr
       end) -∗
     typed_body E L I C T (case: !p of el) (trx ∘ (λ post '(s -:: cl),
       let 'xinj i a := to_xsum s in match trl -!! i with
@@ -263,7 +263,7 @@ Section type_sum.
     tctx_extract_ctx E L +[p ◁ own_ptr n (Σ! tyl)] T T' trx →
     ([∗ hlist] ty;- e; tr ∈ tyl;- el'; trl,
       typed_body E L C (p +ₗ #0 ◁ own_ptr n int +:: p +ₗ #1 ◁ own_ptr n ty +::
-        p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ (sum_pad_size tyl ty)) +:: T') e tr) -∗
+        p +ₗ #(S ty.(ty_size)) ◁ own_ptr n (↯ᵤ (sum_pad_size tyl ty)) +:: T') e tr) -∗
     typed_body E L C T (case: !p of el) (trx ∘ (λ post '(s -:: cl),
       let 'xinj i a := to_xsum s in
       (trl -!! i) post (Z.of_nat i -:: a -:: () -:: cl))).

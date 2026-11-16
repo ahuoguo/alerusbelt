@@ -1281,3 +1281,4 @@ Qed.
 (** Upstream λRust/VerusBelt proofs assume the default goal selector;
     clutch's exports turn on Iris's strict ["!"] one. *)
 #[export] Set Default Goal Selector "1".
+#[export] Unset Asymmetric Patterns.

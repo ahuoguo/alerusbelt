@@ -2,6 +2,7 @@
     [program_logic/lifting.v] (step counter, [£] per step) so that
     lambdaRust's lifting proofs port with minimal change.  Probabilistic
     steps are handled by quantifying over the support of [prim_step]. *)
+From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import proofmode.
 From iris.prelude Require Import options.
 From clutch.prelude Require Import NNRbar.

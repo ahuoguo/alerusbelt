@@ -278,7 +278,7 @@ Section typing.
   Qed.
 
   Lemma read_own_move {𝔄} (ty: type 𝔄) n E L :
-    typed_read E L (own_ptr n ty) ty (own_ptr n (↯ ty.(ty_size))) (λ v, v.2) (λ v z, v.1 = z.1).
+    typed_read E L (own_ptr n ty) ty (own_ptr n (↯ᵤ ty.(ty_size))) (λ v, v.2) (λ v z, v.1 = z.1).
   Proof.
     iIntros ([l x] [ | d] v tid G ?)  "LFT E L G [Hgho %Hphys] Hd //=".
     iDestruct "Hgho" as "(Hown & Hfree & Hgho)".
@@ -313,7 +313,7 @@ Section typing.
 
   Lemma type_new_instr n E L I :
     0 ≤ n → let n' := Z.to_nat n in
-    typed_instr_ty E L I +[] (new [ #n])%E (own_ptr n' (↯ n'))
+    typed_instr_ty E L I +[] (new [ #n])%E (own_ptr n' (↯ᵤ n'))
         (λ post _ mask π, ∀ l junk, post (l, junk) mask π).
   Proof.
     iIntros (???????) "_ TIME _ _ _ $$ _ Proph". iMod persistent_time_receipt_0 as "⧖".
@@ -342,7 +342,7 @@ Section typing.
 
   Lemma type_new {𝔄l 𝔅} n x e tr E L (I: invctx) (C: cctx 𝔅) (T: tctx 𝔄l) :
     Closed (x :b: []) e → 0 ≤ n → let n' := Z.to_nat n in
-    (∀v: val, typed_body E L I C (v ◁ own_ptr n' (↯ n') +:: T) (subst' x v e) tr) -∗
+    (∀v: val, typed_body E L I C (v ◁ own_ptr n' (↯ᵤ n') +:: T) (subst' x v e) tr) -∗
     typed_body E L I C T (let: x := new [ #n] in e)
       (λ post al mask π, forall l junk, tr post ((l, junk) -:: al) mask π).
   Proof.
@@ -357,7 +357,7 @@ Section typing.
 
   Lemma type_new_subtype {𝔄 𝔅l ℭ} (ty: type 𝔄) n (T: tctx 𝔅l) f e tr x E L I (C: cctx ℭ) :
     Closed (x :b: []) e → 0 ≤ n → let n' := Z.to_nat n in
-    subtype E L (↯ n') ty f →
+    subtype E L (↯ᵤ n') ty f →
     (∀v: val, typed_body E L I C (v ◁ own_ptr n' ty +:: T) (subst' x v e) tr) -∗
     typed_body E L I C T (let: x := new [ #n] in e) (λ post al mask π, forall l junk, tr post ((l, f ~~$ₛ junk) -:: al) mask π).
   Proof.
@@ -455,7 +455,7 @@ Section typing.
           repeat f_equal;
             [by rewrite bool_decide_true|eapply is_closed_subst=>//; set_solver]. }
         iApply typed_body_impl; last first.
-        { iApply (type_assign (own_ptr (Z.to_nat 1%nat) (↯ (Z.to_nat 1%nat))) (↯ (Z.to_nat 1%nat))%T (own_ptr (Z.to_nat 1%nat) ty) ty snd _ _ _ _ _ _ _ _ _ T' id tr _).
+        { iApply (type_assign (own_ptr (Z.to_nat 1%nat) (↯ᵤ (Z.to_nat 1%nat))) (↯ᵤ (Z.to_nat 1%nat))%T (own_ptr (Z.to_nat 1%nat) ty) ty snd _ _ _ _ _ _ _ _ _ T' id tr _).
           * apply subst_is_closed; [apply is_closed_of_val|done].
           * eapply tctx_extract_ctx_eq.
             eapply tctx_extract_ctx_elt.
@@ -467,7 +467,7 @@ Section typing.
             fun_ext => a.
             fun_ext => b /=.
             by destruct b as [[? ?] [? ?]].
-          * apply (write_own (↯ (Z.to_nat 1%nat)) ty 1%nat ) => /=; lia.
+          * apply (write_own (↯ᵤ (Z.to_nat 1%nat)) ty 1%nat ) => /=; lia.
           * rewrite /resolve'.
             instantiate (1:= λ _ _ x, x).
             eapply resolve_impl => //; first apply uninit_resolve.

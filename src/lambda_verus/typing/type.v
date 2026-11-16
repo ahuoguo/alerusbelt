@@ -830,7 +830,7 @@ Section type_contractive.
     TypeContractive (λ _: type 𝔅, ty).
   Proof. split; move=>// *. eright=> _; by [iApply lft_equiv_refl|]. Qed.
 
-  Global Instance id_type_ne {𝔄} : TypeNonExpansive (id: type 𝔄 → type 𝔄).
+  Global Instance id_type_ne {𝔄} : TypeNonExpansive (Datatypes.id: type 𝔄 → type 𝔄).
   Proof. split=>//. by apply type_lft_morphism_id_like. Qed.
 
   Global Instance type_list_non_expansive_nil {𝔄} :

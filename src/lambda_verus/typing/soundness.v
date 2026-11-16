@@ -1,7 +1,10 @@
 From iris.algebra Require Import frac dfrac_agree.
 From lrust.util Require Import cancellable_na_invariants.
 From iris.proofmode Require Import proofmode.
-From lrust.lang Require Import races adequacy proofmode notation.
+From Stdlib Require Import Reals Psatz.
+From clutch.prob Require Import distribution mdp.
+From lrust.prob Require Import adequacy.
+From lrust.lang Require Import adequacy proofmode notation.
 From lrust.lifetime Require Import lifetime_full.
 From guarding.lib Require Import fractional cancellable.
 From guarding Require Import guard.
@@ -32,19 +35,25 @@ Section type_soundness.
   Definition main_type `{!typeG Σ} :=
       (fn(∅) → unit_ty)%T (λ (_: ~~()), (λ post '-[], λ mask π, ∀ l, post (l, ()) mask π)).
 
-  (* Intuitively, it says that execution of a closed, semantically well-typed
-    program, without any special precondition, does not get stuck *)
-  Theorem type_soundness `{!typePreG Σ} (main : val) σ t c :
+  (* Execution of a closed, semantically well-typed program, without any
+     special precondition, does not get stuck: under every scheduler of
+     mass 1, the non-stuck mass after any number of steps is 1.
+     (The data-race-freedom conjunct of VerusBelt's statement awaits the
+     probabilistic port of [lang/races.v].) *)
+  Theorem type_soundness `{!typePreG Σ} `{Countable sch_int_state}
+      (ζ : sch_int_state) (sch : scheduler (con_lang_mdp lrust_lang) sch_int_state)
+      (main : val) c n :
+    sch_mass_1 sch →
     (∀ `{!typeG Σ}, typed_val main main_type c) →
-    rtc erased_step ([main [exit_cont]%E], (∅, false)) (t, σ) →
-    nonracing_threadpool t σ ∧
-    (∀ e, e ∈ t → is_Some (to_val e) ∨ reducible e σ).
+    SeriesC (sch_pexec sch n (ζ, ([main [exit_cont]%E], (∅, false)))) = 1%R.
   Proof.
-    intros Hmain Hrtc.
-    cut (adequate NotStuck (main [exit_cont]%E) (∅, false) (λ _ _, True)).
-    { split. by eapply adequate_nonracing.
-      intros. by eapply (adequate_not_stuck _ (main [exit_cont]%E)). }
-    apply: lrust_adequacy=>?. iIntros "£ #TIME".
+    intros Hmass Hmain.
+    apply Rle_antisym; first apply pmf_SeriesC.
+    cut (SeriesC (sch_pexec sch n (ζ, ([main [exit_cont]%E], (∅, false)))) >= 1 - 0)%R;
+      [lra|].
+    apply (lrust_wp_safety ζ sch _ n 0 1%nat (λ _, True));
+      [lra|done|].
+    clear Hmass. intros ?. iIntros "£ #TIME _".
     iMod (llft_alloc with "£") as (?) "#LFT".
     iMod proph_init as (?) "#PROPH"; first done.
     iMod uniq_init as (Huniq) "#UNIQ"; first done. set (Htype := TypeG Σ _ _ _ _ _ _ _).
@@ -57,7 +66,7 @@ Section type_soundness.
     { by rewrite /llctx_interp big_sepL_nil. }
     { iApply "Hinvctx". }
     { by iApply proph_obs_true. }
-    clear Hrtc Hmain main. iIntros (main) "Hmain".
+    clear Hmain main. iIntros (main) "Hmain".
     iDestruct "Hmain" as ([[fxval fx] []]) "/= (Htl & Invctx & [Hmain _] & #Obs)".
     iDestruct "Hmain" as (??) "(EQ & ? & Hmain)". rewrite eval_path_of_val.
     iDestruct "EQ" as %[= <-]. iDestruct "Hmain" as "[Hmain %phys]".
@@ -89,11 +98,12 @@ End type_soundness.
 
 (* Soundness theorem when no other CMRA is needed. *)
 
-Theorem type_soundness_closed (main : val) σ t c :
+Theorem type_soundness_closed `{Countable sch_int_state}
+    (ζ : sch_int_state) (sch : scheduler (con_lang_mdp lrust_lang) sch_int_state)
+    (main : val) c n :
+  sch_mass_1 sch →
   (∀ `{!typeG typeΣ}, typed_val main main_type c) →
-  rtc erased_step ([main [exit_cont]%E], (∅, false)) (t, σ) →
-  nonracing_threadpool t σ ∧
-  (∀ e, e ∈ t → is_Some (to_val e) ∨ reducible e σ).
+  SeriesC (sch_pexec sch n (ζ, ([main [exit_cont]%E], (∅, false)))) = 1%R.
 Proof.
   intros. eapply @type_soundness; try done. apply _.
 Qed.

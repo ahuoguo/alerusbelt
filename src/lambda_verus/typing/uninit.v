@@ -24,15 +24,15 @@ Section uninit.
   Next Obligation. by iIntros. Qed.
 End uninit.
 
-Notation "↯" := uninit : lrust_type_scope.
+Notation "'↯ᵤ'" := uninit (only parsing) : lrust_type_scope.
 
 Section typing.
   Context `{!typeG Σ}.
 
-  Global Instance uninit_copy n : Copy (↯ n).
+  Global Instance uninit_copy n : Copy (↯ᵤ n).
   Proof. split; [apply _|]=>/= *. iIntros. iPureIntro. apply all_concrete_fmap_fval. Qed.
 
-  Global Instance uninit_send n : Send (↯ n).
+  Global Instance uninit_send n : Send (↯ᵤ n).
   Proof.
     intros. split.
       - intros tid tid' x x' Hsyn. unfold syn_abstract in Hsyn. subst x'. trivial.
@@ -41,10 +41,10 @@ Section typing.
         replace (d0 + 0)%nat with d0 by lia. iFrame "#". done.
   Qed.
   
-  Global Instance uninit_sync n : Sync (↯ n).
+  Global Instance uninit_sync n : Sync (↯ᵤ n).
   Proof. split => //=. Qed.
 
-  Lemma uninit_resolve n E L : resolve E L (↯ n) (const (const True)).
+  Lemma uninit_resolve n E L : resolve E L (↯ᵤ n) (const (const True)).
   Proof. apply resolve_just. Qed.
 
   Notation "()" := unit0 : lrust_type_scope.
@@ -63,7 +63,7 @@ Section typing.
   Next Obligation. done. Qed.
   Next Obligation. done. Qed.
   
-  Lemma uninit_unit E L : eqtype E L (↯ 0) () (uninit0_to_unitₛ) (unit_to_uninit0ₛ).
+  Lemma uninit_unit E L : eqtype E L (↯ᵤ 0) () (uninit0_to_unitₛ) (unit_to_uninit0ₛ).
   Proof.
     apply eqtype_unfold. { 
       split.
@@ -84,9 +84,9 @@ Section typing.
     + iIntros (??? vl). naive_solver. 
     + iPureIntro. intros. refine (match x with vnil => _ end). trivial.
   Qed.
-  Lemma uninit_unit_1 E L : subtype E L (↯ 0) () (uninit0_to_unitₛ).
+  Lemma uninit_unit_1 E L : subtype E L (↯ᵤ 0) () (uninit0_to_unitₛ).
   Proof. eapply proj1, uninit_unit. Qed.
-  Lemma uninit_unit_2 E L : subtype E L () (↯ 0) (unit_to_uninit0ₛ).
+  Lemma uninit_unit_2 E L : subtype E L () (↯ᵤ 0) (unit_to_uninit0ₛ).
   Proof. eapply proj2, uninit_unit. Qed.
 
   Lemma uninit_plus_prod_helper1 m n (vl : list val) :
@@ -113,7 +113,7 @@ Section typing.
   Next Obligation. done. Qed.
 
   Lemma uninit_plus_prod E L m n :
-    eqtype E L (↯ (m + n)) (↯ m * ↯ n) uninit_splitₛ uninit_joinₛ.
+    eqtype E L (↯ᵤ (m + n)) (↯ᵤ m * ↯ᵤ n) uninit_splitₛ uninit_joinₛ.
   Proof.
     apply eqtype_unfold.
     { destruct (@vapp_vsepat_iso val m n) as [A B]. split.
@@ -136,10 +136,10 @@ Section typing.
         intros x tid. rewrite <- fmap_app. rewrite <- vec_to_list_app. rewrite <- vsepat_app. trivial.
   Qed.
   Lemma uninit_plus_prod_1 E L m n :
-    subtype E L (↯ (m + n) ) (↯ m  * ↯ n ) uninit_splitₛ.
+    subtype E L (↯ᵤ (m + n) ) (↯ᵤ m  * ↯ᵤ n ) uninit_splitₛ.
   Proof. eapply proj1, uninit_plus_prod. Qed.
   Lemma uninit_plus_prod_2 E L m n :
-    subtype E L (↯ m * ↯ n) (↯ (m + n)) uninit_joinₛ.
+    subtype E L (↯ᵤ m * ↯ᵤ n) (↯ᵤ (m + n)) uninit_joinₛ.
   Proof. eapply proj2, uninit_plus_prod. Qed.
 End typing.
 

@@ -11,7 +11,7 @@
     - [state_interp] is indexed by a global step counter, and each
       program step hands out [£ (S (num_laters_per_step n))] and runs
       under [|={∅}▷=>^(S (num_laters_per_step n))], as in Iris's WP. *)
-From Stdlib Require Export Reals Psatz.
+From Stdlib Require Import Reals Psatz.
 From iris.proofmode Require Import base proofmode.
 From iris.base_logic.lib Require Export fancy_updates later_credits.
 From iris.bi Require Export lib.fixpoint_mono big_op.

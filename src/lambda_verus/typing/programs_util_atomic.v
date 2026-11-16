@@ -1,6 +1,6 @@
 From lrust.typing Require Export type.
 From lrust.typing Require Import type_context programs own.
-From iris.program_logic Require Import ectx_lifting.
+From lrust.prob Require Import ectx_lifting.
 From lrust.lang Require Import lang.
 From lrust.util Require Import atomic_lock_counter.
 From guarding Require Import guard tactics.
@@ -28,11 +28,11 @@ Section programs_util_atomic.
       match b with 0%Z => heap_ato_ctx | 1%Z => True | _ => False end }}}.
   Proof.
     iIntros (Φ) "ato ToΦ".
-    iApply wp_lift_atomic_base_step_no_fork; auto. iIntros (σ1 stepcnt κ κs n) "[Hσ Ht]".
+    iApply wp_lift_atomic_base_step_no_fork; auto. iIntros (stepcnt σ1) "[Hσ Ht]".
     iDestruct "Hσ" as (hF) "(Hσ & HhF & %REL & ato2)".
     iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
-    iSplit. { iExists _, _, _, _. iPureIntro. apply GlobalLockS. }
-    iNext; iIntros (e2 σ2 efs Hstep); inv_head_step. iMod "Hclose" as "_".
+    iSplit. { iPureIntro. eapply head_reducible_of_step; [apply GlobalLockS|solve_not_stuck]. }
+    iNext; iIntros (e2 σ2 efs Hstep); lift_step Hstep; inv_head_step. iMod "Hclose" as "_".
     iMod (time_interp_step with "Ht") as "$". iIntros "credit !>". iFrame.
     iSplit; first by done. iSplit; first by done.
     iApply "ToΦ". destruct σ1 as [σ1 [|]]; done.
@@ -60,12 +60,12 @@ Section programs_util_atomic.
      {{{ RET LitV LitPoison; True }}}.
   Proof.
     iIntros (Φ) "ato ToΦ".
-    iApply wp_lift_atomic_base_step_no_fork; auto. iIntros (σ1 stepcnt κ κs n) "[Hσ Ht]".
+    iApply wp_lift_atomic_base_step_no_fork; auto. iIntros (stepcnt σ1) "[Hσ Ht]".
     iDestruct "Hσ" as (hF) "(Hσ & HhF & %REL & ato2)".
     iApply fupd_mask_intro; first set_solver. iIntros "Hclose".
     destruct σ1 as [σ1 [|]].
-      - iSplit. { iExists _, _, _, _. iPureIntro. apply GlobalUnlockS. trivial. }
-        iNext; iIntros (e2 σ2 efs Hstep); inv_head_step. iMod "Hclose" as "_".
+      - iSplit. { iPureIntro. eapply head_reducible_of_step; [apply GlobalUnlockS; trivial|solve_not_stuck]. }
+        iNext; iIntros (e2 σ2 efs Hstep); lift_step Hstep; inv_head_step. iMod "Hclose" as "_".
         iMod (time_interp_step with "Ht") as "$". iIntros "credit !>". iFrame.
         iSplit; first by done. iSplit; first by done.
         iApply "ToΦ". done.
