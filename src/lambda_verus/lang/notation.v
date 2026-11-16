@@ -19,6 +19,7 @@ Notation "[ x1 ; x2 ; .. ; xn ]" :=
 properly. *)
 Notation "# l" := (LitV l%Z%V%L) (at level 8, format "# l").
 Notation "# l" := (Lit l%Z%V%L) (at level 8, format "# l") : expr_scope.
+Notation "'rand' e" := (Rand e%E) (at level 10, e at level 9) : expr_scope.
 
 (** Syntax inspired by Coq/Ocaml. Constructions with higher precedence come
     first. *)
