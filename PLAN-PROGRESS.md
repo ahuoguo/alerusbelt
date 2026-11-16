@@ -89,6 +89,10 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   letcall demo and the Abort-ed no-credit demo; `examples/assert_prob.v`
   keeps main's plain assert + wp_assert.
 
+- Stage 7: `examples/proph_credits.v` ported; reservation API checked:
+  reservations record dependencies only, never a value (3 new lemmas).
+- Clean build (refork @ dc47764): 111/111, 0 Admitted.
+
 ## Deferred
 
 - `lang/races.v` (data-race freedom from safety) and its use in
@@ -97,6 +101,8 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
 
 ## Next
 
-7. Stage 7: proph_credits.v + reservation API.
-8. Stage 8: soundness with ↯ ε; headline example (prophetic borrow +
-   fork + error credit); probabilistic data-race freedom (races.v).
+8. Remaining Stage 8 extras: headline typed example (prophetic borrow +
+   spawn + error credit; spawn_type is a typed fn value, so this needs a
+   typed call with a closure type); probabilistic data-race freedom
+   (port races.v: a race lets some scheduler reach a stuck state with
+   positive probability).
