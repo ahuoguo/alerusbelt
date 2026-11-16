@@ -131,6 +131,7 @@ src/lambda_verus/typing/examples/list.v
 src/lambda_verus/typing/examples/pcell_example.v
 src/lambda_verus/typing/examples/assert_prob.v
 src/lambda_verus/typing/examples/coin_flip.v
+src/lambda_verus/typing/examples/proph_credits.v
 
 
 -arg -w -arg -argument-scope-delimiter
