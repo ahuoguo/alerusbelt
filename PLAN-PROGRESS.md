@@ -39,10 +39,21 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   `coneris-lc`, plus `main`'s `total_step_credits` budget
   (`/root/alerusbelt/src/lambda_verus/lang/adequacy.v`); all schedulers.
 
+## Done since
+
+- `prob/weakestpre.v`, `prob/lifting.v`, `prob/ectx_lifting.v`,
+  `prob/erasure.v`, `prob/adequacy.v` all build, 0 Admitted.
+  Key lemmas: `wp_refRcoupl_hfupd`, `wp_safety_hfupd`:
+  `£ (total_step_credits k n) ∗ state_interp k σ ∗ err_interp ε ∗ WP e ∗
+   [∗ list] WP e' {{fork_post}} ⊢ |={⊤|}=> ▷^(S (total_step_credits k n)) ◇ ⌜…⌝`
+  for every scheduler; stutter steps (value / out-of-range thread) bump
+  the counter via `state_interp_mono`.
+- Lifting lemmas keep Iris's names (`wp_lift_base_step`,
+  `wp_lift_atomic_base_step_no_fork`, `wp_step_fupdN`, …) but quantify
+  over the support `head_step e σ (e', σ', efs) > 0`.
+
 ## Next
 
-1. prob/weakestpre.v (+ lifting, ectx_lifting, error rules needed by lrust)
-2. prob/adequacy.v
 3. Stage 3: lrust lang as conEctxiLanguage (refork lang.v + main's Rand /
    countable / distr head_step), heap, lifting, time, races, spawn.
 4. Stage 4-8 per PLAN.md.
