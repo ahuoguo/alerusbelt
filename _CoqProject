@@ -64,6 +64,8 @@ src/lambda_verus/prophecy/prophecy.v
 
 src/lambda_verus/lang/adequacy.v
 src/lambda_verus/lang/error_rules.v
+src/lambda_verus/lang/races.v
+src/lambda_verus/lang/race_adequacy.v
 src/lambda_verus/lang/distribution_adequacy.v
 src/lambda_verus/lang/approx_distribution_adequacy.v
 src/lambda_verus/lang/heap.v

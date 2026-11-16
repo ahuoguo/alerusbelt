@@ -5,7 +5,7 @@ From Stdlib Require Import Reals.
 From clutch.prob Require Import distribution mdp.
 From lrust.prob Require Import adequacy.
 From lrust.typing.examples Require Import assert.
-From lrust.lang Require Import lang notation.
+From lrust.lang Require Import lang notation races.
 Set Default Proof Using "Type".
 
 Section assert.
@@ -247,16 +247,30 @@ Section assert.
    
 End assert.
 
-(* Instantiate the type soundness theorem: under every scheduler of mass 1,
-   pcell_example never gets stuck (non-stuck mass 1 after any number of
-   steps).  The statement is independent of Iris and of the typing rules. *)
-Theorem pcell_example_executes_without_getting_stuck `{Countable sch_int_state}
+(* Instantiate the type soundness theorem. This gives us the result that pcell_example
+   executes without getting stuck or producing any data races: in every
+   configuration reachable by positive-probability steps of any threads.
+
+   Note that the theorem is statement is independent of Iris, all typing rules, etc.
+   It's just a statement about the operational behavior of pcell_example.
+ *)
+Theorem pcell_example_executes_without_getting_stuck σ t :
+  rtc thread_step ([pcell_example [exit_cont]%E], (∅, false)) (t, σ) →
+  nonracing_threadpool t σ ∧ (∀ e, e ∈ t → is_Some (to_val e) ∨ reducible e σ).
+Proof.
+  apply (type_soundness_closed pcell_example σ t (pcell_example, ())).
+  intros typeG0. apply pcell_example_type.
+Qed.
+
+(* The quantitative form: under every scheduler of mass 1, the non-stuck
+   mass after any number of steps is 1. *)
+Theorem pcell_example_mass_1 `{Countable sch_int_state}
     (ζ : sch_int_state) (sch : scheduler (con_lang_mdp lrust_lang) sch_int_state) n :
   sch_mass_1 sch →
   SeriesC (sch_pexec sch n (ζ, ([pcell_example [exit_cont]%E], (∅, false)))) = 1%R.
 Proof.
   intros Hmass.
-  apply (type_soundness_closed ζ sch pcell_example (pcell_example, ()) n Hmass).
+  apply (type_soundness_mass_closed ζ sch pcell_example (pcell_example, ()) n Hmass).
   intros typeG0. apply pcell_example_type.
 Qed.
 

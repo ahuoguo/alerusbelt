@@ -103,16 +103,21 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   resolves cnaInv via typePreG; `type_wp_pgl` pins it to the typeG's uniqG.
 - Clean build: 115/115, 0 Admitted.
 
-## Deferred
+- Data-race freedom (2026-11-16): `lang/races.v` ported (reachability =
+  `rtc thread_step`, positive-probability steps of any thread; CAS access
+  kinds keyed on `lit_eq_dec`, as in `head_step_prob`).
+  `lang/race_adequacy.v`: `path_sch` (deterministic scheduler replaying a
+  thread path) + wrapping main as `e ;; loop` turn `lrust_wp_safety` (ε = 0)
+  into `safe_from`; `lrust_wp_nonracing_safe`.  `typing/soundness.v:
+  type_soundness` is upstream's statement again (nonracing ∧ no stuck
+  thread in every reachable config); the mass form is `type_soundness_mass`.
+  `pcell_example_executes_without_getting_stuck` restored.
+- Clean build: 117/117, 0 Admitted.
 
-- `lang/races.v` (data-race freedom from safety) and its use in
-  `typing/soundness.v` / `examples/pcell_example.v`: needs a probabilistic
-  formulation; not on the critical path.
+## Deferred
 
 ## Next
 
-8. Remaining Stage 8 extras: headline typed example (prophetic borrow +
+8. Remaining Stage 8 extra: headline typed example (prophetic borrow +
    spawn + error credit; spawn_type is a typed fn value, so this needs a
-   typed call with a closure type); probabilistic data-race freedom
-   (port races.v: a race lets some scheduler reach a stuck state with
-   positive probability).
+   typed call with a closure type).
