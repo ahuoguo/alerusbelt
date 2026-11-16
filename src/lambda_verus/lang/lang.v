@@ -829,6 +829,11 @@ Lemma lit_eq_is_Some σ l1 l2 : lit_eq σ l1 l2 → is_Some (lit_eq_dec l1 l2).
 Proof. inversion 1; simpl; repeat case_match; eauto. Qed.
 Lemma lit_neq_is_Some l1 l2 : lit_neq l1 l2 → is_Some (lit_eq_dec l1 l2).
 Proof. inversion 1; simpl; repeat case_match; eauto. Qed.
+Lemma lit_neq_dec l1 l2 : lit_neq l1 l2 → lit_eq_dec l1 l2 = Some false.
+Proof.
+  inversion 1; simplify_eq/=; repeat case_match; simplify_eq;
+    rewrite ?bool_decide_eq_false_2 //.
+Qed.
 
 Definition bin_op_eval_fn (op : bin_op) (l1 l2 : base_lit) : option base_lit :=
   match op, l1, l2 with
@@ -926,7 +931,10 @@ Definition head_step_prob (e : expr) (σ : state) : distr (expr * state * list e
           end
       | None => dzero
       end
-  (* A racing successful CAS reduces to [stuck_term], as in [CasStuckS]. *)
+  (* A successful CAS racing with a non-atomic read ([CasStuckS]) is stuck
+     outright rather than stepping to [stuck_term]; either way the thread
+     is stuck, and this keeps every CAS step value-producing, i.e. CAS is
+     strongly atomic in the probabilistic semantics. *)
   | CAS (Lit (LitLoc l)) e1 e2 =>
       match to_val e1, to_val e2, σ.1 !! l with
       | Some (LitV lit1), Some (LitV lit2), Some (RSt n, LitV litl) =>
@@ -934,7 +942,7 @@ Definition head_step_prob (e : expr) (σ : state) : distr (expr * state * list e
           | Some true =>
               match n with
               | O => dret (Lit $ lit_of_bool true, (<[l:=(RSt 0, LitV lit2)]>σ.1, σ.2), [])
-              | S _ => dret (stuck_term, σ, [])
+              | S _ => dzero
               end
           | Some false => dret (Lit $ lit_of_bool false, σ, [])
           | None => dzero
@@ -994,12 +1002,15 @@ Proof.
   - destruct σ as [h b]; simpl in *; subst. exact (GlobalLockS (h, false)).
 Qed.
 
-(** Every relational step has a probabilistic counterpart (possibly with
-    a different outcome). *)
+(** Every relational step, other than the racing-CAS step to
+    [stuck_term], has a probabilistic counterpart (possibly with a
+    different outcome). *)
 Lemma head_step_prob_reducible e σ e' σ' efs :
-  head_step e σ [] e' σ' efs → ∃ ρ, head_step_prob e σ ρ > 0.
+  head_step e σ [] e' σ' efs →
+  (∀ l e1 e2, e = CAS (Lit (LitLoc l)) e1 e2 → e' ≠ stuck_term) →
+  ∃ ρ, head_step_prob e σ ρ > 0.
 Proof.
-  intros Hs. destruct Hs; simpl.
+  intros Hs Hnstuck. destruct Hs; simpl.
   all: repeat match goal with
     | H : to_val ?e = Some _ |- context [to_val ?e] => rewrite H
     | H : ?m !! ?l = Some _ |- context [?m !! ?l] => rewrite H
@@ -1018,21 +1029,13 @@ Proof.
     eexists (Lit (LitInt (Z.of_nat (fin_to_nat (0%fin : fin (S (Z.to_nat N - 1)))))), σ, []).
     apply dmap_pos. eexists. split; [done|]. apply dunifP_pos.
   - (* CasFail *)
-    match goal with H : lit_neq _ _ |- _ =>
-      destruct (lit_neq_is_Some _ _ H) as [[] Hb] end; rewrite Hb.
-    + match goal with |- context [match ?n with O => _ | S _ => _ end] => destruct n end;
-        eexists; rewrite dret_1_1 //; lra.
-    + eexists; rewrite dret_1_1 //; lra.
+    match goal with H : lit_neq _ _ |- _ => rewrite (lit_neq_dec _ _ H) end.
+    eexists; rewrite dret_1_1 //; lra.
   - (* CasSuc *)
     match goal with H : lit_eq _ _ _ |- _ =>
       destruct (lit_eq_is_Some _ _ _ H) as [[] Hb] end; rewrite Hb;
       eexists; rewrite dret_1_1 //; lra.
-  - (* CasStuck *)
-    match goal with H : lit_eq _ _ _ |- _ =>
-      destruct (lit_eq_is_Some _ _ _ H) as [[] Hb] end; rewrite Hb.
-    + match goal with |- context [match ?n with O => _ | S _ => _ end] => destruct n end;
-        [lia|]. eexists; rewrite dret_1_1 //; lra.
-    + eexists; rewrite dret_1_1 //; lra.
+  - (* CasStuck *) by destruct (Hnstuck _ _ _ eq_refl).
   - (* Free *)
     replace (free_okb n l σ) with true; last (symmetry; by apply free_okb_spec).
     eexists; rewrite dret_1_1 //; lra.
@@ -1243,3 +1246,34 @@ Canonical Structure valO := leibnizO val.
 Canonical Structure exprO := leibnizO expr.
 
 Global Instance state_inhabited : Inhabited state := populate (∅, false).
+
+(** Atomic operations step to values. *)
+Lemma head_step_prob_atomic_val e σ e' σ' efs :
+  head_step_prob e σ (e', σ', efs) > 0 →
+  match e with
+  | Read ScOrd _ | Read Na2Ord _ | Write ScOrd _ _ | Write Na2Ord _ _
+  | CAS _ _ _ | Alloc _ | Free _ _ => is_Some (to_val e')
+  | _ => True
+  end.
+Proof.
+  intros Hs. destruct e; try done; simpl in Hs; repeat case_match; simplify_eq;
+    try done; try (rewrite dzero_0 in Hs; lra);
+    apply dret_pos in Hs; simplify_eq; eauto using to_of_val.
+Qed.
+
+(** A head step that is deterministic in the relational semantics has
+    probability 1 on its outcome. *)
+Lemma head_step_prob_det e1 e2 σ :
+  (∃ ρ, head_step_prob e1 σ ρ > 0) →
+  (∀ e2' σ2 efs, head_step e1 σ [] e2' σ2 efs → e2' = e2 ∧ σ2 = σ ∧ efs = []) →
+  head_step_prob e1 σ (e2, σ, []) = 1.
+Proof.
+  intros Hred Hdet.
+  pose proof (head_step_mass_prob e1 σ Hred) as Hmass.
+  rewrite -Hmass.
+  rewrite -(SeriesC_singleton_dependent (e2, σ, []) (head_step_prob e1 σ)).
+  apply SeriesC_ext. intros [[e' σ'] efs].
+  case_bool_decide as Heq; [done|].
+  destruct (pmf_pos (head_step_prob e1 σ) (e', σ', efs)) as [Hp|Hz]; [|done].
+  exfalso. apply Rlt_gt, head_step_prob_support, Hdet in Hp as (->&->&->). by apply Heq.
+Qed.

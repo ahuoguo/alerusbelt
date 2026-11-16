@@ -1014,3 +1014,26 @@ Section proofmode_classes.
   Qed.
 End proofmode_classes.
 
+
+(** Iris-style names for the WP lemmas, so that λRust's proofs (written
+    against [iris.program_logic.weakestpre]) port unchanged. *)
+Notation wp_unfold := pgl_wp_unfold (only parsing).
+Notation wp_value_fupd' := pgl_wp_value_fupd' (only parsing).
+Notation wp_value_fupd := pgl_wp_value_fupd (only parsing).
+Notation wp_value' := pgl_wp_value' (only parsing).
+Notation wp_value := pgl_wp_value (only parsing).
+Notation fupd_wp := fupd_pgl_wp (only parsing).
+Notation wp_fupd := pgl_wp_fupd (only parsing).
+Notation wp_atomic := pgl_wp_atomic (only parsing).
+Notation wp_bind := pgl_wp_bind (only parsing).
+Notation wp_mono := pgl_wp_mono (only parsing).
+Notation wp_mask_mono := pgl_wp_mask_mono (only parsing).
+Notation wp_frame_l := pgl_wp_frame_l (only parsing).
+Notation wp_frame_r := pgl_wp_frame_r (only parsing).
+Notation wp_frame_step_l := pgl_wp_frame_step_l (only parsing).
+Notation wp_frame_step_r := pgl_wp_frame_step_r (only parsing).
+Notation wp_frame_step_l' := pgl_wp_frame_step_l' (only parsing).
+Notation wp_frame_step_r' := pgl_wp_frame_step_r' (only parsing).
+Notation wp_wand := pgl_wp_wand (only parsing).
+Notation wp_wand_l := pgl_wp_wand_l (only parsing).
+Notation wp_frame_wand := pgl_wp_frame_wand (only parsing).
