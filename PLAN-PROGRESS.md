@@ -93,6 +93,16 @@ disjunct). lambdaRust has no state steps, so it needs its own WP anyway
   reservations record dependencies only, never a value (3 new lemmas).
 - Clean build (refork @ dc47764): 111/111, 0 Admitted.
 
+- Distribution adequacy (main's 4 files) ported to schedulers:
+  `lang/{,approx_}distribution_adequacy.v`, `typing/{,approx_}distribution_adequacy.v`.
+  `type_distribution_adequacy`: an `ept_typed` sampler returns a μ-distributed
+  value under EVERY scheduler that makes the main thread return a.s.
+  (`sch_lim_exec`); approx: tv ≤ εs + εt/2.  `ept_typed`'s side condition on
+  `tr` is now `∀ π, tr (λ _ _ _, True) -[(l,())] ⊤ π`.
+  Gotcha: in a theorem under `typePreG`, `invctx_interp` inside `∀ typeG`
+  resolves cnaInv via typePreG; `type_wp_pgl` pins it to the typeG's uniqG.
+- Clean build: 115/115, 0 Admitted.
+
 ## Deferred
 
 - `lang/races.v` (data-race freedom from safety) and its use in
